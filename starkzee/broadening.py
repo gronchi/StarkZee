@@ -239,10 +239,10 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
 
     Notes
     -----
-    A small floor of 1e-4 eV is added by the caller in
-    :func:`~starkzee.static_profile.calculate_static_profile` to
-    prevent numerical singularities at zero density; the raw value returned
-    here is the physical width without that floor.
+    A negligible floor of 1e-10 eV is added by the caller in
+    :func:`~starkzee.static_profile.calculate_static_profile` solely to
+    prevent 0/0 in the Lorentzian at exactly zero density; the raw value
+    returned here is the physical width without that floor.
     """
     prefactor = calculate_electron_impact_prefactor(Ne_m3, Te_ev)
 

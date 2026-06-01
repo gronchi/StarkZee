@@ -2,7 +2,7 @@
 import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+#sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.utils import wavelength_nm_to_energy_ev, energy_ev_to_wavelength_nm, RYDBERG_EV
 from starkzee.static_profile import calculate_static_profile

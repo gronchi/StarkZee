@@ -7,7 +7,7 @@ from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
 from scipy.constants import hbar as HBAR, m_e as M_E, e as E_CHARGE, fine_structure as FINE_STRUCTURE
-from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T
+from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, reduced_mass_rydberg_ev
 
 
 @dataclass(frozen=True)
@@ -259,7 +259,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
             
     return 0.0
 
-def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True):
+def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True, A=1):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
     Constructs the full magnetic Hamiltonian in the uncoupled |n, l, m_l, m_s⟩
@@ -333,8 +333,10 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
     dim = len(basis)
     H = np.zeros((dim, dim), dtype=complex)
 
-    # 1. Unperturbed energy (En = -Z^2 * Ry / n^2)
-    En = - (Z**2) * RYDBERG_EV / (n**2)
+    # 1. Unperturbed energy (En = -Z^2 * R_atom / n^2)
+    # Use the reduced-mass-corrected Rydberg so the absolute transition
+    # energies match the observed wavelengths (e.g. NIST vacuum values).
+    En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
     for i in range(dim):
         H[i, i] += En
 
@@ -424,7 +426,7 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
 
     return H
 
-def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True):
+def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True, A=1):
     """Diagonalise the field-free (F = 0) magnetic Hamiltonian for shell n.
 
     Builds the (2n²) × (2n²) Hamiltonian via :func:`build_hamiltonian`
@@ -454,7 +456,7 @@ def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_struct
         Columns are the corresponding orthonormal eigenstates expressed in the
         |n, l, m_l, m_s⟩ basis of :func:`build_basis`.
     """
-    H = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure)
+    H = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure, A)
     eigenvalues, eigenvectors = np.linalg.eigh(H)
     return eigenvalues, eigenvectors
 

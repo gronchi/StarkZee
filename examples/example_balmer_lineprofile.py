@@ -37,7 +37,7 @@ PROFILE_KWARGS = dict(
 # ── Compute ───────────────────────────────────────────────────────────────────
 profiles = {}
 for n_u, n_l, label, hw_nm in LINES:
-    lp = LineProfile(n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te)
+    lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne, Te_ev=Te, species='H')
 
     wl_grid = np.linspace(lp.E0_wavelength_nm - hw_nm, lp.E0_wavelength_nm + hw_nm, 1000)
     print(f"Computing {label} (n={n_u}→{n_l}), λ₀={lp.E0_wavelength_nm:.2f} nm …", flush=True)

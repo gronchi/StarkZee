@@ -6,7 +6,7 @@ Typical usage::
     import numpy as np
     from starkzee.line_profile import LineProfile
 
-    lp = LineProfile(n_u=3, n_l=2, Z=1, B=100.0, Ne_m3=1e23, Te_ev=5.0)
+    lp = LineProfile(n_u=3, n_l=2, B=100.0, Ne_m3=1e23, Te_ev=5.0, species='H')
 
     # Supply a grid in any of: energy [eV], wavelength [nm],
     # frequency [THz], or wavenumber [cm⁻¹].
@@ -45,7 +45,9 @@ import numpy as np
 
 from starkzee.utils import (
     RYDBERG_EV,
+    reduced_mass_rydberg_ev,
     energy_ev_to_wavelength_nm,
+    vacuum_to_air_wavelength_nm,
     wavelength_nm_to_energy_ev,
     energy_ev_to_frequency_thz,
     frequency_thz_to_energy_ev,
@@ -115,45 +117,60 @@ class LineProfile:
     ----------
     n_u, n_l : int
         Upper and lower principal quantum numbers.
-    Z : int
-        Nuclear charge (1 for hydrogen).
     B : float
         Magnetic field [T].
     Ne_m3 : float
         Electron density [m⁻³].
     Te_ev : float
         Electron temperature [eV].
+    species : str, optional
+        Emitting species: ``'H'`` / ``'hydrogen'``, ``'D'`` / ``'deuterium'``,
+        or ``'T'`` / ``'tritium'``.  Default is ``'H'``.
+    Ti_ev : float, optional
+        Ion temperature [eV].  When supplied, :meth:`compute_profile` applies
+        thermal Doppler broadening automatically after the static Stark-Zeeman
+        calculation.  Default is ``None`` (no Doppler broadening).
     """
 
     #: Accepted values for the ``grid_type`` parameter of :meth:`compute_profile`.
     GRID_TYPES = ('energy_ev', 'wavelength_nm', 'frequency_thz', 'wavenumber_cm')
 
-    def __init__(self, n_u, n_l, Z, B, Ne_m3, Te_ev):
-        self.n_u   = n_u
-        self.n_l   = n_l
-        self.Z     = Z
-        self.B     = B
-        self.Ne_m3 = Ne_m3
-        self.Te_ev = Te_ev
+    def __init__(self, n_u, n_l, B, Ne_m3, Te_ev, species='H', Ti_ev=None, view_angle_deg=None):
+        from starkzee.utils import species_to_ZA
+        Z, A = species_to_ZA(species)
+        self.n_u     = n_u
+        self.n_l     = n_l
+        self.species = species
+        self.Z       = Z
+        self.A       = A
+        self.B       = B
+        self.Ne_m3   = Ne_m3
+        self.Te_ev          = Te_ev
+        self.Ti_ev          = Ti_ev
+        self.view_angle_deg = view_angle_deg
 
-        # Field-free line centre in all unit systems
-        self.E0             = Z**2 * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
-        self.E0_wavelength_nm = energy_ev_to_wavelength_nm(self.E0)
-        self.E0_frequency_thz = energy_ev_to_frequency_thz(self.E0)
-        self.E0_wavenumber_cm = energy_ev_to_wavenumber_cm(self.E0)
+        # Field-free line centre — use reduced-mass-corrected Rydberg so that
+        # E0 matches the observed transition energy for each species.
+        self.E0                  = Z**2 * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
+        self.E0_wavelength_nm     = energy_ev_to_wavelength_nm(self.E0)
+        self.E0_wavelength_air_nm = vacuum_to_air_wavelength_nm(self.E0_wavelength_nm)
+        self.E0_frequency_thz     = energy_ev_to_frequency_thz(self.E0)
+        self.E0_wavenumber_cm     = energy_ev_to_wavenumber_cm(self.E0)
 
         # Profile results — set by compute_profile()
-        self.energies_ev      = None
-        self.detuning_ev      = None
-        self.wavelengths_nm   = None
-        self.detuning_nm      = None
-        self.frequencies_thz  = None
-        self.detuning_thz     = None
-        self.wavenumbers_cm   = None
-        self.detuning_cm      = None
-        self.profile_pi       = None
+        self.energies_ev       = None
+        self.detuning_ev       = None
+        self.wavelengths_nm    = None
+        self.wavelengths_air_nm = None
+        self.detuning_nm       = None
+        self.frequencies_thz   = None
+        self.detuning_thz      = None
+        self.wavenumbers_cm    = None
+        self.detuning_cm       = None
+        self.profile_pi        = None
         self.profile_sig_plus  = None
         self.profile_sig_minus = None
+        self.profile           = None  # set by compute_profile() when view_angle_deg is provided
 
         # Discrete transitions — set by compute_discrete()
         self.discrete = None
@@ -220,21 +237,33 @@ class LineProfile:
             n_u=self.n_u, n_l=self.n_l, Z=self.Z,
             B=self.B, Ne_m3=self.Ne_m3, Te_ev=self.Te_ev,
             energies_ev=energies_ev,
+            A=self.A,
             **kwargs,
         )
 
-        self.energies_ev     = energies_ev
-        self.detuning_ev     = energies_ev - self.E0
-        self.wavelengths_nm  = energy_ev_to_wavelength_nm(energies_ev)
-        self.detuning_nm     = self.wavelengths_nm - self.E0_wavelength_nm
+        self.energies_ev      = energies_ev
+        self.detuning_ev      = energies_ev - self.E0
+        self.wavelengths_nm   = energy_ev_to_wavelength_nm(energies_ev)
+        self.wavelengths_air_nm = vacuum_to_air_wavelength_nm(self.wavelengths_nm)
+        self.detuning_nm      = self.wavelengths_nm - self.E0_wavelength_nm
         self.frequencies_thz = energy_ev_to_frequency_thz(energies_ev)
         self.detuning_thz    = self.frequencies_thz - self.E0_frequency_thz
         self.wavenumbers_cm  = energy_ev_to_wavenumber_cm(energies_ev)
         self.detuning_cm     = self.wavenumbers_cm - self.E0_wavenumber_cm
 
+        if self.Ti_ev is not None:
+            from starkzee.convolutions import apply_doppler_broadening
+            pi = apply_doppler_broadening(self.wavelengths_nm, pi, self.Ti_ev, self.species)
+            sp = apply_doppler_broadening(self.wavelengths_nm, sp, self.Ti_ev, self.species)
+            sm = apply_doppler_broadening(self.wavelengths_nm, sm, self.Ti_ev, self.species)
+
         self.profile_pi        = pi
         self.profile_sig_plus  = sp
         self.profile_sig_minus = sm
+
+        if self.view_angle_deg is not None:
+            self.profile = self.profile_at_angle(self.view_angle_deg)
+
         return self
 
     # ── Discrete transitions ─────────────────────────────────────────────────

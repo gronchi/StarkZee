@@ -103,16 +103,15 @@ def convolve_fft(grid, profile, kernel):
     return convoluted_padded[pad_len:-pad_len]
 
 
-def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, A_emitter, E0_ev):
+def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H'):
     """Apply thermal Doppler broadening to a spectrum on a uniform wavelength grid.
 
     Constructs a Gaussian kernel with 1/e width
 
-        Δλ_D = λ₀ × ΔE_D / E₀
+        Δλ_D = λ₀ × v_th / c,   v_th = √(2 T_i / m c²)
 
-    (the wavelength-domain equivalent of the energy-domain Doppler width
-    :func:`calculate_doppler_width_ev`) and convolves it with ``profile``
-    via :func:`convolve_fft`.
+    centred at the grid midpoint λ₀ = mean(wavelengths_nm), and convolves it
+    with ``profile`` via :func:`convolve_fft`.
 
     Parameters
     ----------
@@ -122,11 +121,9 @@ def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, A_emitter, E0_ev):
         Input spectral profile (arbitrary units).
     Ti_ev : float
         Ion temperature [eV].
-    A_emitter : float
-        Atomic mass number of the emitting species.
-    E0_ev : float
-        Line-centre energy [eV], used to convert the Doppler width from energy
-        to wavelength units.
+    species : str, optional
+        Emitting species: ``'H'`` / ``'hydrogen'``, ``'D'`` / ``'deuterium'``,
+        or ``'T'`` / ``'tritium'``.  Default is ``'H'``.
 
     Returns
     -------
@@ -138,12 +135,15 @@ def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, A_emitter, E0_ev):
     The wavelength grid must be uniform (constant spacing).  If the grid is
     non-uniform, resample before calling this function.
     """
-    w_doppler = calculate_doppler_width_ev(E0_ev, Ti_ev, A_emitter)
+    from starkzee.utils import species_to_ZA
+    _, A = species_to_ZA(species)
+    mc2_ev = (A * _M_P) * (C_LIGHT ** 2) / E_CHARGE
+    v_th_over_c = np.sqrt(2.0 * Ti_ev / mc2_ev)
 
-    lambda0_nm = energy_ev_to_wavelength_nm(E0_ev)
-    w_doppler_nm = lambda0_nm * w_doppler / E0_ev
+    lambda0_nm = np.mean(wavelengths_nm)
+    w_doppler_nm = lambda0_nm * v_th_over_c
 
-    x = wavelengths_nm - np.mean(wavelengths_nm)
+    x = wavelengths_nm - lambda0_nm
     kernel = np.exp(-x**2 / (w_doppler_nm**2))
 
     return convolve_fft(wavelengths_nm, profile, kernel)
