@@ -22,7 +22,7 @@ from starkzee.atomic_hamiltonian import (
     line_strength, oscillator_strength, einstein_a
 )
 from scipy.constants import fine_structure as FINE_STRUCTURE, hbar as HBAR, e as E_CHARGE
-from starkzee.utils import RYDBERG_EV, energy_ev_to_wavelength_nm
+from starkzee.utils import RYDBERG_EV, energy_ev_to_wavelength_nm, reduced_mass_rydberg_ev
 
 
 def relerr(got, ref):
@@ -200,8 +200,8 @@ def test_einstein_a_consistent_with_gf(n_u, n_l, Z):
 def test_profile_integral_vs_line_strength(n_u, n_l, Z):
     """∫(π+σ+σ-)dE ≈ S_ul at B≈0 and very low Ne (within 5%)."""
     from starkzee.static_profile import calculate_static_profile
-    Ne, Te = 1e16, 1.0
-    E0 = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
+    Ne, Te = 1e20, 1.0
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
     energies = E0 + np.linspace(-0.005, 0.005, 3000)
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=1e-6, Ne_m3=Ne, Te_ev=Te,
