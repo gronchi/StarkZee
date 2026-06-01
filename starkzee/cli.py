@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from starkzee.utils import wavelength_nm_to_energy_ev, energy_ev_to_wavelength_nm, RYDBERG_EV
 from starkzee.static_profile import calculate_static_profile
 from starkzee.ffm import calculate_ffm_profile
-from starkzee.convolutions import apply_doppler_broadening, apply_instrument_broadening
+from starkzee.convolutions import apply_instrument_broadening, convolve_fft
 
 def run_cli(Z, B, Ne, Te, Ti, A_emitter, inst_fwhm, use_ffm, output_file, plot_file):
     # Setup unperturbed Lyman-alpha energy (n_u=2 to n_l=1)
@@ -35,10 +35,17 @@ def run_cli(Z, B, Ne, Te, Ti, A_emitter, inst_fwhm, use_ffm, output_file, plot_f
         
     # Apply post-processing convolutions if requested
     if Ti > 0:
+        from scipy.constants import m_p as _MP, c as _C, e as _E
         print(f"Applying thermal Doppler broadening for Ti={Ti} eV, emitter mass A={A_emitter}...")
-        pi = apply_doppler_broadening(wavelengths_nm, pi, Ti, A_emitter, E0)
-        sig_plus = apply_doppler_broadening(wavelengths_nm, sig_plus, Ti, A_emitter, E0)
-        sig_minus = apply_doppler_broadening(wavelengths_nm, sig_minus, Ti, A_emitter, E0)
+        mc2_ev = A_emitter * _MP * _C**2 / _E
+        v_th_over_c = np.sqrt(2.0 * Ti / mc2_ev)
+        lambda0_nm = np.mean(wavelengths_nm)
+        w_nm = lambda0_nm * v_th_over_c
+        x = wavelengths_nm - lambda0_nm
+        kernel = np.exp(-x**2 / w_nm**2)
+        pi        = convolve_fft(wavelengths_nm, pi,        kernel)
+        sig_plus  = convolve_fft(wavelengths_nm, sig_plus,  kernel)
+        sig_minus = convolve_fft(wavelengths_nm, sig_minus, kernel)
         
     if inst_fwhm > 0:
         print(f"Applying instrumental slit broadening (FWHM = {inst_fwhm} nm)...")

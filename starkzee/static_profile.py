@@ -82,7 +82,7 @@ def build_stark_matrix(n, Z, Fz, Fx):
     return V_E
 
 def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
-                               include_fine_structure=True):
+                               include_fine_structure=True, A=1):
     """Diagonalise the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
@@ -118,7 +118,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
     eigenvectors : ndarray, shape (2n², 2n²)
         Orthonormal eigenstates as columns, in the canonical |n, l, m_l, m_s⟩ basis.
     """
-    H_atom = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure)
+    H_atom = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure, A)
     V_E = build_stark_matrix(n, Z, Fz, Fx)
     H_total = H_atom + V_E
 
@@ -128,7 +128,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, use_screening=True,
                                      include_quadratic=True, include_fine_structure=True,
-                                     frequency_dependent_width=True):
+                                     frequency_dependent_width=True, A=1):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -203,14 +203,16 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     profile_sig_minus = np.zeros_like(energies_ev)
     
     # Pre-calculate electron impact width (once per line calculation to save massive compute)
+    # The 1e-10 eV floor prevents 0/0 in the Lorentzian at exactly zero density;
+    # it must be negligible compared to any physical width (W_e ∝ Ne).
     if frequency_dependent_width:
         # Cover a grid that is guaranteed to span the maximum possible detunings
         max_energy_span = np.max(energies_ev) - np.min(energies_ev)
         grid_limit = max(10.0 * max_energy_span, 10.0)
         w_grid_x = np.linspace(-grid_limit, grid_limit, 2000)
-        w_grid_y = electron_impact_width(w_grid_x, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-4
+        w_grid_y = electron_impact_width(w_grid_x, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-10
     else:
-        w_resonance = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-4
+        w_resonance = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-10
         
     # Main integration loop
     for fi, f_weight in zip(fields, f_weights):
@@ -226,8 +228,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             Fx = fi * np.sqrt(1.0 - mu**2)
             
             # Diagonalize upper and lower states under microfield and magnetic field
-            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
-            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
+            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, include_quadratic, include_fine_structure, A)
+            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, include_quadratic, include_fine_structure, A)
             
             # Vectorized mixed dipole matrix calculation
             V_l_adj = sz_vectors_l.conj().T
