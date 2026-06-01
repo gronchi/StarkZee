@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.atomic_hamiltonian import build_hamiltonian, diagonalize_hamiltonian, build_basis
 from scipy.constants import fine_structure as FINE_STRUCTURE
-from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, RYDBERG_EV
 
 
 def relerr(got, ref):
@@ -102,7 +102,7 @@ def test_zeeman_n2_l1_splits_into_multiple():
     g_s = 2.0023192
 
     evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=B, include_quadratic=False)
-    E_centroid = -(Z**2) * RYDBERG_EV / 4.0
+    E_centroid = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / 4.0
 
     # The extremal Zeeman state has ml=+1, ms=+1/2:
     # ΔE_max = μ_B × B × (1 + g_s × 0.5)

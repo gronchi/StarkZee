@@ -16,7 +16,7 @@ from starkzee.static_profile import solve_starkzee
 from starkzee.atomic_hamiltonian import (
     build_basis, angular_dipole_element, radial_dipole, dipole_matrix_elements
 )
-from starkzee.utils import RYDBERG_EV
+from starkzee.utils import reduced_mass_rydberg_ev
 
 
 def relerr(got, ref):
@@ -35,7 +35,7 @@ def test_transition_energy_zero_field(n_u, n_l, Z):
     """
     At B~0, F=0, mean transition energy must equal -Z²Ry(1/n_l²-1/n_u²).
     """
-    E0_expected = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
+    E0_expected = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
     # Fine structure disabled: comparing to the non-relativistic Bohr formula.
     # MV+Darwin correctly shifts each n-shell by a different amount, so the
     # mean transition energy deviates from the Bohr value when FS is enabled.
@@ -142,7 +142,7 @@ def test_profile_peak_near_E0():
     Ne = 1e18  # very low density → narrow profile
     Te = 1.0
 
-    E0 = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
 
     detuning = np.linspace(-0.01, 0.01, 200)
     energies = E0 + detuning

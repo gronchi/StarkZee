@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from starkzee.static_profile import build_stark_matrix, solve_starkzee
 from starkzee.atomic_hamiltonian import build_hamiltonian, build_basis
 from scipy.constants import e as E_CHARGE
-from starkzee.utils import RYDBERG_EV, A0
+from starkzee.utils import reduced_mass_rydberg_ev, A0
 
 
 def relerr(got, ref):
@@ -116,7 +116,7 @@ def test_linear_stark_energy_H_n2():
     Reference: Eq. from Bethe & Salpeter / textbook Stark effect.
     """
     Z, n = 1, 2
-    E0 = -(Z**2) * RYDBERG_EV / n**2
+    E0 = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
 
     # Use a small field where first-order perturbation theory is valid
     # F0 (normal field for Ne~1e18) ~ 1e8 V/m; use F = 1e7 V/m

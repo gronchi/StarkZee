@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.atomic_hamiltonian import build_hamiltonian, build_basis, diagonalize_hamiltonian
 from scipy.constants import fine_structure as FINE_STRUCTURE
-from starkzee.utils import RYDBERG_EV
+from starkzee.utils import reduced_mass_rydberg_ev, RYDBERG_EV
 
 
 def relerr(got, ref):
@@ -99,7 +99,7 @@ def test_hydrogen_n2_fine_structure():
     evals_full, evecs = np.linalg.eigh(H)
 
     # The spread among eigenvalues near E_n
-    En = -(Z**2) * RYDBERG_EV / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
     # The p-states should have energies near En ± some SOC
     soc_energies = evals_full.real - En
     soc_range = soc_energies.max() - soc_energies.min()
@@ -124,7 +124,7 @@ def test_cvi_n2_fine_structure_larger():
     dE_expected = 1.5 * xi
 
     evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False)
-    En = -(Z**2) * RYDBERG_EV / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
     soc_range = evals.real.max() - evals.real.min()
 
     print(f"C VI n=2: ξ = {xi:.4f} eV, expected ΔE = {dE_expected:.4f} eV")
@@ -148,7 +148,7 @@ def test_soc_zero_for_l0():
         H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
                                       include_fine_structure=False)
         basis = build_basis(n)
-        En_exact = -(Z**2) * RYDBERG_EV / n**2
+        En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
         for i, s in enumerate(basis):
             if s.l == 0:
                 E_diag = H[i, i].real

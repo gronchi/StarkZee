@@ -24,7 +24,7 @@ from starkzee.atomic_hamiltonian import (
     build_hamiltonian, diagonalize_hamiltonian, build_basis
 )
 from scipy.constants import fine_structure as FINE_STRUCTURE
-from starkzee.utils import RYDBERG_EV
+from starkzee.utils import reduced_mass_rydberg_ev, RYDBERG_EV
 
 
 def relerr(got, ref):
@@ -196,7 +196,7 @@ def test_dirac_eigenvalue_formula(n, Z):
 
     For n=2: two groups j=1/2 and j=3/2.
     """
-    En = -(Z**2) * RYDBERG_EV / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
 
     # Dirac corrections
     dE_j12 = -A(n, Z) * (n / (0.5 + 0.5) - 0.75)   # j = 1/2: n/(j+1/2)=n/1

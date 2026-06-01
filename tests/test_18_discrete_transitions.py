@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.static_profile import discrete_transitions
 from starkzee.atomic_hamiltonian import line_strength
-from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T
 
 
 def relerr(got, ref):
@@ -67,7 +67,7 @@ def test_centroid_at_zero_field(n_u, n_l, Z):
     """Intensity-weighted centroid must equal the Bohr energy at B=0, F=0."""
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=0.0, Fz=0.0, Fx=0.0,
                                include_fine_structure=False)
-    E0 = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
     centroid = np.sum(tr['energy_ev'] * tr['strength']) / np.sum(tr['strength'])
     assert relerr(centroid, E0) < 1e-8, (
         f"n={n_u}→{n_l},Z={Z}: centroid={centroid:.8f} eV, E0={E0:.8f} eV"
