@@ -38,7 +38,7 @@ Typical usage::
     lp.discrete.frequency_thz
     lp.discrete.wavenumber_cm
     lp.discrete.q            # polarization (0, +1, -1)
-    lp.discrete.strength     # |d_q|²  [a₀²]
+    lp.discrete.strength     # \|d_q\|²  [a₀²]
 """
 
 import numpy as np
@@ -78,7 +78,7 @@ class DiscreteTransitions:
     q : ndarray of int
         Polarization index: 0 = π, +1 = σ+, −1 = σ−.
     strength : ndarray
-        Dipole matrix element squared |d_q(i→j)|² [a₀²].
+        Dipole matrix element squared \|d_q(i→j)\|² [a₀²].
     upper_idx : ndarray of int
         Upper eigenstate index (0 … 2n_u²−1).
     lower_idx : ndarray of int

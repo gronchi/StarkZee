@@ -21,8 +21,8 @@ def wigner_3j(j1, j2, j3, m1, m2, m3):
 
     Selection rules enforced before the Racah sum:
     - m₁ + m₂ + m₃ = 0
-    - Triangle condition: |j₁ − j₂| ≤ j₃ ≤ j₁ + j₂
-    - |mᵢ| ≤ jᵢ for each i
+    - Triangle condition: abs(j₁ − j₂) ≤ j₃ ≤ j₁ + j₂
+    - abs(mᵢ) ≤ jᵢ for each i
 
     Parameters
     ----------
