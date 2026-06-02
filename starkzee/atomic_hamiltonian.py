@@ -12,7 +12,7 @@ from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, reduced_mass_rydb
 
 @dataclass(frozen=True)
 class AtomicState:
-    """Hydrogenic basis state |n, l, m_l, s=½, m_s⟩."""
+    """Hydrogenic basis state ``|n, l, m_l, s=½, m_s⟩``."""
     index: int
     n:     int
     l:     int
@@ -262,7 +262,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
 def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
-    Constructs the full magnetic Hamiltonian in the uncoupled |n, l, m_l, m_s⟩
+    Constructs the full magnetic Hamiltonian in the uncoupled ``|n, l, m_l, m_s⟩``
     basis returned by :func:`build_basis`.  Four physical contributions are
     included:
 
@@ -454,7 +454,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
         Energy eigenvalues in ascending order [eV].
     eigenvectors : ndarray, shape (2n², 2n²)
         Columns are the corresponding orthonormal eigenstates expressed in the
-        |n, l, m_l, m_s⟩ basis of :func:`build_basis`.
+        ``|n, l, m_l, m_s⟩`` basis of :func:`build_basis`.
     """
     H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
     eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -587,12 +587,12 @@ def _uncoupled_dipole_matrices(n_u, n_l, Z):
 
 
 def line_strength(n_u, n_l, Z):
-    """Compute the line strength S_ul = Σ_{q,i,j} \|<l_j|r_q|u_i>\|² in a₀².
+    """Compute the line strength S_ul = Σ_{q,i,j} ``|⟨l_j|r_q|u_i⟩|²`` in a₀².
 
     Sums over all polarizations q ∈ {0,±1}, all uncoupled upper states i, and
     all lower states j, restricted to Δl = ±1 and Δms = 0 (dipole selection
     rules).  Fine structure mixing is neglected (field-free, B = 0 limit with
-    the states labeled by |n, l, ml, ms>).
+    the states labeled by ``|n, l, ml, ms⟩``).
 
     The profile returned by calculate_static_profile integrates to
     approximately S_ul at B = 0 and Ne → 0.  The Gauss-Legendre weights over
