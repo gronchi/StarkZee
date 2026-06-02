@@ -24,7 +24,7 @@ def build_stark_matrix(n, Z, Fz, Fx):
         ⟨n, l | r | n, l−1⟩ = (3n/2Z) √(n² − l²)   [a₀]
 
     The angular elements ⟨l, m_l | cos θ | l±1, m_l⟩ (for Fz) and the
-    combinations for Fx are provided by :func:`angular_dipole_element`.
+    combinations for Fx are provided by :func:`~starkzee.atomic_hamiltonian.angular_dipole_element`.
 
     The x-component is constructed as:
 
@@ -86,7 +86,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     """Diagonalize the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
-    atomic/magnetic Hamiltonian :func:`build_hamiltonian` and
+    atomic/magnetic Hamiltonian :func:`~starkzee.atomic_hamiltonian.build_hamiltonian` and
     diagonalizes the sum with ``numpy.linalg.eigh``:
 
         H = H_atom(B) + V_E(Fz, Fx)
@@ -116,7 +116,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     eigenvalues : ndarray, shape (2n²,)
         Energy eigenvalues in ascending order [eV].
     eigenvectors : ndarray, shape (2n², 2n²)
-        Orthonormal eigenstates as columns, in the canonical |n, l, m_l, m_s⟩ basis.
+        Orthonormal eigenstates as columns, in the canonical ``|n, l, m_l, m_s⟩`` basis.
     """
     H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
     V_E = build_stark_matrix(n, Z, Fz, Fx)

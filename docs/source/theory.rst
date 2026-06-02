@@ -135,7 +135,7 @@ Plasma microfield distributions
 
 The ion microfield is averaged over a probability distribution :math:`W(F)`.
 
-**Holtsmark** (unscreened):
+**Holtsmark** (unscreened) [Holtsmark1919]_:
 
 .. math::
 
@@ -146,7 +146,7 @@ The ion microfield is averaged over a probability distribution :math:`W(F)`.
 where :math:`F_0 = e/(4\pi\varepsilon_0 r_e^2)` is the Holtsmark normal field
 and :math:`r_e = (3/4\pi N_e)^{1/3}` is the mean inter-particle distance.
 
-**Hooper** (Debye-screened, default):
+**Hooper** (Debye-screened, default) [Hooper1968]_:
 
 .. math::
 
@@ -171,7 +171,8 @@ The profile integrator uses a uniform grid of ``num_f`` points in
 Electron impact broadening (GBK)
 ----------------------------------
 
-Fast electrons are treated in the impact (completed-collision) approximation.
+Fast electrons are treated in the impact (completed-collision) approximation
+[Griem1997]_.
 Their contribution is a homogeneous Lorentzian broadening of half-width
 (HWHM):
 
@@ -273,7 +274,7 @@ convert energy grids to wavelength before calling.
 Frequency Fluctuation Model
 ---------------------------
 
-When ion dynamics are important (high :math:`N_e`, low :math:`B`, or
+When ion dynamics are important [Talin1995]_ (high :math:`N_e`, low :math:`B`, or
 high-:math:`n` lines) the static-ion approximation overestimates the central
 peak height.  The FFM treats the microfield as a Markov jump process switching
 between field configurations at rate :math:`\nu_i`.

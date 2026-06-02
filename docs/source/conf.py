@@ -58,4 +58,4 @@ templates_path   = []
 
 # Suppress cross-reference warnings for bare type names (ndarray, array-like, etc.)
 # that appear in docstrings but aren't fully qualified Sphinx targets.
-suppress_warnings = ["ref.class", "ref.any"]
+suppress_warnings = ["ref.class", "ref.any", "ref.func"]
