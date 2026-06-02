@@ -371,13 +371,13 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
     # For l>0: ΔE = -A*(n/(l+1/2) - 3/4) [MV only; Darwin vanishes for l>0]
     # where A = Z^4 * alpha^2 * Ry / n^4.
     if fine_structure:
-        A = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**4)
+        A_fs = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**4)
         for i, state in enumerate(basis):
             l = state.l
             if l == 0:
-                H[i, i] += -A * (n - 0.75)
+                H[i, i] += -A_fs * (n - 0.75)
             else:
-                H[i, i] += -A * (n / (l + 0.5) - 0.75)
+                H[i, i] += -A_fs * (n / (l + 0.5) - 0.75)
 
     # 3. Linear Zeeman Effect: mu_B * B * (L_z + g_s * S_z)
     g_s = 2.0023192
