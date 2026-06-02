@@ -286,7 +286,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
     fine_structure : bool, optional
         Include mass-velocity + Darwin corrections (default True).
     min_strength : float, optional
-        Discard transitions with |d_q|² < min_strength [a₀²] (default 0).
+        Discard transitions with \|d_q\|² < min_strength [a₀²] (default 0).
 
     Returns
     -------
@@ -297,7 +297,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
     ``q``
         Polarization integer: 0 = π, −1 = σ−, +1 = σ+.
     ``strength``
-        |d_q(i→j)|² [a₀²].  Summed over all transitions equals
+        \|d_q(i→j)\|² [a₀²].  Summed over all transitions equals
         :func:`~starkzee.atomic_hamiltonian.line_strength` (unitary invariance).
     ``upper_idx``
         Upper eigenstate index (0 … 2n_u²−1).

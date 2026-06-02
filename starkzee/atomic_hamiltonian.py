@@ -59,7 +59,7 @@ def radial_wavefunction(r, n, l, Z):
         R_{nl}(r) = N_{nl} × exp(−Z r / n) × (2Z r/n)^l × L_{n-l-1}^{2l+1}(2Z r/n)
 
     where r is in units of a₀ and N_{nl} is chosen so that
-    ∫₀^∞ |R_{nl}|² r² dr = 1.
+    ∫₀^∞ \|R_{nl}\|² r² dr = 1.
 
     Parameters
     ----------
@@ -96,7 +96,7 @@ def radial_wavefunction(r, n, l, Z):
 def radial_r2_element(n, l1, l2, Z):
     """Return the radial matrix element ⟨n, l₁ | r² | n, l₂⟩ [a₀²].
 
-    Used for off-diagonal elements (|l₁ − l₂| = 2) arising from the angular
+    Used for off-diagonal elements (abs(l₁ − l₂) = 2) arising from the angular
     decomposition of r² sin²θ in the quadratic Zeeman term.  The diagonal
     (l₁ = l₂) elements are computed analytically inside
     :func:`build_hamiltonian` using the closed-form formula:
@@ -115,7 +115,7 @@ def radial_r2_element(n, l1, l2, Z):
     n : int
         Principal quantum number (same for both bra and ket).
     l1, l2 : int
-        Orbital quantum numbers; the selection rule |l₁ − l₂| = 2 must hold.
+        Orbital quantum numbers; the selection rule abs(l₁ − l₂) = 2 must hold.
     Z : int
         Nuclear charge.
 
@@ -139,7 +139,7 @@ def radial_dipole(n1, l1, n2, l2, Z):
 
         ⟨n₁, l₁ | r | n₂, l₂⟩ = ∫₀^∞ R_{n₁l₁}(r) r R_{n₂l₂}(r) r² dr
 
-    The selection rule |l₁ − l₂| = 1 is enforced; 0 is returned immediately
+    The selection rule abs(l₁ − l₂) = 1 is enforced; 0 is returned immediately
     for forbidden pairs.  Results are cached with :func:`functools.lru_cache`.
 
     Parameters
@@ -181,7 +181,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
     - q = −1 (σ−): T₋₁ = sin θ e^{−iφ} / √2
 
     The matrix elements are expressed via Clebsch-Gordan coefficients and are
-    non-zero only when |l₁ − l₂| = 1 and m₁ − m₂ = q.  Explicit formulas:
+    non-zero only when abs(l₁ − l₂) = 1 and m₁ − m₂ = q.  Explicit formulas:
 
     **q = 0** (Δm = 0, both states share the same m):
 
@@ -211,7 +211,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
     Returns
     -------
     float
-        Angular matrix element (real).  Returns 0 if |l₁ − l₂| ≠ 1 or
+        Angular matrix element (real).  Returns 0 if abs(l₁ − l₂) ≠ 1 or
         m₁ − m₂ ≠ q.
 
     Notes
@@ -294,8 +294,8 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
 
         H_QZ = (e²B²/8m_e) r² sin²θ
 
-    Matrix elements in the |n, l, m_l⟩ basis involve ⟨l, m_l | sin²θ | l', m_l⟩
-    for |l − l'| ∈ {0, 2} and the radial elements ⟨n, l | r² | n, l'⟩.
+    Matrix elements in the ``|n, l, m_l⟩`` basis involve ``⟨l, m_l | sin²θ | l', m_l⟩``
+    for abs(l − l') ∈ {0, 2} and the radial elements ``⟨n, l | r² | n, l'⟩``.
 
     Parameters
     ----------
@@ -587,7 +587,7 @@ def _uncoupled_dipole_matrices(n_u, n_l, Z):
 
 
 def line_strength(n_u, n_l, Z):
-    """Compute the line strength S_ul = Σ_{q,i,j} |<l_j|r_q|u_i>|² in a₀².
+    """Compute the line strength S_ul = Σ_{q,i,j} \|<l_j|r_q|u_i>\|² in a₀².
 
     Sums over all polarizations q ∈ {0,±1}, all uncoupled upper states i, and
     all lower states j, restricted to Δl = ±1 and Δms = 0 (dipole selection
