@@ -55,10 +55,10 @@ def sigma_plus_profiles(B, det_rel, num_f=20, num_mu=6):
     en     = center + det_rel
     _, sp_nq, _ = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, en, num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False, frequency_dependent_width=False)
+        use_screening=True, quadratic_zeeman=False, frequency_dependent_width=False)
     _, sp_yq, _ = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, en, num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=True, frequency_dependent_width=False)
+        use_screening=True, quadratic_zeeman=True, frequency_dependent_width=False)
     return sp_nq, sp_yq
 
 
@@ -160,10 +160,10 @@ def test_pi_profile_blueshifts_with_qz():
 
     pi_nq, _, _ = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, en, num_f=20, num_mu=6,
-        use_screening=True, include_quadratic=False, frequency_dependent_width=False)
+        use_screening=True, quadratic_zeeman=False, frequency_dependent_width=False)
     pi_yq, _, _ = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, en, num_f=20, num_mu=6,
-        use_screening=True, include_quadratic=True, frequency_dependent_width=False)
+        use_screening=True, quadratic_zeeman=True, frequency_dependent_width=False)
 
     centroid_nq = np.sum(det * pi_nq) / (np.sum(pi_nq) + 1e-30)
     centroid_yq = np.sum(det * pi_yq) / (np.sum(pi_yq) + 1e-30)

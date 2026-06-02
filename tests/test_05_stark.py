@@ -123,7 +123,7 @@ def test_linear_stark_energy_H_n2():
     F = 1e7   # V/m
 
     evals, _ = solve_starkzee(n, Z, B=0.0, Fz=F, Fx=0.0,
-                                           include_quadratic=False)
+                                           quadratic_zeeman=False)
     deviations = np.sort((evals.real - E0))
 
     # First-order prediction: ΔE = ±3 × e × a0 × F
@@ -152,7 +152,7 @@ def test_combined_hamiltonian_hermitian(n, Z, B, Fz, Fx):
     """Total Hamiltonian H_atom + V_Stark must be Hermitian."""
     from starkzee.static_profile import build_stark_matrix
     from starkzee.atomic_hamiltonian import build_hamiltonian
-    H_atom = build_hamiltonian(n, Z, B, include_quadratic=True)
+    H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman=True)
     V_E    = build_stark_matrix(n, Z, Fz, Fx)
     H_tot  = H_atom + V_E
     diff   = np.max(np.abs(H_tot - H_tot.conj().T))

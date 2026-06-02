@@ -2,9 +2,9 @@
 
 **Coupled Stark-Zeeman plasma line-shape model for hydrogen-like radiators.**
 
-Computes emission line profiles of H-like ions in a magnetised plasma, coupling quasi-static ion microfield broadening (Holtsmark / Hooper distributions), electron impact broadening (GBK model), and optionally ion dynamics via the Frequency Fluctuation Model (FFM).
+Computes emission line profiles of H-like ions in a magnetized plasma, coupling quasi-static ion microfield broadening (Holtsmark / Hooper distributions), electron impact broadening (GBK model), and optionally ion dynamics via the Frequency Fluctuation Model (FFM).
 
-Implements the model of [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **7**, 015901 (2022)](https://doi.org/10.1063/5.0073040).
+Implements the model of [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **7**, 015901 (2022)](https://doi.org/10.1063/5.0058552).
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-≥3.9-blue)
@@ -13,7 +13,7 @@ Implements the model of [Ferri, Peyrusse & Calisti, *Matter and Radiation at Ext
 
 ## Features
 
-- Full Stark-Zeeman Hamiltonian diagonalisation at each microfield quadrature point — spin-orbit, linear Zeeman, quadratic (diamagnetic) Zeeman, and Stark perturbation
+- Full Stark-Zeeman Hamiltonian diagonalization at each microfield quadrature point — spin-orbit, linear Zeeman, quadratic (diamagnetic) Zeeman, and Stark perturbation
 - Hooper screened and Holtsmark unscreened microfield distributions
 - GBK electron impact broadening with frequency-dependent width and Larmor-frequency cutoff
 - Frequency Fluctuation Model (FFM) for dynamic ion broadening
@@ -136,7 +136,7 @@ $$H_A = H_0 + V_\text{SO} + H_Z^{(1)} + H_Z^{(2)}$$
 | Linear Zeeman | $H_Z^{(1)} = \mu_B B\,(m_l + g_s m_s)$ |
 | Quadratic Zeeman | $H_Z^{(2)} = \dfrac{e^2B^2}{8m_e}r^2\sin^2\theta$ |
 
-The Stark perturbation $V_E = -e(zF_z + xF_x)$ is added and the combined Hamiltonian diagonalised at each microfield quadrature point.  The static profile is the microfield-weighted sum of Lorentzian-broadened transition intensities.
+The Stark perturbation $V_E = -e(zF_z + xF_x)$ is added and the combined Hamiltonian diagonalized at each microfield quadrature point.  The static profile is the microfield-weighted sum of Lorentzian-broadened transition intensities.
 
 The FFM treats the ion microfield as a Markovian jump process:
 

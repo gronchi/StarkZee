@@ -68,7 +68,7 @@ class DiscreteTransitions:
     energy_ev : ndarray
         Transition energies E_upper − E_lower [eV], sorted ascending.
     detuning_ev : ndarray
-        Detuning from the field-free line centre [eV].
+        Detuning from the field-free line center [eV].
     wavelength_nm : ndarray
         Photon wavelength for each transition [nm].
     frequency_thz : ndarray
@@ -149,7 +149,7 @@ class LineProfile:
         self.Ti_ev          = Ti_ev
         self.view_angle_deg = view_angle_deg
 
-        # Field-free line centre — use reduced-mass-corrected Rydberg so that
+        # Field-free line center — use reduced-mass-corrected Rydberg so that
         # E0 matches the observed transition energy for each species.
         self.E0                  = Z**2 * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
         self.E0_wavelength_nm     = energy_ev_to_wavelength_nm(self.E0)
@@ -216,8 +216,8 @@ class LineProfile:
         **kwargs
             Forwarded to
             :func:`~starkzee.static_profile.calculate_static_profile`
-            (``num_f``, ``num_mu``, ``use_screening``, ``include_quadratic``,
-            ``include_fine_structure``, ``frequency_dependent_width``).
+            (``num_f``, ``num_mu``, ``use_screening``, ``quadratic_zeeman``,
+            ``fine_structure``, ``frequency_dependent_width``).
 
         Returns
         -------
@@ -273,7 +273,7 @@ class LineProfile:
 
         All keyword arguments are forwarded to
         :func:`~starkzee.static_profile.discrete_transitions`
-        (``include_quadratic``, ``include_fine_structure``, ``min_strength``).
+        (``quadratic_zeeman``, ``fine_structure``, ``min_strength``).
 
         Returns *self* to allow method chaining.
         """

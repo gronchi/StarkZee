@@ -49,7 +49,7 @@ def balmer_spectrum(B, Ne, Te, wavelengths_nm):
             energies_ev=energies,
             num_f=20, num_mu=6,
             use_screening=True,
-            include_quadratic=True,
+            quadratic_zeeman=True,
             frequency_dependent_width=False,
         )
         total += weight * (pi + 0.5 * (sp + sm))
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         print(f"\nB = {int(B)} T:")
         spectra[B] = balmer_spectrum(B, Ne, Te, wavelengths_nm)
 
-    # Normalise each spectrum to its own peak so relative shapes are visible
+    # Normalize each spectrum to its own peak so relative shapes are visible
     normed = {B: s / s.max() for B, s in spectra.items()}
 
     # Approximate Balmer line centers (vacuum, Å)

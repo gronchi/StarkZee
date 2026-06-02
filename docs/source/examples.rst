@@ -20,7 +20,7 @@ Computes Hα through Hε at DIII-D edge conditions (B = 12 T,
 - Transverse (90°) and parallel (0°) broadened profiles
 - Discrete stick spectrum at zero microfield (:math:`F = 0`)
 
-The wavelength window is set by converting ±1 nm around each line centre
+The wavelength window is set by converting ±1 nm around each line center
 to an energy grid.
 
 Hα stick spectrum and broadened profile
@@ -79,7 +79,7 @@ Quadratic Zeeman polarization wings
 Demonstrates the polarization-wing effect at B = 500 T and B = 1000 T:
 at high field the quadratic Zeeman term shifts the 3p(:math:`m_l = \pm 1`)
 → 2s transitions away from the main Hα cluster, creating distinct "wings"
-that only appear in ``include_quadratic=True`` profiles.
+that only appear in ``quadratic_zeeman=True`` profiles.
 
 Lyman-α at high B
 ------------------

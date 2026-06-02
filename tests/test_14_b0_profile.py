@@ -36,7 +36,7 @@ def static_profile_b0(n_u, n_l, Z, Ne, Te, detuning_range=0.05, npts=200,
     return energies, calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False, include_fine_structure=True,
+        use_screening=True, quadratic_zeeman=False, fine_structure=True,
         frequency_dependent_width=False
     )
 
@@ -107,7 +107,7 @@ def test_b0_ffm_profile_runs():
     pi, sp, sm = calculate_ffm_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=0.0, Ne_m3=Ne, Te_ev=Te, Ti_ev=Ti,
         A_ion=1, energies_ev=energies, num_f=15, num_mu=6,
-        include_fine_structure=True
+        fine_structure=True
     )
     total = pi + sp + sm
     assert np.all(pi >= -1e-15), f"FFM pi has negatives: min={pi.min():.4e}"

@@ -42,7 +42,7 @@ sticks = {}
 for B in B_VALS:
     sticks[B] = discrete_transitions(
         n_u=n_u, n_l=n_l, Z=Z, B=B,
-        include_fine_structure=True, min_strength=1e-5
+        fine_structure=True, min_strength=1e-5
     )
 
 # ── Figure ────────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ for row, (Ne, det_range) in enumerate(NE_ROWS):
             Ne_m3=Ne, Te_ev=Te_ev,
             energies_ev=energies,
             num_f=25, num_mu=8,
-            include_fine_structure=True,
+            fine_structure=True,
             frequency_dependent_width=False,
         )
         total = pi + sp + sm

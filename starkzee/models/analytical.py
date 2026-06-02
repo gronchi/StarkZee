@@ -8,19 +8,69 @@ All functions share the same signature::
     profile = <model>(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                       view_angle_deg=90.0, species='H')
 
-and return an area-normalised lineshape (1/m) on *wavelengths_nm*.
+and return an area-normalized lineshape (1/m) on *wavelengths_nm*.
 
 Based on pystark package (https://github.com/jsallcock/pystark).
 """
 
 import numpy as np
-from scipy.constants import c as C, e as E, m_e as M_E, m_p as M_P
+from scipy.constants import c as C, e as E, m_e as M_E, atomic_mass as _U
 from scipy.special import wofz
 
+from scipy.signal import fftconvolve
+
 from starkzee.utils import species_to_ZA
-from starkzee.convolutions import convolve_fft
 
 _SIGMA2FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
+
+# NIST air wavelengths [nm] — intensity-weighted mean of fine-structure components.
+# Source: NIST Atomic Spectra Database (ASD), same values used by pystark.
+# Key: (species_initial, n_u, n_l)
+_NIST_CENTER_AIR_NM = {
+    # H Balmer
+    ('H', 3, 2): 656.279,
+    ('H', 4, 2): 486.135,
+    ('H', 5, 2): 434.047,
+    ('H', 6, 2): 410.173,
+    ('H', 7, 2): 397.007,
+    ('H', 8, 2): 388.905,
+    ('H', 9, 2): 383.539,
+    # H Paschen
+    ('H', 4, 3): 1875.10,
+    ('H', 5, 3): 1281.81,
+    ('H', 6, 3): 1093.80,
+    ('H', 7, 3): 1004.94,
+    ('H', 8, 3):  954.62,
+    ('H', 9, 3):  922.90,
+    # D Balmer
+    ('D', 3, 2): 656.107,
+    ('D', 4, 2): 486.000,
+    ('D', 5, 2): 433.928,
+    ('D', 6, 2): 410.062,
+    ('D', 7, 2): 396.899,
+    # T Balmer
+    ('T', 3, 2): 656.042,
+    ('T', 4, 2): 485.970,
+}
+
+
+def _nist_center_air_nm(n_u, n_l, species, wavelengths_nm):
+    """Return the NIST air line center [nm], falling back to the grid midpoint."""
+    key = (species.strip().upper()[0], n_u, n_l)
+    if key in _NIST_CENTER_AIR_NM:
+        return _NIST_CENTER_AIR_NM[key]
+    return float(np.mean(wavelengths_nm))
+
+
+# Emitter masses for Doppler broadening, keyed by mass number A.
+# These are the standard atomic weights used by pystark's get_species_mass
+# (atom mass, i.e. nucleus + electrons), NOT bare nuclear masses — keeping
+# them identical guarantees the Doppler width matches the reference exactly.
+_DOPPLER_MASS_KG = {
+    1: 1.00794        * _U,   # H
+    2: 2.01410178     * _U,   # D
+    3: 3.01604928199  * _U,   # T
+}
 
 # Lomanowski (2015) fitting coefficients [a_ij, b_ij, c_ij]
 # delta_lambda_12 = c * ne^a / Te^b  [nm]
@@ -68,38 +118,52 @@ def _fwhm_stark_griem_nm(n_u, Ne_m3):
 
 
 def _fwhm_doppler_nm(lambda0_nm, Ti_ev, A):
-    sigma_nm = lambda0_nm * np.sqrt(E * Ti_ev / (A * M_P * C**2))
+    mass_kg = _DOPPLER_MASS_KG.get(A, A * _U)
+    sigma_nm = lambda0_nm * np.sqrt(E * Ti_ev / (mass_kg * C**2))
     return _SIGMA2FWHM * sigma_nm
 
 
-def _zeeman_split(wavelengths_nm, lambda0_nm, profile, B, view_angle_deg):
-    """First-order Zeeman splitting in wavelength space."""
+def _build_freq_axis(wavelengths_nm, freq_center, npts=2001, margin=1.05):
+    """Uniform internal frequency axis covering the output grid (+`margin`).
+
+    Mirrors pystark's freq_axis: half-width = (max detuning across the grid) × 1.05,
+    with pystark's default of 2001 points.
+    """
+    max_df = max(abs(C / (wavelengths_nm.min() * 1e-9) - freq_center),
+                 abs(C / (wavelengths_nm.max() * 1e-9) - freq_center))
+    half = max_df * margin
+    return np.linspace(freq_center - half, freq_center + half, npts)
+
+
+def _zeeman_split_freq(freq_axis, profile, B, view_angle_deg):
+    """First-order Zeeman splitting in frequency space (mirrors pystark.zeeman_split)."""
     if B == 0.0:
         return profile
     theta = np.deg2rad(view_angle_deg)
     rel_pi    = np.sin(theta)**2 / 2.0
     rel_sigma = (1.0 + np.cos(theta)**2) / 4.0
-    # σ shift in nm: Δλ = λ₀² eB / (4π m_e c)
-    dlambda_nm = (lambda0_nm * 1e-9)**2 * E * B / (4.0 * np.pi * M_E * C) * 1e9
-    # σ- (red) and σ+ (blue) components
-    sigma_minus = rel_sigma * np.interp(
-        wavelengths_nm - dlambda_nm, wavelengths_nm, profile, left=0.0, right=0.0)
-    sigma_plus  = rel_sigma * np.interp(
-        wavelengths_nm + dlambda_nm, wavelengths_nm, profile, left=0.0, right=0.0)
+    shift = E / (4.0 * np.pi * M_E) * B
+    sigma_minus = rel_sigma * np.interp(freq_axis + shift, freq_axis, profile, left=0., right=0.)
+    sigma_plus  = rel_sigma * np.interp(freq_axis - shift, freq_axis, profile, left=0., right=0.)
     return rel_pi * profile + sigma_minus + sigma_plus
 
 
-def _area_norm_m(profile, wavelengths_nm):
-    """Area-normalise to 1/m (∫ profile dλ_m = 1)."""
-    area = np.trapz(profile, wavelengths_nm * 1e-9)
-    return profile / area if area > 0 else profile
+def _freq_to_wl_norm(freq_axis, profile_freq, wavelengths_nm):
+    """Convert a frequency-space profile to wavelength, interpolate onto the output
+    grid and area-normalize to 1/m.  I(λ) = I(ν) · c/λ²."""
+    wlf_nm = C / freq_axis * 1e9
+    ls_wl  = profile_freq * C / (C / freq_axis)**2
+    order  = np.argsort(wlf_nm)
+    out    = np.interp(wavelengths_nm, wlf_nm[order], ls_wl[order], left=0., right=0.)
+    area   = np.trapz(out, wavelengths_nm * 1e-9)
+    return out / area if area > 0 else out
 
 
 def lomanowski(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                view_angle_deg=90.0, species='H'):
     """Lomanowski pseudo-Voigt Stark-Zeeman-Doppler profile."""
     _, A = species_to_ZA(species)
-    lambda0_nm = np.mean(wavelengths_nm)
+    lambda0_nm = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
 
     fwhm_l = _fwhm_stark_loman_nm(n_u, n_l, Ne_m3, Te_ev)
     fwhm_g = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A)
@@ -126,54 +190,90 @@ def lomanowski(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
         eta_l = np.exp(sum(lci * np.log(rl)**i for i, lci in enumerate(lc)))
         eta_g = 1.0 - eta_l
 
-    d = wavelengths_nm - lambda0_nm
-    hwhm = fwhm / 2.0
+    # Build the pseudo-Voigt in frequency space (pystark.make_lomanowski): the FWHM
+    # combination and Lorentzian weight above are unitless/in nm, but the profile itself
+    # must be evaluated on the frequency grid to match the reference.
+    freq_center = C / (lambda0_nm * 1e-9)
+    fwhm_hz = fwhm * 1e-9 * C / (lambda0_nm * 1e-9)**2
+    freq_axis = _build_freq_axis(wavelengths_nm, freq_center)
+    df = freq_axis - freq_center
 
     _stark_norm = 2.641279471021934
-    ls_l = (hwhm**1.5 / _stark_norm) / (np.abs(d)**2.5 + hwhm**2.5)
+    hwhm = fwhm_hz / 2.0
+    ls_l = (hwhm**1.5 / _stark_norm) / (np.abs(df)**2.5 + hwhm**2.5)
 
-    sigma = fwhm / _SIGMA2FWHM
-    ls_g = (np.exp(-0.5 * (d / sigma)**2) / (sigma * np.sqrt(2.0 * np.pi))
-            if sigma > 0 else np.zeros_like(d))
+    sigma = fwhm_hz / _SIGMA2FWHM
+    ls_g = (np.exp(-0.5 * (df / sigma)**2) / (sigma * np.sqrt(2.0 * np.pi))
+            if sigma > 0 else np.zeros_like(df))
 
     profile = eta_l * ls_l + eta_g * ls_g
-    profile = _zeeman_split(wavelengths_nm, lambda0_nm, profile, B, view_angle_deg)
-    return _area_norm_m(profile, wavelengths_nm)
+    profile = _zeeman_split_freq(freq_axis, profile, B, view_angle_deg)
+    return _freq_to_wl_norm(freq_axis, profile, wavelengths_nm)
 
 
 def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                  view_angle_deg=90.0, species='H'):
-    """Parameterised Stehle Stark-Zeeman-Doppler profile (FFT convolution)."""
+    """Parameterized Stehle Stark-Zeeman-Doppler profile (FFT convolution).
+
+    Mirrors pystark.make_stehle_param: the modified-Lorentzian Stark profile is
+    built in wavelength, converted to the internal frequency axis, then convolved
+    with the Doppler Gaussian *in frequency space* (a frequency-symmetric Gaussian
+    is asymmetric in wavelength, so the convolution domain matters).
+    """
     _, A = species_to_ZA(species)
-    lambda0_nm = np.mean(wavelengths_nm)
+    lambda0_nm  = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
+    freq_center = C / (lambda0_nm * 1e-9)
 
+    # Stark profile on the output wavelength grid, area-normalised in m (mirrors pystark).
     delta_wl12 = _fwhm_stark_loman_nm(n_u, n_l, Ne_m3, Te_ev)
-    d = wavelengths_nm - lambda0_nm
-    ls_s = 1.0 / (np.abs(d)**2.5 + (delta_wl12 / 2.0)**2.5)
-    ls_s /= np.trapz(ls_s, wavelengths_nm)
+    ls_s_wl    = 1.0 / (np.abs(wavelengths_nm - lambda0_nm)**2.5 + (delta_wl12 / 2.0)**2.5)
+    ls_s_wl   /= np.trapz(ls_s_wl, wavelengths_nm * 1e-9)
 
-    fwhm_g = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A)
-    sigma_g = fwhm_g / _SIGMA2FWHM
-    kernel = np.exp(-0.5 * (d / sigma_g)**2) if sigma_g > 0 else np.ones(1)
+    # Convert to freq_axis: interpolate with boundary extension (no zero-fill at edges)
+    # then apply λ→ν Jacobian I(ν) = I(λ) · c/ν².
+    freq_axis     = _build_freq_axis(wavelengths_nm, freq_center)
+    wl_at_freq_nm = C / freq_axis * 1e9                              # nm, descending
+    ls_s          = np.interp(wl_at_freq_nm, wavelengths_nm, ls_s_wl) * C / freq_axis**2
 
-    profile = convolve_fft(wavelengths_nm, ls_s, kernel)
-    profile = _zeeman_split(wavelengths_nm, lambda0_nm, profile, B, view_angle_deg)
-    return _area_norm_m(profile, wavelengths_nm)
+    # Analytically-normalised Doppler Gaussian on the extended axis (mirrors pystark.doppler_lineshape).
+    mass_kg   = _DOPPLER_MASS_KG.get(A, A * _U)
+    v_th      = np.sqrt(2.0 * E * Ti_ev / mass_kg)
+    sigma_hz  = v_th * freq_center / (np.sqrt(2.0) * C)
+    extra     = 1000
+    dfreq     = (freq_axis[-1] - freq_axis[0]) / (len(freq_axis) - 1)
+    freq_conv = np.linspace(freq_axis[0]  - extra // 2 * dfreq,
+                             freq_axis[-1] + extra // 2 * dfreq,
+                             len(freq_axis) + extra)
+    ls_d = ((freq_center**-1) * np.sqrt((C / v_th)**2 / np.pi)
+            * np.exp(-0.5 * ((freq_conv - freq_center) / sigma_hz)**2))
+
+    ls_sd  = fftconvolve(ls_s, ls_d, 'same')
+    ls_sd /= np.trapz(ls_sd, freq_axis)
+
+    profile = _zeeman_split_freq(freq_axis, ls_sd, B, view_angle_deg)
+    return _freq_to_wl_norm(freq_axis, profile, wavelengths_nm)
 
 
 def voigt(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
           view_angle_deg=90.0, species='H'):
-    """Voigt (Griem Stark Lorentzian + Doppler Gaussian) Zeeman-split profile."""
+    """Voigt (Griem Stark Lorentzian + Doppler Gaussian) Zeeman-split profile.
+
+    Mirrors pystark.make_voigt: the Faddeeva function is evaluated in frequency
+    space with widths in Hz.
+    """
     _, A = species_to_ZA(species)
-    lambda0_nm = np.mean(wavelengths_nm)
+    lambda0_nm = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
+    freq_center = C / (lambda0_nm * 1e-9)
+    c_over_l2   = C / (lambda0_nm * 1e-9)**2
 
-    hwhm_l_nm = _fwhm_stark_griem_nm(n_u, Ne_m3) / 2.0
-    fwhm_g_nm = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A)
-    sigma_g_nm = fwhm_g_nm / _SIGMA2FWHM
+    hwhm_l_hz  = (_fwhm_stark_griem_nm(n_u, Ne_m3) * 1e-9 * c_over_l2) / 2.0
+    fwhm_d_hz  = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A) * 1e-9 * c_over_l2
+    sigma_d_hz = (fwhm_d_hz / 2.0) / np.sqrt(2.0 * np.log(2.0))
 
-    d = wavelengths_nm - lambda0_nm
-    z = (d + 1j * hwhm_l_nm) / (sigma_g_nm * np.sqrt(2.0))
-    profile = np.real(wofz(z)) / (sigma_g_nm * np.sqrt(2.0 * np.pi))
+    freq_axis = _build_freq_axis(wavelengths_nm, freq_center)
+    df = freq_axis - freq_center
+    z = (df + 1j * hwhm_l_hz) / (sigma_d_hz * np.sqrt(2.0))
+    profile = np.real(wofz(z)) / (sigma_d_hz * np.sqrt(2.0 * np.pi))
 
-    profile = _zeeman_split(wavelengths_nm, lambda0_nm, profile, B, view_angle_deg)
-    return _area_norm_m(profile, wavelengths_nm)
+    profile = _zeeman_split_freq(freq_axis, profile, B, view_angle_deg)
+    return _freq_to_wl_norm(freq_axis, profile, wavelengths_nm)

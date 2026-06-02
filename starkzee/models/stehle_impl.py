@@ -48,8 +48,8 @@ def _fintrp(x1, x2, x3, y1, y2, y3, x):
         return (a * x + b) * x + (y1 - a * x1c - b * x1)
 
 
-def _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_centre_m, freq_axis):
-    """Pure Stark profile on *freq_axis* [Hz], area-normalised to 1.
+def _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_center_m, freq_axis):
+    """Pure Stark profile on *freq_axis* [Hz], area-normalized to 1.
 
     Direct port of pystark's make_stehle; reads from the local stehle_tables.nc.
     Returns profile in 1/Hz.
@@ -93,10 +93,10 @@ def _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_centre_m, freq_axis):
     if PR0_exp > 1.:
         raise ValueError('Stehle: plasma too strongly correlated (r₀/λ_D > 1)')
 
-    wl_centre_angst = wl_centre_m * 1e10
+    wl_center_angst = wl_center_m * 1e10
     c_angst         = C * 1e10
-    angular_freq_0  = 2 * np.pi * c_angst / wl_centre_angst
-    otrans          = -2 * np.pi * c_angst / wl_centre_angst ** 2
+    angular_freq_0  = 2 * np.pi * c_angst / wl_center_angst
+    otrans          = -2 * np.pi * c_angst / wl_center_angst ** 2
     olines          = o1lines / abs(otrans)
 
     # Build common detuning grid from all tabulated detunings
@@ -193,8 +193,8 @@ def _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_centre_m, freq_axis):
     delta_nu2  = np.concatenate((-delta_nu[::-1],  delta_nu))
     wprofs_nu2 = np.concatenate((wprofs_nu[::-1], wprofs_nu))
 
-    freq_centre = C / wl_centre_m
-    ls_sd = np.interp(freq_axis, delta_nu2 + freq_centre, wprofs_nu2, left=0., right=0.)
+    freq_center = C / wl_center_m
+    ls_sd = np.interp(freq_axis, delta_nu2 + freq_center, wprofs_nu2, left=0., right=0.)
     return ls_sd
 
 
@@ -214,25 +214,25 @@ def stehle(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
            view_angle_deg=90.0, species='H'):
     """Stehle (MMM) Stark-Zeeman-Doppler profile using local tabulated data."""
     from starkzee.utils import species_to_ZA
-    from starkzee.models.analytical import _fwhm_doppler_nm, _SIGMA2FWHM
+    from starkzee.models.analytical import _fwhm_doppler_nm, _SIGMA2FWHM, _nist_center_air_nm
 
     Z, A = species_to_ZA(species)
 
-    # Line centre from the grid midpoint — matches pystark when the caller passes a grid
-    # centred on the physical line centre (e.g. lp.E0_wavelength_air_nm).
-    lambda0_nm  = np.mean(wavelengths_nm)
-    wl_centre_m = lambda0_nm * 1e-9
-    freq_centre = C / wl_centre_m
+    lambda0_nm  = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
+    wl_center_m = lambda0_nm * 1e-9
+    freq_center = C / wl_center_m
 
-    # freq_axis: just wide enough to cover the wavelength grid (pystark adds ~6% margin).
-    max_dfreq = max(abs(C / (wavelengths_nm.min() * 1e-9) - freq_centre),
-                    abs(C / (wavelengths_nm.max() * 1e-9) - freq_centre))
-    half_hz   = max_dfreq * 1.06
+    # freq_axis: just wide enough to cover the wavelength grid. pystark builds it from
+    # required_no_fwhm = (max_detuning / fwhm) * 1.05, i.e. a 5 % margin past the grid,
+    # with its default npts of 2001 — mirror both exactly so the convolution grid matches.
+    max_dfreq = max(abs(C / (wavelengths_nm.min() * 1e-9) - freq_center),
+                    abs(C / (wavelengths_nm.max() * 1e-9) - freq_center))
+    half_hz   = max_dfreq * 1.05
     npts      = 2001
-    freq_axis = np.linspace(freq_centre - half_hz, freq_centre + half_hz, npts)
+    freq_axis = np.linspace(freq_center - half_hz, freq_center + half_hz, npts)
 
     # Pure Stark profile in frequency space
-    ls_s = _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_centre_m, freq_axis)
+    ls_s = _compute_stehle_stark(n_u, n_l, Ne_m3, Te_ev, wl_center_m, freq_axis)
 
     # Doppler kernel on freq_axis_conv (500 extra points each side, like pystark).
     # fftconvolve(ls_s, ls_d, 'same') returns len(ls_s) points; the extra width in
@@ -242,9 +242,9 @@ def stehle(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     freq_conv = np.linspace(freq_axis[0]  - extra // 2 * dfreq,
                              freq_axis[-1] + extra // 2 * dfreq,
                              len(freq_axis) + extra)
-    fwhm_d_hz = (_fwhm_doppler_nm(lambda0_nm, Ti_ev, A) * 1e-9) * C / wl_centre_m**2
+    fwhm_d_hz = (_fwhm_doppler_nm(lambda0_nm, Ti_ev, A) * 1e-9) * C / wl_center_m**2
     sigma_hz  = fwhm_d_hz / _SIGMA2FWHM
-    ls_d      = np.exp(-0.5 * ((freq_conv - freq_centre) / sigma_hz)**2)
+    ls_d      = np.exp(-0.5 * ((freq_conv - freq_center) / sigma_hz)**2)
     ls_d     /= ls_d.sum()
 
     ls_sd = fftconvolve(ls_s, ls_d, 'same')   # returns len(ls_s) = npts points
@@ -265,7 +265,7 @@ def stehle(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
 
     ls_out = np.interp(wavelengths_nm, wl_sorted, ls_sorted, left=0., right=0.)
 
-    # Area-normalise
+    # Area-normalize
     area = np.trapz(ls_out, wavelengths_nm * 1e-9)
     if area > 0:
         ls_out /= area

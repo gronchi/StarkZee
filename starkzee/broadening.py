@@ -138,7 +138,7 @@ def gbk_model(delta_omega_ev, omega_c_ev, Te_ev, Z, n=2):
 
         y = (n² / 2Z)² × (Δω² + ω_c²) / (E_H T_e)
 
-    with E_H = 2 Ry the Hartree energy and T_e in eV.  At line centre (Δω = 0)
+    with E_H = 2 Ry the Hartree energy and T_e in eV.  At line center (Δω = 0)
     G reduces to ½ E₁((n²/2Z)² ω_c² / (E_H T_e)) ≈ a positive constant; in
     the far wings where Δω ≫ ω_c the argument y grows and G → 0, suppressing
     the broadening at large detunings (the impact approximation breaks down).
@@ -150,7 +150,7 @@ def gbk_model(delta_omega_ev, omega_c_ev, Te_ev, Z, n=2):
     Parameters
     ----------
     delta_omega_ev : float or array-like
-        Frequency detuning from line centre Δω [eV].
+        Frequency detuning from line center Δω [eV].
     omega_c_ev : float
         Cutoff angular frequency ω_c [eV] (= ħ ω_c in SI units).
     Te_ev : float
@@ -216,8 +216,8 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
     Parameters
     ----------
     delta_omega_ev : float or array-like
-        Frequency detuning from line centre Δω [eV].  Pass ``0.0`` for the
-        on-resonance (line-centre) width.
+        Frequency detuning from line center Δω [eV].  Pass ``0.0`` for the
+        on-resonance (line-center) width.
     Ne_m3 : float
         Electron number density [m⁻³].
     Te_ev : float

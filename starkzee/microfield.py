@@ -35,7 +35,7 @@ def calculate_normal_field(Ne_m3):
 def calculate_debye_length(Te_ev, Ne_m3):
     """Return the electron Debye screening length λ_D [m].
 
-    The Debye length characterises the spatial scale over which the plasma
+    The Debye length characterizes the spatial scale over which the plasma
     screens individual Coulomb fields:
 
         λ_D = √(ε₀ T_e / (N_e e))     [T_e in eV, so e T_e gives k_B T_e in J]
@@ -110,8 +110,8 @@ def holtsmark_distribution(beta):
 
         W(β) = (2β/π) ∫₀^∞ y sin(βy) exp(−y^{3/2}) dy
 
-    where β = F / F₀ is the field normalised to the Holtsmark normal field F₀.
-    W(β) is normalised so that ∫₀^∞ W(β) dβ = 1.
+    where β = F / F₀ is the field normalized to the Holtsmark normal field F₀.
+    W(β) is normalized so that ∫₀^∞ W(β) dβ = 1.
 
     Parameters
     ----------

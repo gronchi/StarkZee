@@ -24,7 +24,7 @@ def relerr(got, ref):
 @pytest.mark.parametrize("n,Z", [(1,1), (2,1), (2,6), (3,1), (4,4), (5,4)])
 def test_hamiltonian_hermitian(n, Z):
     """H must be Hermitian at B=0."""
-    H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     diff = np.max(np.abs(H - H.conj().T))
     assert diff < 1e-15, f"n={n},Z={Z}: max|H-H†| = {diff}"
 
@@ -47,8 +47,8 @@ def test_unperturbed_energy_n1_l0(n, Z):
     (no SOC contribution for l=0). Fine structure disabled so only the
     unperturbed Coulomb energy appears on the diagonal.
     """
-    H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                  include_fine_structure=False)
+    H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                  fine_structure=False)
     basis = build_basis(n)
     En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
 
@@ -69,8 +69,8 @@ def test_eigenvalue_centroid(n, Z):
     the unperturbed energy -Z²Ry/n² (to first order, and exactly for l=0).
     Fine structure disabled — MV+Darwin legitimately shifts the centroid.
     """
-    eigenvalues, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                         include_fine_structure=False)
+    eigenvalues, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                         fine_structure=False)
     En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
     mean_E = np.mean(eigenvalues.real)
     assert relerr(mean_E, En_exact) < 1e-4, (
@@ -87,8 +87,8 @@ def test_n1_degenerate():
     states shift by the same MV+Darwin amount but remain degenerate.)
     """
     for Z in [1, 4, 6]:
-        evals, _ = diagonalize_hamiltonian(1, Z, B=0.0, include_quadratic=False,
-                                       include_fine_structure=False)
+        evals, _ = diagonalize_hamiltonian(1, Z, B=0.0, quadratic_zeeman=False,
+                                       fine_structure=False)
         En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1)
         np.testing.assert_allclose(evals.real, En, rtol=1e-10,
                                    err_msg=f"n=1, Z={Z}: n=1 levels not degenerate")
@@ -104,7 +104,7 @@ def test_n2_soc_splitting_hydrogen():
 
     Reference value: ΔE_SOC(n=2, Z=1) ≈ 4.53e-5 eV
     """
-    evals, _ = diagonalize_hamiltonian(n=2, Z=1, B=0.0, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n=2, Z=1, B=0.0, quadratic_zeeman=False)
     # Eigenvalues should cluster near -3.4014 eV with small SOC spread
     E_spread = evals.real.max() - evals.real.min()
     xi = (1**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(1, 1) / (2**3 * 1 * 2 * 1.5)
@@ -122,7 +122,7 @@ def test_n2_soc_splitting_CVI():
     = 1296 × α² × Ry / 24 ≈ 1296 × 5.32e-5 × 13.6 / 24 ≈ 0.039 eV.
     This is significant but still << 367 eV.
     """
-    evals, _ = diagonalize_hamiltonian(n=2, Z=6, B=0.0, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n=2, Z=6, B=0.0, quadratic_zeeman=False)
     E_spread = evals.real.max() - evals.real.min()
     xi = (6**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(6, 1) / (2**3 * 1 * 2 * 1.5)
     print(f"C VI n=2 SOC: ξ={xi:.4f} eV, eigenvalue spread={E_spread:.4f} eV")
@@ -137,7 +137,7 @@ def test_n2_soc_splitting_CVI():
 @pytest.mark.parametrize("n,Z", [(2,1), (2,6), (4,4), (5,4)])
 def test_eigenvalues_real(n, Z):
     """np.linalg.eigh guarantees real eigenvalues for Hermitian H."""
-    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     max_imag = np.max(np.abs(evals.imag))
     assert max_imag < 1e-15, f"n={n},Z={Z}: max imaginary part = {max_imag}"
 
@@ -147,7 +147,7 @@ def test_eigenvalues_real(n, Z):
 @pytest.mark.parametrize("n,Z", [(2,1), (3,1), (4,4)])
 def test_eigenvectors_unitary(n, Z):
     """Eigenvectors from np.linalg.eigh must satisfy V†V = I."""
-    _, evecs = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    _, evecs = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     VdV = evecs.conj().T @ evecs
     I = np.eye(len(evecs))
     diff = np.max(np.abs(VdV - I))

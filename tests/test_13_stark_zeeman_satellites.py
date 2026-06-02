@@ -104,7 +104,7 @@ def sigma_plus_profile(n_u, B_val=1000.0, det_lo=0.040, det_hi=0.175,
     _, sp, _ = calculate_static_profile(
         n_u, n_l, Z, B_val, Ne, Te, en,
         num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False,
+        use_screening=True, quadratic_zeeman=False,
         frequency_dependent_width=False,
     )
     return det * 1e3, sp, sp.max()   # meV, profile, peak value

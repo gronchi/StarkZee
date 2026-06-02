@@ -60,7 +60,7 @@ def test_spin_orbit_matrix_element_symmetry():
     If it is not, the L±S∓ ladder terms have wrong signs/factors.
     """
     for n, Z in [(2, 1), (2, 6), (3, 1), (4, 4)]:
-        H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+        H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
         diff = np.max(np.abs(H - H.conj().T))
         assert diff < 1e-14, f"n={n},Z={Z}: H non-Hermitian with |H-H†|_max = {diff}"
 
@@ -88,14 +88,14 @@ def test_hydrogen_n2_fine_structure():
     xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
     dE_expected = 1.5 * xi
 
-    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
 
     # The eigenvalues should contain both 2p_{3/2} (4-fold degenerate) and
     # 2p_{1/2} (2-fold degenerate) clusters, plus 2s (2-fold, near center).
     # The l=0 (2s) states are unaffected by SOC.
     # Sort eigenvalues and find the spread among l=1 states.
     basis = build_basis(n)
-    H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     evals_full, evecs = np.linalg.eigh(H)
 
     # The spread among eigenvalues near E_n
@@ -123,7 +123,7 @@ def test_cvi_n2_fine_structure_larger():
     xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
     dE_expected = 1.5 * xi
 
-    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
     soc_range = evals.real.max() - evals.real.min()
 
@@ -145,8 +145,8 @@ def test_soc_zero_for_l0():
     tested separately in test_16_fine_structure.py.)
     """
     for n, Z in [(2, 1), (2, 6), (3, 4)]:
-        H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                      include_fine_structure=False)
+        H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                      fine_structure=False)
         basis = build_basis(n)
         En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
         for i, s in enumerate(basis):
@@ -167,7 +167,7 @@ def test_soc_off_diagonal_lplus_sminus():
     We verify the actual H[i,j] value against the analytic formula.
     """
     n, Z = 2, 1
-    H = build_hamiltonian(n, Z, B=0.0, include_quadratic=False)
+    H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     basis = build_basis(n)
 
     xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
