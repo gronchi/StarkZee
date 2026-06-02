@@ -22,6 +22,7 @@ env/
 
 # Generated profile data
 *.txt
+!docs/requirements.txt
 *.dat
 *.csv
 
