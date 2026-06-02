@@ -29,8 +29,8 @@ LINES = [
 
 PROFILE_KWARGS = dict(
     num_f=30, num_mu=8,
-    include_quadratic=False,
-    include_fine_structure=False,
+    quadratic_zeeman=False,
+    fine_structure=False,
     frequency_dependent_width=False,
 )
 
@@ -43,7 +43,7 @@ for n_u, n_l, label, hw_nm in LINES:
     print(f"Computing {label} (n={n_u}→{n_l}), λ₀={lp.E0_wavelength_nm:.2f} nm …", flush=True)
 
     lp.compute_profile(wl_grid, grid_type='wavelength_nm', **PROFILE_KWARGS)
-    lp.compute_discrete(Fz=0.0, Fx=0.0, include_quadratic=False)
+    lp.compute_discrete(Fz=0.0, Fx=0.0, quadratic_zeeman=False)
     profiles[label] = lp
     print(f"  → {len(lp.discrete.energy_ev)} discrete transitions", flush=True)
 
@@ -62,7 +62,7 @@ for ax, (n_u, n_l, label, _) in zip(axes, LINES):
     lp   = profiles[label]
     disc = lp.discrete
 
-    # Broadened profiles — normalise to peak transverse intensity
+    # Broadened profiles — normalize to peak transverse intensity
     peak = lp.profile_transverse.max() or 1.0
     ax.plot(lp.detuning_nm, lp.profile_transverse / peak,
             color="C0", lw=1.8, label="Transverse (90°)")

@@ -41,10 +41,10 @@ def A(n, Z):
 @pytest.mark.parametrize("n,Z", [(1,1), (2,1), (2,6), (3,1), (3,6)])
 def test_mvdarwin_diagonal_l0(n, Z):
     """For l=0 states: H_diag = En + (-A*(n - 3/4))."""
-    H_fs  = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                      include_fine_structure=True)
-    H_nofs = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                       include_fine_structure=False)
+    H_fs  = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                      fine_structure=True)
+    H_nofs = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                       fine_structure=False)
     basis = build_basis(n)
     expected_shift = -A(n, Z) * (n - 0.75)
     for i, s in enumerate(basis):
@@ -64,10 +64,10 @@ def test_mvdarwin_diagonal_l0(n, Z):
 ])
 def test_mvdarwin_diagonal_l_gt0(n, Z, l):
     """For l>0 states: H_diag shift = -A*(n/(l+1/2) - 3/4)."""
-    H_fs  = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                      include_fine_structure=True)
-    H_nofs = build_hamiltonian(n, Z, B=0.0, include_quadratic=False,
-                                       include_fine_structure=False)
+    H_fs  = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                      fine_structure=True)
+    H_nofs = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
+                                       fine_structure=False)
     basis = build_basis(n)
     expected_shift = -A(n, Z) * (n / (l + 0.5) - 0.75)
     for i, s in enumerate(basis):
@@ -87,8 +87,8 @@ def test_2s_2p_half_degenerate(Z):
     n=2 has 8 states: 4 with j=1/2 (2s_{1/2} × 2 + 2p_{1/2} × 2)
     all at the same energy, and 4 with j=3/2 (2p_{3/2}) at a higher energy.
     """
-    evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=0.0, include_quadratic=False,
-                                    include_fine_structure=True)
+    evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=0.0, quadratic_zeeman=False,
+                                    fine_structure=True)
     evals_sorted = np.sort(evals.real)
 
     # Lower 4: j=1/2 group; upper 4: j=3/2 group
@@ -123,8 +123,8 @@ def test_fine_structure_gap_unchanged(Z):
     expected_gap = 1.5 * xi  # = A = Z^4 alpha^2 Ry / n^4
 
     for fs in [True, False]:
-        evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=0.0, include_quadratic=False,
-                                        include_fine_structure=fs)
+        evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=0.0, quadratic_zeeman=False,
+                                        fine_structure=fs)
         evals_sorted = np.sort(evals.real)
         # First 4 sorted eigenvalues contain j=1/2 states (possibly mixed with 2s
         # when fs=False); last 4 are always 2p_{3/2}. The gap min(upper) - min(all)
@@ -141,8 +141,8 @@ def test_fine_structure_gap_unchanged(Z):
 def test_n1_mvdarwin_shift(Z):
     """n=1 has only l=0, so both eigenvalues shift by -A*(1 - 3/4) = -A/4."""
     expected_shift = -A(n=1, Z=Z) * (1.0 - 0.75)
-    evals_fs,   _ = diagonalize_hamiltonian(n=1, Z=Z, B=0.0, include_fine_structure=True)
-    evals_nofs, _ = diagonalize_hamiltonian(n=1, Z=Z, B=0.0, include_fine_structure=False)
+    evals_fs,   _ = diagonalize_hamiltonian(n=1, Z=Z, B=0.0, fine_structure=True)
+    evals_nofs, _ = diagonalize_hamiltonian(n=1, Z=Z, B=0.0, fine_structure=False)
     shifts = evals_fs.real - evals_nofs.real
     for s in shifts:
         assert relerr(s, expected_shift) < 1e-10, (
@@ -155,8 +155,8 @@ def test_n1_mvdarwin_shift(Z):
 @pytest.mark.parametrize("n,Z", [(2, 1), (2, 6), (3, 1)])
 def test_shell_centroid_shift(n, Z):
     """Mean eigenvalue shift equals the degeneracy-weighted MV+Darwin average."""
-    evals_fs,   _ = diagonalize_hamiltonian(n, Z, B=0.0, include_fine_structure=True)
-    evals_nofs, _ = diagonalize_hamiltonian(n, Z, B=0.0, include_fine_structure=False)
+    evals_fs,   _ = diagonalize_hamiltonian(n, Z, B=0.0, fine_structure=True)
+    evals_nofs, _ = diagonalize_hamiltonian(n, Z, B=0.0, fine_structure=False)
     mean_shift_got = np.mean(evals_fs.real) - np.mean(evals_nofs.real)
 
     # Weighted mean: (2 * delta_l0 + sum_{l>0} (2*(2l+1)) * delta_l) / 2n^2
@@ -182,8 +182,8 @@ def test_shell_centroid_shift(n, Z):
 ])
 def test_hamiltonian_hermitian_with_fs(n, Z, B):
     """H must remain Hermitian when fine structure is enabled."""
-    H = build_hamiltonian(n, Z, B=B, include_quadratic=True,
-                                  include_fine_structure=True)
+    H = build_hamiltonian(n, Z, B=B, quadratic_zeeman=True,
+                                  fine_structure=True)
     diff = np.max(np.abs(H - H.conj().T))
     assert diff < 1e-14, f"n={n},Z={Z},B={B}T: |H-H†|_max = {diff:.3e}"
 
@@ -202,8 +202,8 @@ def test_dirac_eigenvalue_formula(n, Z):
     dE_j12 = -A(n, Z) * (n / (0.5 + 0.5) - 0.75)   # j = 1/2: n/(j+1/2)=n/1
     dE_j32 = -A(n, Z) * (n / (1.5 + 0.5) - 0.75)   # j = 3/2: n/(j+1/2)=n/2
 
-    evals, _ = diagonalize_hamiltonian(n=n, Z=Z, B=0.0, include_quadratic=False,
-                                    include_fine_structure=True)
+    evals, _ = diagonalize_hamiltonian(n=n, Z=Z, B=0.0, quadratic_zeeman=False,
+                                    fine_structure=True)
     evals_sorted = np.sort(evals.real)
 
     E_j12_got = np.mean(evals_sorted[:4])

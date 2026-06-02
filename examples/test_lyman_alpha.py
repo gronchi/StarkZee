@@ -60,7 +60,7 @@ def run_lyman_alpha_test():
         energies_ev=energies_ev,
         num_f=30, num_mu=10,
         use_screening=True,
-        include_quadratic=True,
+        quadratic_zeeman=True,
         frequency_dependent_width=True,
     )
 

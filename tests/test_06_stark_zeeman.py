@@ -40,11 +40,11 @@ def test_transition_energy_zero_field(n_u, n_l, Z):
     # MV+Darwin correctly shifts each n-shell by a different amount, so the
     # mean transition energy deviates from the Bohr value when FS is enabled.
     evals_u, _ = solve_starkzee(n_u, Z, B=1e-3, Fz=0.0, Fx=0.0,
-                                             include_quadratic=False,
-                                             include_fine_structure=False)
+                                             quadratic_zeeman=False,
+                                             fine_structure=False)
     evals_l, _ = solve_starkzee(n_l, Z, B=1e-3, Fz=0.0, Fx=0.0,
-                                             include_quadratic=False,
-                                             include_fine_structure=False)
+                                             quadratic_zeeman=False,
+                                             fine_structure=False)
     E0_got = np.mean(evals_u.real) - np.mean(evals_l.real)
     assert relerr(E0_got, E0_expected) < 1e-6, (
         f"n_u={n_u},n_l={n_l},Z={Z}: E0={E0_got:.6f} eV, expected={E0_expected:.6f} eV"
@@ -150,7 +150,7 @@ def test_profile_peak_near_E0():
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=10, num_mu=4,
-        use_screening=False, include_quadratic=False,
+        use_screening=False, quadratic_zeeman=False,
         frequency_dependent_width=False
     )
     sigma = sp + sm

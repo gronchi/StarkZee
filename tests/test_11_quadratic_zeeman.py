@@ -14,7 +14,7 @@ This file tests:
   2. Diagonal radial element ⟨n,l|r²|n,l⟩ vs. analytic formula
   3. Angular diagonal element ⟨l,mₗ|sin²θ|l,mₗ⟩ vs. analytic values
   4. Angular off-diagonal element ⟨l,mₗ|cos²θ|l+2,mₗ⟩ (correct formula)
-  5. Hermiticity of the full Hamiltonian with include_quadratic=True
+  5. Hermiticity of the full Hamiltonian with quadratic_zeeman=True
   6. QZ shifts all eigenvalues upward (positive semi-definite contribution)
   7. QZ magnitude scales as B²
   8. QZ shifts are small vs. linear Zeeman at moderate B for Z=6
@@ -198,7 +198,7 @@ def test_cos2_offdiag_spot_values(l_low, ml, expected):
 ])
 def test_hamiltonian_hermitian_with_qz(n, Z, B):
     """H (including quadratic Zeeman) must be Hermitian."""
-    H = build_hamiltonian(n, Z, B, include_quadratic=True)
+    H = build_hamiltonian(n, Z, B, quadratic_zeeman=True)
     diff = np.max(np.abs(H - H.conj().T))
     assert diff < 1e-12, (
         f"n={n},Z={Z},B={B}T: |H-H†|_max = {diff:.3e}"
@@ -217,8 +217,8 @@ def test_qz_shifts_eigenvalues_up(n, Z, B):
     H_QZ = e²B²r²sin²θ / 8mₑ ≥ 0.
     Every eigenvalue must shift upward (or stay the same) when QZ is added.
     """
-    evals_no,  _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=False)
-    evals_yes, _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=True)
+    evals_no,  _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=False)
+    evals_yes, _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True)
     # Each eigenvalue should increase (QZ is positive semi-definite)
     diffs = evals_yes - evals_no
     assert np.all(diffs >= -1e-12), (
@@ -237,8 +237,8 @@ def test_qz_scales_as_B_squared():
     B1, B2 = 100.0, 200.0
 
     def avg_shift(B):
-        ev_no,  _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=False)
-        ev_yes, _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=True)
+        ev_no,  _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=False)
+        ev_yes, _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True)
         return np.mean(ev_yes - ev_no)
 
     shift1 = avg_shift(B1)
@@ -263,8 +263,8 @@ def test_qz_small_vs_linear_zeeman_cvi():
     """
     n, Z, B = 3, 6, 500.0
 
-    ev_no,  _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=False)
-    ev_yes, _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=True)
+    ev_no,  _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=False)
+    ev_yes, _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True)
     max_qz_shift = np.max(ev_yes - ev_no)
 
     linear_scale = BOHR_MAGNETON_EV_T * B * (n - 1)  # max ml = n-1

@@ -66,7 +66,7 @@ def test_strength_sum_equals_line_strength(n_u, n_l, Z, B):
 def test_centroid_at_zero_field(n_u, n_l, Z):
     """Intensity-weighted centroid must equal the Bohr energy at B=0, F=0."""
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=0.0, Fz=0.0, Fx=0.0,
-                               include_fine_structure=False)
+                               fine_structure=False)
     E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
     centroid = np.sum(tr['energy_ev'] * tr['strength']) / np.sum(tr['strength'])
     assert relerr(centroid, E0) < 1e-8, (
@@ -80,7 +80,7 @@ def test_zeeman_sigma_split_at_large_B():
     """At B=50T, sigma+/sigma- centroids should be shifted ≈ ±μ_B*B from pi."""
     n_u, n_l, Z, B = 2, 1, 1, 50.0
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=B,
-                               include_fine_structure=False)
+                               fine_structure=False)
 
     def centroid(mask):
         w = tr['strength'][mask]
@@ -132,9 +132,9 @@ def test_min_strength_filter():
 def test_stark_breaks_degeneracy():
     """With a Stark field, the zero-field degenerate manifold splits."""
     tr_B0 = discrete_transitions(n_u=2, n_l=1, Z=1, B=0.0,
-                                   include_fine_structure=False)
+                                   fine_structure=False)
     tr_F  = discrete_transitions(n_u=2, n_l=1, Z=1, B=0.0,
-                                   Fz=1e8, include_fine_structure=False)
+                                   Fz=1e8, fine_structure=False)
 
     spread_B0 = tr_B0['energy_ev'].max() - tr_B0['energy_ev'].min()
     spread_F  = tr_F['energy_ev'].max()  - tr_F['energy_ev'].min()

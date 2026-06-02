@@ -9,7 +9,7 @@ from starkzee.static_profile import calculate_static_profile
 
 
 # ---------------------------------------------------------------------------
-def generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, include_quadratic):
+def generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman):
     """Combined Balmer series spectrum (Hα … Hε) on the given wavelength grid."""
     Z = 1
     # (n_upper, relative-scale)  — approximate oscillator-strength weighting
@@ -27,7 +27,7 @@ def generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, include_quadratic):
             energies_ev=global_energies,
             num_f=20, num_mu=6,
             use_screening=True,
-            include_quadratic=include_quadratic,
+            quadratic_zeeman=quadratic_zeeman,
             frequency_dependent_width=False,
         )
         # Transverse observation: I = Iπ + ½(Iσ+ + Iσ−)
@@ -55,9 +55,9 @@ if __name__ == "__main__":
     for B in B_list:
         print(f"B = {int(B)} T:")
         print("  Without quadratic Zeeman:")
-        nq = generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, include_quadratic=False)
+        nq = generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman=False)
         print("  With    quadratic Zeeman:")
-        yq = generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, include_quadratic=True)
+        yq = generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman=True)
         spectra[B] = (nq, yq)
         print()
 

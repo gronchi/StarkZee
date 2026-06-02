@@ -44,7 +44,7 @@ en_Ha  = E0_Ha + det_Ha
 print("Hα: computing σ+ profile (no-QZ) …")
 _, sp_Ha, _ = calculate_static_profile(
     n_u, n_l, Z, B, Ne, Te, en_Ha,
-    num_f=50, num_mu=12, use_screening=True, include_quadratic=False,
+    num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
     frequency_dependent_width=False)
 sp_Ha_max = sp_Ha.max()
 print(f"  σ+ peak = {sp_Ha_max:.3e} at +{det_Ha[np.argmax(sp_Ha)]*1e3:.1f} meV")
@@ -61,7 +61,7 @@ en_Hb  = E0_Hb + det_Hb
 print("Hβ: computing σ+ profile (no-QZ) …")
 _, sp_Hb, _ = calculate_static_profile(
     n_u4, n_l4, Z, B, Ne, Te, en_Hb,
-    num_f=50, num_mu=12, use_screening=True, include_quadratic=False,
+    num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
     frequency_dependent_width=False)
 sp_Hb_max = sp_Hb.max()
 print(f"  σ+ peak = {sp_Hb_max:.3e} at +{det_Hb[np.argmax(sp_Hb)]*1e3:.1f} meV")
@@ -150,7 +150,7 @@ for ax, n_u_val, E0_n, label, color in [
     print(f"  Computing full profile for {label} …", flush=True)
     pi_p, sp_p, sm_p = calculate_static_profile(
         n_u_val, 2, Z, B, Ne, Te, en_plot,
-        num_f=50, num_mu=12, use_screening=True, include_quadratic=False,
+        num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
         frequency_dependent_width=False)
     total = pi_p + 0.5*(sp_p + sm_p)
     peak  = total.max()

@@ -35,7 +35,7 @@ have LARGER n=3 QZ shifts, so they appear as a separate shoulder:
   σ− wing: 3p(ml=−1) → 2s(ml=0)   at E0 − μ_B·B + (8.87−1.72) = E0−μ_B·B+7.1 meV
             → this is ~7 meV NEARER to E0 than the main 3d cluster
 
-These wings are ONLY present with include_quadratic=True.
+These wings are ONLY present with quadratic_zeeman=True.
 """
 
 import numpy as np
@@ -64,13 +64,13 @@ for B in [500.0, 1000.0]:
     pi_nq, sp_nq, sm_nq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=30, num_mu=8,
-        use_screening=True, include_quadratic=False,
+        use_screening=True, quadratic_zeeman=False,
         frequency_dependent_width=False)
     print("done.  With QZ …", end=" ", flush=True)
     pi_yq, sp_yq, sm_yq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=30, num_mu=8,
-        use_screening=True, include_quadratic=True,
+        use_screening=True, quadratic_zeeman=True,
         frequency_dependent_width=False)
     print("done.")
     results[B] = dict(

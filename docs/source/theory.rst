@@ -63,7 +63,7 @@ the atomic Hamiltonian in the uncoupled
 
 where :math:`\alpha` is the fine-structure constant.  Together with the
 mass-velocity and Darwin corrections (also included when
-``include_fine_structure=True``), this reproduces the Dirac fine-structure
+``fine_structure=True``), this reproduces the Dirac fine-structure
 splitting and restores the :math:`2s_{1/2} = 2p_{1/2}` degeneracy.
 
 **Linear Zeeman** (diagonal):
@@ -126,7 +126,7 @@ Within the :math:`n`-shell the radial element is analytic:
     \langle n,l | r | n,l-1 \rangle = \frac{3n}{2Z}\sqrt{n^2 - l^2}
     \quad [a_0]
 
-The combined Hamiltonian :math:`H = H_A + V_E` is diagonalised by
+The combined Hamiltonian :math:`H = H_A + V_E` is diagonalized by
 ``numpy.linalg.eigh`` at every quadrature point to obtain the Stark-dressed
 transition frequencies :math:`\omega_k` and dipole weights :math:`|d_k|^2`.
 
@@ -228,7 +228,7 @@ quadrature weight.
 
 By default (``frequency_dependent_width=True``) :math:`\gamma_e` is evaluated
 at the actual detuning of each component.  Setting
-``frequency_dependent_width=False`` fixes it at the line-centre value
+``frequency_dependent_width=False`` fixes it at the line-center value
 :math:`\gamma_e(0)`, which is faster but less accurate in the far wings.
 
 The strong-collision constants :math:`C_n` from Ferri *et al.* (2022):
@@ -288,7 +288,7 @@ The line profile is (Sherman–Morrison form):
     S(\omega) = \sum_k
     \frac{p_k}{\nu_i + \gamma_k + i(\omega - \omega_k)}
 
-where :math:`p_k = |d_k|^2 / r^2` are the normalised SDT weights,
+where :math:`p_k = |d_k|^2 / r^2` are the normalized SDT weights,
 :math:`\gamma_k` the electron-impact half-width, and
 :math:`r^2 = \sum_k |d_k|^2`.  The ion fluctuation rate is
 
@@ -318,7 +318,7 @@ Useful special cases:
 - Along B (:math:`\theta = 0°`): :math:`I_{\sigma+} + I_{\sigma-}`
 - Angle-averaged: :math:`\tfrac{2}{3}I_\pi + \tfrac{1}{3}(I_{\sigma+} + I_{\sigma-})`
 
-At :math:`B = 0` the quantisation axis is undefined; all three polarization
+At :math:`B = 0` the quantization axis is undefined; all three polarization
 components are equal by spherical symmetry.
 
 Oscillator strengths and line strengths
@@ -361,7 +361,7 @@ up to 5 meV, separating the :math:`3p\,(m_l=\pm 1)\to 2s` transitions (which
 carry ≈ 21 % of the H\ :math:`\alpha` oscillator strength and the largest
 :math:`n=3` QZ shift, :math:`+8.87` meV at :math:`B=1000` T) from the
 dominant :math:`3d\to 2p` cluster by ≈ 7 meV.  The resulting wings appear
-only in ``include_quadratic=True`` profiles and are validated in
+only in ``quadratic_zeeman=True`` profiles and are validated in
 ``test_12_halpha_qz_wings.py``.
 
 ±2μ\ :sub:`B`\ B Stark-Zeeman satellite features
@@ -402,9 +402,9 @@ Numerical simplifications
   :math:`n \pm 1` shells) is neglected.  This is valid when the Stark shift
   :math:`\ll Z^2\,\text{Ry}(1/n^2 - 1/(n+1)^2)`.
 
-- **Resonance-centre impact width (optional)** — setting
+- **Resonance-center impact width (optional)** — setting
   ``frequency_dependent_width=False`` fixes :math:`\gamma_e` at its
-  line-centre value :math:`\gamma_e(0)`, avoiding repeated :math:`E_1`
+  line-center value :math:`\gamma_e(0)`, avoiding repeated :math:`E_1`
   evaluations.  Faster but less accurate in the wings.
 
 - **Gauss-Legendre angle quadrature** — the integration over microfield

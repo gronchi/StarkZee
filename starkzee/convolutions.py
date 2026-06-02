@@ -25,7 +25,7 @@ def calculate_doppler_width_ev(E0_ev, Ti_ev, A_emitter):
     Parameters
     ----------
     E0_ev : float
-        Line-centre photon energy [eV].
+        Line-center photon energy [eV].
     Ti_ev : float
         Ion temperature [eV].
     A_emitter : float
@@ -60,7 +60,7 @@ def convolve_fft(grid, profile, kernel):
 
     The input arrays are zero-padded by half their length on each side to
     suppress the wrap-around artefacts of the circular FFT convolution.  The
-    kernel is area-normalised before application so that the integrated
+    kernel is area-normalized before application so that the integrated
     intensity of the profile is conserved.
 
     Parameters
@@ -71,8 +71,8 @@ def convolve_fft(grid, profile, kernel):
     profile : array-like, shape (N,)
         Spectral profile to be convolved.
     kernel : array-like, shape (N,)
-        Broadening kernel (not necessarily normalised).  Its centre must
-        coincide with the centre of ``grid``; ``fftshift`` is applied
+        Broadening kernel (not necessarily normalized).  Its center must
+        coincide with the center of ``grid``; ``fftshift`` is applied
         internally to place the peak at the origin for correct phase.
 
     Returns
@@ -110,7 +110,7 @@ def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H'):
 
         Δλ_D = λ₀ × v_th / c,   v_th = √(2 T_i / m c²)
 
-    centred at the grid midpoint λ₀ = mean(wavelengths_nm), and convolves it
+    centered at the grid midpoint λ₀ = mean(wavelengths_nm), and convolves it
     with ``profile`` via :func:`convolve_fft`.
 
     Parameters

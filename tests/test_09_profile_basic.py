@@ -32,7 +32,7 @@ def make_profile(n_u, n_l, Z, B, Ne, Te, detuning_range=0.2, npts=300,
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False, include_fine_structure=False,
+        use_screening=True, quadratic_zeeman=False, fine_structure=False,
         frequency_dependent_width=False
     )
     sigma = sp + sm
@@ -160,7 +160,7 @@ def test_zeeman_splitting_at_large_B():
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=5, num_mu=4,
-        use_screening=False, include_quadratic=False, include_fine_structure=False,
+        use_screening=False, quadratic_zeeman=False, fine_structure=False,
         frequency_dependent_width=False
     )
 

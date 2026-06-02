@@ -45,7 +45,7 @@ def total_profile(n_u, n_l, Z, B, Ne, Te, detuning_range=0.05, npts=200,
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False, include_fine_structure=True,
+        use_screening=True, quadratic_zeeman=False, fine_structure=True,
         frequency_dependent_width=False
     )
     return energies, pi + sp + sm, pi, sp + sm
@@ -57,8 +57,8 @@ def total_profile(n_u, n_l, Z, B, Ne, Te, detuning_range=0.05, npts=200,
 def test_zeeman_eigenvalue_linear_in_B(B):
     """For n=1 H (l=0 only), the two spin-split eigenvalues must differ by g_s*mu_B*B."""
     g_s = 2.0023192
-    evals, _ = diagonalize_hamiltonian(n=1, Z=1, B=B, include_quadratic=False,
-                                    include_fine_structure=True)
+    evals, _ = diagonalize_hamiltonian(n=1, Z=1, B=B, quadratic_zeeman=False,
+                                    fine_structure=True)
     gap = evals.real.max() - evals.real.min()
     expected = g_s * BOHR_MAGNETON_EV_T * B
     assert relerr(gap, expected) < 1e-6, (
@@ -186,13 +186,13 @@ def test_static_vs_ffm_low_B():
     pi_s, sp_s, sm_s = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=15, num_mu=6,
-        include_fine_structure=True, include_quadratic=False,
+        fine_structure=True, quadratic_zeeman=False,
         frequency_dependent_width=False
     )
     pi_f, sp_f, sm_f = calculate_ffm_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te, Ti_ev=Ti,
         A_ion=1, energies_ev=energies, num_f=15, num_mu=6,
-        include_fine_structure=True, include_quadratic=False
+        fine_structure=True, quadratic_zeeman=False
     )
 
     int_static = np.trapezoid(pi_s + sp_s + sm_s, energies)

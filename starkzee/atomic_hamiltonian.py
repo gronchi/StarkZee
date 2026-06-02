@@ -26,7 +26,7 @@ class AtomicState:
 def build_basis(n):
     """Return the ordered list of 2n² hydrogenic basis states for shell n.
 
-    Each state is an :class:`AtomicState` labelled by (n, l, m_l, s=½, m_s).
+    Each state is an :class:`AtomicState` labeled by (n, l, m_l, s=½, m_s).
     The ordering is: outer loop over l ∈ {0, …, n−1}, then m_l ∈ {−l, …, +l},
     then m_s ∈ {+½, −½}.  This ordering is fixed throughout the package; all
     Hamiltonian and dipole matrices use the same index convention.
@@ -53,7 +53,7 @@ def build_basis(n):
 def radial_wavefunction(r, n, l, Z):
     """Return the hydrogenic radial wavefunction R_{nl}(r) [a₀^{−3/2}].
 
-    Evaluates the normalised hydrogenic radial wavefunction using the
+    Evaluates the normalized hydrogenic radial wavefunction using the
     associated Laguerre polynomial representation:
 
         R_{nl}(r) = N_{nl} × exp(−Z r / n) × (2Z r/n)^l × L_{n-l-1}^{2l+1}(2Z r/n)
@@ -259,7 +259,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
             
     return 0.0
 
-def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True, A=1):
+def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
     Constructs the full magnetic Hamiltonian in the uncoupled |n, l, m_l, m_s⟩
@@ -277,7 +277,7 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
     Written with ladder operators: L·S = L_z S_z + ½(L₊ S₋ + L₋ S₊).
 
     **3. Mass-velocity and Darwin corrections** (diagonal, only when
-    ``include_fine_structure=True``):
+    ``fine_structure=True``):
 
         ΔE_{l=0} = −A (n − ¾)
         ΔE_{l>0} = −A (n/(l+½) − ¾),   A = Z⁴ α² Ry / n⁴
@@ -290,7 +290,7 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
         H_LZ = μ_B B (m_l + g_s m_s),   g_s = 2.0023192
 
     **5. Quadratic (diamagnetic) Zeeman** (diagonal and off-diagonal in l,
-    only when ``include_quadratic=True`` and B > 0):
+    only when ``quadratic_zeeman=True`` and B > 0):
 
         H_QZ = (e²B²/8m_e) r² sin²θ
 
@@ -305,11 +305,11 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
         Nuclear charge.
     B : float
         Magnetic field [T].  B = 0 is fully supported (skips the QZ term).
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include the diamagnetic quadratic Zeeman term H_QZ (default True).
         At B ≤ 10 T the QZ shift is typically < 0.1 meV for n ≤ 3 and can be
         omitted for speed.
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include mass-velocity and Darwin corrections alongside spin-orbit
         (default True).  When False, only H_SO is added, breaking the
         2s_{1/2} = 2p_{1/2} degeneracy — useful for isolated unit tests.
@@ -370,7 +370,7 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
     # For l=0: ΔE = -A*(n - 3/4)        [MV + Darwin, Darwin is non-zero only at l=0]
     # For l>0: ΔE = -A*(n/(l+1/2) - 3/4) [MV only; Darwin vanishes for l>0]
     # where A = Z^4 * alpha^2 * Ry / n^4.
-    if include_fine_structure:
+    if fine_structure:
         A = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**4)
         for i, state in enumerate(basis):
             l = state.l
@@ -385,7 +385,7 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
         H[i, i] += BOHR_MAGNETON_EV_T * B * (state.ml + g_s * state.ms)
 
     # 4. Quadratic Zeeman Effect: (e^2 * B^2 / 8me) * r^2 * sin^2(theta)
-    if include_quadratic and B > 0:
+    if quadratic_zeeman and B > 0:
         quad_coeff_ev = (E_CHARGE * (B**2) * (A0**2)) / (8.0 * M_E)
         
         # We need the matrix elements of r^2 * sin^2(theta)
@@ -426,11 +426,11 @@ def build_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=Tr
 
     return H
 
-def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_structure=True, A=1):
-    """Diagonalise the field-free (F = 0) magnetic Hamiltonian for shell n.
+def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
+    """Diagonalize the field-free (F = 0) magnetic Hamiltonian for shell n.
 
     Builds the (2n²) × (2n²) Hamiltonian via :func:`build_hamiltonian`
-    with no applied electric field and diagonalises it using ``numpy.linalg.eigh``
+    with no applied electric field and diagonalizes it using ``numpy.linalg.eigh``
     (real symmetric solver, numerically stable).
 
     Parameters
@@ -442,9 +442,9 @@ def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_struct
     B : float
         Magnetic field [T].  B = 0 is valid (returns hydrogenic/fine-structure
         eigenvalues).
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include the diamagnetic (quadratic Zeeman) term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include mass-velocity and Darwin corrections alongside spin-orbit
         coupling (default True).
 
@@ -456,15 +456,15 @@ def diagonalize_hamiltonian(n, Z, B, include_quadratic=True, include_fine_struct
         Columns are the corresponding orthonormal eigenstates expressed in the
         |n, l, m_l, m_s⟩ basis of :func:`build_basis`.
     """
-    H = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure, A)
+    H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
     eigenvalues, eigenvectors = np.linalg.eigh(H)
     return eigenvalues, eigenvectors
 
-def dipole_matrix_elements(n_u, n_l, Z, B, include_quadratic=True,
-                                       include_fine_structure=True):
+def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
+                                       fine_structure=True):
     """Return transition dipole matrices between the eigenstate bases of n_u and n_l.
 
-    Diagonalises the Hamiltonian for both shells and rotates the uncoupled
+    Diagonalizes the Hamiltonian for both shells and rotates the uncoupled
     dipole matrices D_q into the eigenstate basis:
 
         d_q[i, j] = ⟨ψ_l^j | T_q^(1) | ψ_u^i⟩
@@ -479,9 +479,9 @@ def dipole_matrix_elements(n_u, n_l, Z, B, include_quadratic=True,
         Nuclear charge.
     B : float
         Magnetic field [T].
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include diamagnetic Zeeman term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include MV + Darwin corrections (default True).
 
     Returns
@@ -496,8 +496,8 @@ def dipole_matrix_elements(n_u, n_l, Z, B, include_quadratic=True,
         element between upper eigenstate i and lower eigenstate j.
     """
     # Diagonalize atomic Hamiltonian for upper and lower shells
-    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, include_quadratic, include_fine_structure)
-    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, include_quadratic, include_fine_structure)
+    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure)
+    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure)
     
     basis_u = build_basis(n_u)
     basis_l = build_basis(n_l)
@@ -541,7 +541,7 @@ def _uncoupled_dipole_matrices(n_u, n_l, Z):
     """Return the electric-dipole operator matrices in the uncoupled |n,l,ml,ms⟩ basis.
 
     Builds the three polarization matrices D_q (q = 0, +1, −1) without
-    diagonalising the Hamiltonian.  The (j, i) element is
+    diagonalizing the Hamiltonian.  The (j, i) element is
 
         D_q[j, i] = ⟨basis_l[j] | r̂_q | basis_u[i]⟩ = −R_{n_u l_u, n_l l_l} × Y_q(l_u,ml_u→l_l,ml_l)
 
@@ -592,7 +592,7 @@ def line_strength(n_u, n_l, Z):
     Sums over all polarizations q ∈ {0,±1}, all uncoupled upper states i, and
     all lower states j, restricted to Δl = ±1 and Δms = 0 (dipole selection
     rules).  Fine structure mixing is neglected (field-free, B = 0 limit with
-    the states labelled by |n, l, ml, ms>).
+    the states labeled by |n, l, ml, ms>).
 
     The profile returned by calculate_static_profile integrates to
     approximately S_ul at B = 0 and Ne → 0.  The Gauss-Legendre weights over

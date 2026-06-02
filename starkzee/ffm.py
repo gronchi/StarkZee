@@ -51,13 +51,13 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion):
 
 def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_ev,
                                   num_f=30, num_mu=10, use_screening=True,
-                                  include_quadratic=True, include_fine_structure=True,
+                                  quadratic_zeeman=True, fine_structure=True,
                                   numerical_inversion=False):
     """Compute the dynamical Stark-Zeeman line profile using the Frequency Fluctuation Model.
 
     The FFM treats the ion microfield as a Markov jump process between
     Stark-dressed field configurations.  At each quadrature point (field
-    magnitude F, angle μ = cos θ) the Stark-Zeeman Hamiltonian is diagonalised
+    magnitude F, angle μ = cos θ) the Stark-Zeeman Hamiltonian is diagonalized
     to obtain the dressed-state transition frequencies ω_k and weights d_k.
     These form the Stark-Dressed Transitions (SDTs).  The FFM then solves the
     Markov master equation to obtain a profile that interpolates between the
@@ -70,7 +70,7 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
 
         S(ω) = Σ_k p_k / (ν_i + γ_k + i(ω − ω_k))
 
-    where p_k = d_k² / Σ d_k² are the normalised SDT weights and γ_k is the
+    where p_k = d_k² / Σ d_k² are the normalized SDT weights and γ_k is the
     electron-impact half-width.  This analytical result is exact for a
     Markov jump process with uniform jumping rate ν_i and O(N) per frequency
     point.
@@ -106,9 +106,9 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         over μ = cos θ ∈ [0, 1] (default 10).
     use_screening : bool, optional
         Use the Hooper screened microfield distribution (default True).
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include the diamagnetic quadratic Zeeman term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include mass-velocity and Darwin corrections (default True).
     numerical_inversion : bool, optional
         If True, solve the full Markov matrix by direct inversion instead of
@@ -170,8 +170,8 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             Fx = fi * np.sqrt(1.0 - mu**2)
             
             # Solve combined Stark-Zeeman Hamiltonian for upper and lower states
-            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
-            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
+            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
+            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
             
             V_l_adj = sz_vectors_l.conj().T
             dE = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]

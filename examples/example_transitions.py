@@ -68,7 +68,7 @@ Z, n_u, n_l, B = 1, 2, 1, 5.0
 E0 = bohr_energy(n_u, n_l, Z)
 
 tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=B,
-                           include_fine_structure=True, min_strength=1e-6)
+                           fine_structure=True, min_strength=1e-6)
 
 print(f"{'#':>3}  {'E (eV)':>12}  {'ΔE (meV)':>10}  {'q':>4}  "
       f"{'|d|² (a₀²)':>12}  {'upper':>6}  {'lower':>6}")
@@ -125,13 +125,13 @@ ax_cvi  = fig.add_subplot(gs[1, 2])
 
 # ── Panel 1: H Ly-α stick at B=0 ────────────────────────────────────────────
 tr_b0 = discrete_transitions(n_u=2, n_l=1, Z=1, B=0.0,
-                               include_fine_structure=True, min_strength=1e-6)
+                               fine_structure=True, min_strength=1e-6)
 plot_stick_spectrum(ax_b0, tr_b0, E0,
                     title="H Ly-α  B=0 T\n(SO splits 2p₁/₂ from 2p₃/₂)")
 
 # ── Panel 2: H Ly-α stick at B=5T ───────────────────────────────────────────
 tr_b5 = discrete_transitions(n_u=2, n_l=1, Z=1, B=5.0,
-                               include_fine_structure=True, min_strength=1e-6)
+                               fine_structure=True, min_strength=1e-6)
 plot_stick_spectrum(ax_b5, tr_b5, E0,
                     title="H Ly-α  B=5 T\n(Zeeman + SO)")
 
@@ -141,7 +141,7 @@ energies = E0 + np.linspace(-0.005, 0.005, 1000)
 pi, sp, sm = calculate_static_profile(
     n_u=2, n_l=1, Z=1, B=5.0, Ne_m3=Ne, Te_ev=Te,
     energies_ev=energies, num_f=25, num_mu=8,
-    include_fine_structure=True, frequency_dependent_width=False
+    fine_structure=True, frequency_dependent_width=False
 )
 det_ev  = (energies - E0) * 1e3
 total   = pi + sp + sm
@@ -174,7 +174,7 @@ B_panel = 2.0
 E0_lya = bohr_energy(2, 1, 1)
 for Fz_vm, alpha in [(0.0, 1.0), (5e7, 0.65), (2e8, 0.35)]:
     tr_f = discrete_transitions(n_u=2, n_l=1, Z=1, B=B_panel,
-                                 Fz=Fz_vm, include_fine_structure=False,
+                                 Fz=Fz_vm, fine_structure=False,
                                  min_strength=1e-6)
     det = (tr_f['energy_ev'] - E0_lya) * 1e3
     s   = tr_f['strength'] / tr_f['strength'].max()
@@ -195,7 +195,7 @@ ax_stark.axhline(0, color="grey", linewidth=0.5)
 # ── Panel 5: H Hβ stick at B=5T ─────────────────────────────────────────────
 E0_hb = bohr_energy(4, 2, 1)
 tr_hb = discrete_transitions(n_u=4, n_l=2, Z=1, B=5.0,
-                               include_fine_structure=True, min_strength=1e-5)
+                               fine_structure=True, min_strength=1e-5)
 det_hb = (tr_hb['energy_ev'] - E0_hb) * 1e3
 s_hb   = tr_hb['strength'] / tr_hb['strength'].max()
 for q in [0, -1, 1]:
@@ -214,7 +214,7 @@ ax_hb.axhline(0, color="grey", linewidth=0.5)
 # ── Panel 6: C VI Ly-α stick at B=5T — large SO dominates ───────────────────
 E0_cvi = bohr_energy(2, 1, 6)
 tr_cvi = discrete_transitions(n_u=2, n_l=1, Z=6, B=5.0,
-                               include_fine_structure=True, min_strength=1e-6)
+                               fine_structure=True, min_strength=1e-6)
 det_cvi = (tr_cvi['energy_ev'] - E0_cvi) * 1e3
 s_cvi   = tr_cvi['strength'] / tr_cvi['strength'].max()
 for q in [0, -1, 1]:

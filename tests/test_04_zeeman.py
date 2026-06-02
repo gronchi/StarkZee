@@ -30,8 +30,8 @@ def test_zeeman_diagonal_l0_states():
     Z, n, B = 1, 1, 100.0  # n=1: only l=0
     g_s = 2.0023192
 
-    H_B0  = build_hamiltonian(n, Z, B=0.0,  include_quadratic=False)
-    H_B   = build_hamiltonian(n, Z, B=B,    include_quadratic=False)
+    H_B0  = build_hamiltonian(n, Z, B=0.0,  quadratic_zeeman=False)
+    H_B   = build_hamiltonian(n, Z, B=B,    quadratic_zeeman=False)
 
     basis = build_basis(n)
     for i, state in enumerate(basis):
@@ -51,8 +51,8 @@ def test_zeeman_diagonal_l1_states():
     Z, n, B = 1, 2, 100.0
     g_s = 2.0023192
 
-    H_B0 = build_hamiltonian(n, Z, B=0.0, include_quadratic=False)
-    H_B  = build_hamiltonian(n, Z, B=B,   include_quadratic=False)
+    H_B0 = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
+    H_B  = build_hamiltonian(n, Z, B=B,   quadratic_zeeman=False)
 
     basis = build_basis(n)
     for i, state in enumerate(basis):
@@ -86,7 +86,7 @@ def test_zeeman_splits_n1_into_two():
     """
     Z, B = 1, 100.0
     g_s = 2.0023192
-    evals, _ = diagonalize_hamiltonian(n=1, Z=Z, B=B, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n=1, Z=Z, B=B, quadratic_zeeman=False)
     gap = evals.real.max() - evals.real.min()
     expected = g_s * BOHR_MAGNETON_EV_T * B
     assert relerr(gap, expected) < 1e-6, (
@@ -101,7 +101,7 @@ def test_zeeman_n2_l1_splits_into_multiple():
     Z, B = 1, 100.0
     g_s = 2.0023192
 
-    evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=B, include_quadratic=False)
+    evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=B, quadratic_zeeman=False)
     E_centroid = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / 4.0
 
     # The extremal Zeeman state has ml=+1, ms=+1/2:
@@ -130,7 +130,7 @@ def test_larmor_frequency_relation():
     """
     B = 100.0
     Z = 1
-    H_B = build_hamiltonian(n=2, Z=Z, B=B, include_quadratic=False)
+    H_B = build_hamiltonian(n=2, Z=Z, B=B, quadratic_zeeman=False)
     basis = build_basis(2)
 
     E_plus = E_minus = None
@@ -163,11 +163,11 @@ def test_larmor_frequency_relation():
 def test_quadratic_zeeman_positive_definite():
     """
     The quadratic Zeeman term (∝ B² r²) adds a positive diagonal contribution.
-    Eigenvalues with include_quadratic=True should be >= those without.
+    Eigenvalues with quadratic_zeeman=True should be >= those without.
     """
     Z, n, B = 1, 2, 1000.0   # Large B to make quadratic term visible
-    evals_no_quad, _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=False)
-    evals_quad, _    = diagonalize_hamiltonian(n, Z, B, include_quadratic=True)
+    evals_no_quad, _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=False)
+    evals_quad, _    = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True)
 
     # Mean eigenvalue should shift upward with quadratic term
     mean_shift = np.mean(evals_quad.real) - np.mean(evals_no_quad.real)
@@ -185,8 +185,8 @@ def test_quadratic_zeeman_scales_as_B_squared():
     B1, B2 = 500.0, 500.0 * np.sqrt(2.0)
 
     def mean_quad_shift(B):
-        e_noq, _ = diagonalize_hamiltonian(n, Z, B, include_quadratic=False)
-        e_q, _   = diagonalize_hamiltonian(n, Z, B, include_quadratic=True)
+        e_noq, _ = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=False)
+        e_q, _   = diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True)
         return np.mean(e_q.real) - np.mean(e_noq.real)
 
     shift1 = mean_quad_shift(B1)

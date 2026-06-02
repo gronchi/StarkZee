@@ -17,13 +17,13 @@ Basic profile
     # Hα (n=3→2), DIII-D edge conditions
     lp = LineProfile(n_u=3, n_l=2, Z=1, B=5.0, Ne_m3=1e20, Te_ev=5.0)
 
-    # Build an energy grid ±3 nm around the line centre
+    # Build an energy grid ±3 nm around the line center
     lam0 = lp.E0_wavelength_nm        # ≈ 656.1 nm
     HC   = 1239.84193                  # hc/e  [eV·nm]
     energies = np.linspace(HC/(lam0+3), HC/(lam0-3), 1000)
 
     lp.compute_profile(energies, num_f=30, num_mu=8,
-                       use_screening=True, include_quadratic=False)
+                       use_screening=True, quadratic_zeeman=False)
 
     # Observation at 90° to B (transverse): π + ½(σ+ + σ-)
     plt.plot(lp.wavelengths_nm - lam0, lp.profile_transverse, label="90°")

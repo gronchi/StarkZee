@@ -81,13 +81,13 @@ def build_stark_matrix(n, Z, Fz, Fx):
                 
     return V_E
 
-def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
-                               include_fine_structure=True, A=1):
-    """Diagonalise the combined Stark + Zeeman Hamiltonian for shell n.
+def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
+                               fine_structure=True, A=1):
+    """Diagonalize the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
     atomic/magnetic Hamiltonian :func:`build_hamiltonian` and
-    diagonalises the sum with ``numpy.linalg.eigh``:
+    diagonalizes the sum with ``numpy.linalg.eigh``:
 
         H = H_atom(B) + V_E(Fz, Fx)
 
@@ -106,9 +106,9 @@ def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
         Electric field component along B [V m⁻¹].
     Fx : float
         Electric field component perpendicular to B [V m⁻¹].
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include the diamagnetic quadratic Zeeman term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include MV + Darwin corrections (default True).
 
     Returns
@@ -118,7 +118,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
     eigenvectors : ndarray, shape (2n², 2n²)
         Orthonormal eigenstates as columns, in the canonical |n, l, m_l, m_s⟩ basis.
     """
-    H_atom = build_hamiltonian(n, Z, B, include_quadratic, include_fine_structure, A)
+    H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
     V_E = build_stark_matrix(n, Z, Fz, Fx)
     H_total = H_atom + V_E
 
@@ -127,14 +127,14 @@ def solve_starkzee(n, Z, B, Fz, Fx, include_quadratic=True,
 
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, use_screening=True,
-                                     include_quadratic=True, include_fine_structure=True,
+                                     quadratic_zeeman=True, fine_structure=True,
                                      frequency_dependent_width=True, A=1):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
     using Gauss-Legendre quadrature for both the field magnitude and the angle μ = cos θ
     between the microfield and B.  For each quadrature point the combined
-    Hamiltonian H = H_atom(B) + V_E(Fz, Fx) is diagonalised and the transition
+    Hamiltonian H = H_atom(B) + V_E(Fz, Fx) is diagonalized and the transition
     intensities accumulated into three polarization components.
 
     Parameters
@@ -159,9 +159,9 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         Number of Gauss-Legendre angle points (default 6).
     use_screening : bool, optional
         Use Hooper screened microfield distribution (default True).
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include diamagnetic (quadratic) Zeeman term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include mass-velocity and Darwin corrections (Dirac fine structure)
         so that 2s_{1/2} = 2p_{1/2} (default True).
     frequency_dependent_width : bool, optional
@@ -228,8 +228,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             Fx = fi * np.sqrt(1.0 - mu**2)
             
             # Diagonalize upper and lower states under microfield and magnetic field
-            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, include_quadratic, include_fine_structure, A)
-            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, include_quadratic, include_fine_structure, A)
+            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
+            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
             
             # Vectorized mixed dipole matrix calculation
             V_l_adj = sz_vectors_l.conj().T
@@ -261,11 +261,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
 
 
 def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
-                         include_quadratic=True, include_fine_structure=True,
+                         quadratic_zeeman=True, fine_structure=True,
                          min_strength=0.0):
     """Return all discrete Stark-Zeeman dipole transitions at a single field configuration.
 
-    Diagonalises the Stark-Zeeman Hamiltonian for both shells and enumerates every
+    Diagonalizes the Stark-Zeeman Hamiltonian for both shells and enumerates every
     (upper eigenstate i, lower eigenstate j, polarization q) triplet with
     non-zero dipole matrix element squared.
 
@@ -281,9 +281,9 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Electric field component along B [V m⁻¹] (default 0).
     Fx : float, optional
         Electric field component perpendicular to B [V m⁻¹] (default 0).
-    include_quadratic : bool, optional
+    quadratic_zeeman : bool, optional
         Include diamagnetic Zeeman term (default True).
-    include_fine_structure : bool, optional
+    fine_structure : bool, optional
         Include mass-velocity + Darwin corrections (default True).
     min_strength : float, optional
         Discard transitions with |d_q|² < min_strength [a₀²] (default 0).
@@ -305,9 +305,9 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Lower eigenstate index (0 … 2n_l²−1).
     """
     evals_u, evecs_u = solve_starkzee(
-        n_u, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
+        n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
     evals_l, evecs_l = solve_starkzee(
-        n_l, Z, B, Fz, Fx, include_quadratic, include_fine_structure)
+        n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
 
     D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
     dim_l, dim_u = D_q[0].shape

@@ -65,13 +65,13 @@ for label, num_f, num_mu in configs:
     pi_nq, sp_nq, sm_nq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=False,
+        use_screening=True, quadratic_zeeman=False,
         frequency_dependent_width=False)
     print("  without QZ done.", flush=True)
     pi_yq, sp_yq, sm_yq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=num_f, num_mu=num_mu,
-        use_screening=True, include_quadratic=True,
+        use_screening=True, quadratic_zeeman=True,
         frequency_dependent_width=False)
     print("  with QZ done.", flush=True)
     results[label] = dict(pi_nq=pi_nq, sp_nq=sp_nq, sm_nq=sm_nq,

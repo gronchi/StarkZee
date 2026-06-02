@@ -206,7 +206,7 @@ def test_profile_integral_vs_line_strength(n_u, n_l, Z):
     pi, sp, sm = calculate_static_profile(
         n_u=n_u, n_l=n_l, Z=Z, B=1e-6, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=20, num_mu=8,
-        include_fine_structure=False, include_quadratic=False,
+        fine_structure=False, quadratic_zeeman=False,
         frequency_dependent_width=False
     )
     integral = np.trapezoid(pi + sp + sm, energies)

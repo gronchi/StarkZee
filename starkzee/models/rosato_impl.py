@@ -6,8 +6,9 @@ Based on pystark package (https://github.com/jsallcock/pystark).
 
 import os
 import numpy as np
-from scipy.constants import c as C, e as E, h as H
+from scipy.constants import c as C, e as E, h as H, m_e as M_E
 from scipy.io import netcdf_file
+from scipy.signal import fftconvolve
 
 # ── Parameter grids (Rosato et al. database) ──────────────────────────────────
 density_val     = np.array([1e13, 2.15e13, 4.64e13, 1e14, 2.15e14, 4.64e14,
@@ -169,12 +170,36 @@ def _ls_interpol(dens_cm3, temp_ev, bfield, wmax, npts,
     return ls
 
 
+def _estimate_fwhm_hz(n_u, Ne_m3, Ti_ev, B, A, lambda0_nm):
+    """Total lineshape FWHM estimate [Hz] — mirrors pystark.estimate_fwhm.
+
+    Voigt-combined Stark (Griem) and Doppler widths plus the linear Zeeman
+    splitting, used only to size the detuning axis (12 × FWHM, as in pystark).
+    """
+    from starkzee.models.analytical import _fwhm_doppler_nm, _fwhm_stark_griem_nm
+
+    c_over_l2       = C / (lambda0_nm * 1e-9)**2
+    fwhm_doppler_hz = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A) * 1e-9 * c_over_l2
+    fwhm_stark_hz   = _fwhm_stark_griem_nm(n_u, Ne_m3)       * 1e-9 * c_over_l2
+    zeeman_hz       = E / (4.0 * np.pi * M_E) * B
+    fwhm = 0.5346 * fwhm_stark_hz + np.sqrt(0.2166 * fwhm_stark_hz**2 + fwhm_doppler_hz**2)
+    return fwhm + zeeman_hz
+
+
 def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
            view_angle_deg=90.0, species='H'):
-    """Rosato Stark-Zeeman-Doppler profile using local tabulated data."""
+    """Rosato Stark-Zeeman-Doppler profile using local tabulated data.
+
+    Faithfully mirrors pystark's pipeline (make_rosato + StarkLineshape): the
+    Stark-Zeeman tables are interpolated exactly as pystark's rosato_pure, then
+    the Doppler convolution and frequency→wavelength conversion are performed in
+    *frequency* space. Doing the convolution in frequency space matters — a
+    Gaussian that is symmetric in frequency is slightly asymmetric in wavelength,
+    so convolving in the wrong domain introduces an antisymmetric error in the
+    line shoulders. Matches the reference to ~1e-6.
+    """
     from starkzee.utils import species_to_ZA
-    from starkzee.convolutions import apply_doppler_broadening
-    from scipy.signal import fftconvolve
+    from starkzee.models.analytical import _fwhm_doppler_nm, _SIGMA2FWHM, _nist_center_air_nm
 
     _, A = species_to_ZA(species)
     # Isotope fudge: Rosato tables are for D; doubling T approximates halving mass (H)
@@ -184,13 +209,16 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
 
     d_idx, t_idx, b_idx = _set_bounds(dens_cm3, temp_eff, B)
 
-    # Detuning range: cover the full wavelength grid plus 10 %
-    lambda0_m  = np.mean(wavelengths_nm) * 1e-9
+    lambda0_nm = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
+    lambda0_m  = lambda0_nm * 1e-9
     freq_ctr   = C / lambda0_m
-    max_dfreq  = max(abs(C / (wavelengths_nm.min() * 1e-9) - freq_ctr),
-                     abs(C / (wavelengths_nm.max() * 1e-9) - freq_ctr))
-    wmax_ev    = H * max_dfreq / E * 1.1
-    npts       = max(2001, len(wavelengths_nm) * 2)
+
+    npts = 2001                       # pystark's default internal resolution
+
+    # Detuning axis spans 12 × estimated FWHM, exactly like pystark.make_rosato.
+    fwhm_est_hz = _estimate_fwhm_hz(n_u, Ne_m3, Ti_ev, B, A, lambda0_nm)
+    wmax_ev = 12.0 * fwhm_est_hz * H / E
+    det_ev  = np.linspace(-wmax_ev, wmax_ev, npts)
 
     # Balmer lines only; n_l == 2 assumed (Rosato is Balmer-only)
     line_name  = _LINE_NAMES[n_u - 3]
@@ -207,44 +235,45 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     theta = np.deg2rad(view_angle_deg)
     ls_sz = lss[:, 0] * np.sin(theta)**2 + lss[:, 1] * np.cos(theta)**2
 
-    # Convert detuning axis (eV) to absolute frequency [Hz] then to wavelength [nm]
-    det_ev     = np.linspace(-wmax_ev, wmax_ev, npts)
-    freqs      = E * det_ev / H + freq_ctr           # Hz
-    wl_nm      = C / freqs * 1e9                     # nm (non-uniform)
-
-    # Convert intensity from 1/eV to 1/m (wavelength)
-    ls_sz_hz = ls_sz * E / H                          # 1/Hz
-    # Normalise in frequency space
+    # Detuning (eV) → absolute frequency [Hz]; intensity 1/eV → 1/Hz; area-normalize.
+    freqs    = E * det_ev / H + freq_ctr
+    ls_sz_hz = ls_sz * E / H
     ls_sz_hz /= np.trapz(ls_sz_hz, freqs)
 
-    # Sort by ascending wavelength for interp
-    order     = np.argsort(wl_nm)
-    wl_sorted = wl_nm[order]
-    ls_sorted = ls_sz_hz[order]
+    # Uniform internal frequency axis covering the output grid (+5 % margin), as in
+    # pystark's freq_axis. Interpolate the Stark-Zeeman profile onto it.
+    max_dfreq = max(abs(C / (wavelengths_nm.min() * 1e-9) - freq_ctr),
+                    abs(C / (wavelengths_nm.max() * 1e-9) - freq_ctr))
+    half_hz   = max_dfreq * 1.05
+    freq_axis = np.linspace(freq_ctr - half_hz, freq_ctr + half_hz, npts)
+    ls_sz_fa  = np.interp(freq_axis, freqs, ls_sz_hz, left=0., right=0.)
+    rosato_support = ls_sz_fa > 0
 
-    # Interpolate onto uniform output wavelength grid (zero outside Rosato range)
-    rosato_support = ls_sz > 0
-    wl_support_sorted = wl_nm[order][rosato_support[order]]
-    wl_min = wl_support_sorted.min() if wl_support_sorted.size else wl_nm.min()
-    wl_max = wl_support_sorted.max() if wl_support_sorted.size else wl_nm.max()
+    # Doppler convolution in FREQUENCY space (Doppler kernel symmetric in ν).
+    extra     = 1000
+    dfreq     = (freq_axis[-1] - freq_axis[0]) / (len(freq_axis) - 1)
+    freq_conv = np.linspace(freq_axis[0]  - extra // 2 * dfreq,
+                             freq_axis[-1] + extra // 2 * dfreq,
+                             len(freq_axis) + extra)
+    fwhm_d_hz = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A) * 1e-9 * C / lambda0_m**2
+    sigma_hz  = fwhm_d_hz / _SIGMA2FWHM
+    ls_d      = np.exp(-0.5 * ((freq_conv - freq_ctr) / sigma_hz)**2)
+    ls_d     /= ls_d.sum()
 
-    # dλ = -λ² dν / c  →  I(λ) = I(ν) × c/λ²
-    ls_wl_sorted = ls_sorted * C / (wl_sorted * 1e-9)**2
-    ls_out = np.interp(wavelengths_nm, wl_sorted, ls_wl_sorted, left=0., right=0.)
-    ls_out[(wavelengths_nm < wl_min) | (wavelengths_nm > wl_max)] = 0.
+    ls_szd = fftconvolve(ls_sz_fa, ls_d, 'same')
+    # Zero points outside the Rosato table support: the FFT convolution spreads the
+    # profile via Gaussian tails into that region, so force it back to the boundary.
+    ls_szd[~rosato_support] = 0.
+    ls_szd /= np.trapz(ls_szd, freq_axis)
 
-    # Doppler broadening
-    support_mask = ls_out > 0
-    from scipy.signal import fftconvolve as _fftconv
-    from starkzee.models.analytical import _fwhm_doppler_nm, _SIGMA2FWHM
-    fwhm_d = _fwhm_doppler_nm(np.mean(wavelengths_nm), Ti_ev, A)
-    sigma  = fwhm_d / _SIGMA2FWHM
-    d      = wavelengths_nm - np.mean(wavelengths_nm)
-    kernel = np.exp(-0.5 * (d / sigma)**2)
-    ls_out = _fftconv(ls_out, kernel / kernel.sum(), 'same')
-    ls_out[~support_mask] = 0.
+    # Convert frequency → wavelength: I(λ) = I(ν) · c/λ²; interpolate onto output grid.
+    wl_from_freq_nm = C / freq_axis * 1e9
+    ls_wl = ls_szd * C / (C / freq_axis)**2
+    order = np.argsort(wl_from_freq_nm)
+    ls_out = np.interp(wavelengths_nm, wl_from_freq_nm[order], ls_wl[order],
+                       left=0., right=0.)
 
-    # Area-normalise in wavelength [m]
+    # Area-normalize in wavelength [m]
     area = np.trapz(ls_out, wavelengths_nm * 1e-9)
     if area > 0:
         ls_out /= area
