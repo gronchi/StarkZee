@@ -33,22 +33,10 @@ jobs:
           pip install -e ".[dev]"
           pip install -r docs/requirements.txt
 
-      - name: Install TeX Live
-        run: sudo apt-get install -y texlive-latex-extra texlive-fonts-recommended
-
-      - name: Build PDF manual
-        run: |
-          cd docs
-          pdflatex -interaction=nonstopmode manual.tex
-          pdflatex -interaction=nonstopmode manual.tex
-
       - name: Build HTML docs
         run: |
           cd docs
           make html SPHINXOPTS="-W --keep-going -n"
-
-      - name: Copy PDF into HTML output
-        run: cp docs/manual.pdf docs/build/html/manual.pdf
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
