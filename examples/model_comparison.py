@@ -24,7 +24,7 @@ import starkzee.models as models
 
 def run():
     # ── parameters ────────────────────────────────────────────────────────────
-    n_u, n_l       = 5, 2      # transition  (Hα)
+    n_u, n_l       = 3, 2      # transition  (Hα)
     species        = 'H'       # emitting species: 'H', 'D', or 'T'
     Ne_m3          = 1e20      # electron density          [m⁻³]
     Te_ev          = .5       # electron temperature      [eV]  → Stark width
@@ -48,7 +48,7 @@ def run():
                             lp.E0_wavelength_nm + half_width_nm, 1000)
     print('--------\ntimings:\n--------')
     t0 = time.time()
-    lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=20, num_mu=6, fine_structure=True, frequency_dependent_width=False)
+    lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=20, num_mu=6, fine_structure=True)
     print(f'starkzee: {time.time() - t0:.3g} sec')
 
     # Physical line center = intensity-weighted centroid of the StarkZee profile.

@@ -33,7 +33,7 @@ NE_ROWS = [
     (1e17, 1.0),   # (Ne m^-3, detuning half-range meV)
     (1e19, 1.0),
 ]
-NPTS = 1000   # Voigt bakes in Doppler; grid only needs to resolve ~Doppler width (~50 ueV)
+NPTS = 10000   # Voigt bakes in Doppler; grid only needs to resolve ~Doppler width (~50 ueV)
 
 POL_COLOR = {0: "#e74c3c", -1: "#3498db", 1: "#2ecc71"}
 
@@ -67,7 +67,7 @@ for row, (Ne, det_range) in enumerate(NE_ROWS):
             energies_ev=energies,
             num_f=25, num_mu=8,
             fine_structure=True,
-            frequency_dependent_width=False,
+            frequency_dependent_width=True,
             Ti_ev=Ti_ev, species='H',
         )
 
