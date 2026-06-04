@@ -461,7 +461,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     return eigenvalues, eigenvectors
 
 def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
-                                       fine_structure=True):
+                                       fine_structure=True, A=1):
     """Return transition dipole matrices between the eigenstate bases of n_u and n_l.
 
     Diagonalizes the Hamiltonian for both shells and rotates the uncoupled
@@ -496,8 +496,8 @@ def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
         element between upper eigenstate i and lower eigenstate j.
     """
     # Diagonalize atomic Hamiltonian for upper and lower shells
-    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure)
-    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure)
+    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure, A)
+    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure, A)
     
     basis_u = build_basis(n_u)
     basis_l = build_basis(n_l)

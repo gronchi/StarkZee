@@ -2,9 +2,42 @@
 
 import numpy as np
 from starkzee.utils import A0
+from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
+
+# Pseudo-Voigt constants
+_SQRT_2LN2 = np.sqrt(2.0 * np.log(2.0))
+_SQRT_2PI  = np.sqrt(2.0 * np.pi)
+
+
+def _pseudo_voigt(x, sigma, gamma):
+    """Normalized pseudo-Voigt (Thompson et al. 1987), accurate to < 2e-4 of peak.
+
+    Uses only ``exp`` and division — no Faddeeva function — so it is as fast as
+    a plain Gaussian while correctly reproducing the Lorentzian far wings.
+
+    Parameters
+    ----------
+    x : array-like
+        Detuning from line center.
+    sigma : float
+        Gaussian standard deviation (same convention as ``scipy.special.voigt_profile``).
+    gamma : float or array-like
+        Lorentzian HWHM.  May be scalar or array broadcastable with *x*.
+    """
+    fG = 2.0 * _SQRT_2LN2 * sigma    # Gaussian FWHM
+    fL = 2.0 * gamma                  # Lorentzian FWHM
+    f5 = (fG**5 + 2.69269*fG**4*fL + 2.42843*fG**3*fL**2
+          + 4.47163*fG**2*fL**3 + 0.07842*fG*fL**4 + fL**5)
+    f   = f5 ** 0.2
+    eta = 1.36603*(fL/f) - 0.47719*(fL/f)**2 + 0.11116*(fL/f)**3
+    hwhm = f * 0.5
+    sig  = f / (2.0 * _SQRT_2LN2)
+    L = hwhm / (np.pi * (x**2 + hwhm**2))
+    G = np.exp(-0.5 * x**2 / sig**2) / (sig * _SQRT_2PI)
+    return eta * L + (1.0 - eta) * G
 from starkzee.atomic_hamiltonian import (
     build_hamiltonian, build_basis, angular_dipole_element, radial_dipole,
-    _uncoupled_dipole_matrices,
+    _uncoupled_dipole_matrices, einstein_a,
 )
 from starkzee.microfield import microfield_quadrature
 from starkzee.broadening import electron_impact_width
@@ -128,7 +161,8 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, use_screening=True,
                                      quadratic_zeeman=True, fine_structure=True,
-                                     frequency_dependent_width=True, A=1):
+                                     frequency_dependent_width=True, A=1,
+                                     Ti_ev=None, species='H'):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -167,6 +201,15 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     frequency_dependent_width : bool, optional
         Use the frequency-dependent GBK electron-impact width; if False use the
         on-resonance value at all detunings (default True).
+    Ti_ev : float, optional
+        Ion temperature [eV].  When supplied, Doppler broadening is folded into
+        the Lorentzian accumulation as a Voigt profile, eliminating the need for
+        a separate post-processing convolution.  Default is ``None`` (bare
+        Lorentzian, no Doppler).
+    species : str, optional
+        Emitting species (``'H'``, ``'D'``, or ``'T'``); used to determine the
+        ion mass for the Doppler width.  Only relevant when *Ti_ev* is set.
+        Default is ``'H'``.
 
     Returns
     -------
@@ -202,17 +245,39 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     profile_sig_plus = np.zeros_like(energies_ev)
     profile_sig_minus = np.zeros_like(energies_ev)
     
+    # Doppler kernel: Gaussian std dev sigma_D (= 1/e half-width / sqrt(2)).
+    # Strategy depends on whether the Lorentzian width is constant:
+    #   frequency_dependent_width=False → Gaussian kernel in loop + analytic Lorentzian
+    #     FFT after the loop (exact Voigt, fastest path).
+    #   frequency_dependent_width=True  → pseudo-Voigt per transition in the loop
+    #     (variable gamma prevents the post-loop FFT factorization).
+    sigma_D = None
+    if Ti_ev is not None:
+        from starkzee.utils import species_to_ZA
+        _, A_species = species_to_ZA(species)
+        mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
+        sigma_D = np.mean(energies_ev) * np.sqrt(Ti_ev / mc2_ev)
+    # Precompute Gaussian normalization constants (used only when sigma_D is set
+    # and frequency_dependent_width=False; values are set after w_resonance is known).
+    _two_sigma2 = 2.0 * sigma_D**2 if sigma_D is not None else None
+    _gauss_norm = 1.0 / (sigma_D * _SQRT_2PI) if sigma_D is not None else None
+
+    # Natural linewidth: ħ(Γ_u + Γ_l)/2, summing Einstein A over all decay channels.
+    # This is the physically correct minimum Lorentzian half-width — it replaces
+    # the arbitrary numerical floor and ensures correct behavior at low Ne or high B.
+    gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
+    gamma_lower = sum(einstein_a(n_l, k, Z) for k in range(1, n_l)) if n_l > 1 else 0.0
+    w_natural_ev = _HBAR * (gamma_upper + gamma_lower) / 2.0 / _E_CHARGE
+
     # Pre-calculate electron impact width (once per line calculation to save massive compute)
-    # The 1e-10 eV floor prevents 0/0 in the Lorentzian at exactly zero density;
-    # it must be negligible compared to any physical width (W_e ∝ Ne).
     if frequency_dependent_width:
         # Cover a grid that is guaranteed to span the maximum possible detunings
         max_energy_span = np.max(energies_ev) - np.min(energies_ev)
         grid_limit = max(10.0 * max_energy_span, 10.0)
         w_grid_x = np.linspace(-grid_limit, grid_limit, 2000)
-        w_grid_y = electron_impact_width(w_grid_x, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-10
+        w_grid_y = electron_impact_width(w_grid_x, Ne_m3, Te_ev, B, Z, n=n_u) + w_natural_ev
     else:
-        w_resonance = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u) + 1e-10
+        w_resonance = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u) + w_natural_ev
         
     # Main integration loop
     for fi, f_weight in zip(fields, f_weights):
@@ -254,15 +319,34 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                     else:
                         w = w_resonance
 
-                    lorentzian = (w / np.pi) / (detuning**2 + w**2)
-                    profile += weight * (lorentzian @ act_intensities)
-                        
+                    if sigma_D is not None and not frequency_dependent_width:
+                        # Gaussian only — Lorentzian applied via analytic FFT after the loop
+                        kernel = np.exp(-detuning**2 / _two_sigma2) * _gauss_norm
+                    elif sigma_D is not None:
+                        # frequency-dependent width: pseudo-Voigt per transition
+                        kernel = _pseudo_voigt(detuning, sigma_D, w)
+                    else:
+                        kernel = (w / np.pi) / (detuning**2 + w**2)
+                    profile += weight * (kernel @ act_intensities)
+
+    # Apply analytic Lorentzian convolution to all three polarizations:
+    # multiply FFT by exp(-2pi|k|*w), the exact FT of the Lorentzian.
+    # This turns the accumulated Gaussian profile into a true Voigt without
+    # sampling the narrow Lorentzian on the grid (no aliasing regardless of grid spacing).
+    if sigma_D is not None and not frequency_dependent_width:
+        dx = energies_ev[1] - energies_ev[0]
+        k  = np.fft.rfftfreq(len(energies_ev), d=dx)
+        lorentz_filter = np.exp(-2.0 * np.pi * k * w_resonance)
+        for prof in (profile_pi, profile_sig_plus, profile_sig_minus):
+            prof[:] = np.fft.irfft(np.fft.rfft(prof) * lorentz_filter,
+                                   n=len(energies_ev))
+
     return profile_pi, profile_sig_plus, profile_sig_minus
 
 
 def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
                          quadratic_zeeman=True, fine_structure=True,
-                         min_strength=0.0):
+                         min_strength=0.0, A=1):
     """Return all discrete Stark-Zeeman dipole transitions at a single field configuration.
 
     Diagonalizes the Stark-Zeeman Hamiltonian for both shells and enumerates every
@@ -287,6 +371,9 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Include mass-velocity + Darwin corrections (default True).
     min_strength : float, optional
         Discard transitions with \|d_q\|² < min_strength [a₀²] (default 0).
+    A : int, optional
+        Atomic mass number of the emitter (1 = H, 2 = D, 3 = T).  Sets the
+        reduced-mass Rydberg used for the absolute level energies (default 1).
 
     Returns
     -------
@@ -305,9 +392,9 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Lower eigenstate index (0 … 2n_l²−1).
     """
     evals_u, evecs_u = solve_starkzee(
-        n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
+        n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
     evals_l, evecs_l = solve_starkzee(
-        n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
+        n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
 
     D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
     dim_l, dim_u = D_q[0].shape

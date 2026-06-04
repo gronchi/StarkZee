@@ -26,29 +26,29 @@ def run():
     # ── parameters ────────────────────────────────────────────────────────────
     n_u, n_l       = 5, 2      # transition  (Hα)
     species        = 'H'       # emitting species: 'H', 'D', or 'T'
-    Ne_m3          = 1e22      # electron density          [m⁻³]
-    Te_ev          = 1.0       # electron temperature      [eV]  → Stark width
-    Ti_ev          = 1.0       # ion temperature           [eV]  → Doppler width
-    B              = 10.0       # magnetic field            [T]
+    Ne_m3          = 1e20      # electron density          [m⁻³]
+    Te_ev          = .5       # electron temperature      [eV]  → Stark width
+    Ti_ev          = .5       # ion temperature           [eV]  → Doppler width
+    B              = 3.0       # magnetic field            [T]
     view_angle_deg = 90.0      # observation angle to B    [deg]
     # ──────────────────────────────────────────────────────────────────────────
 
     # Line center and adaptive grid width
-    lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne_m3, Te_ev=Te_ev,
-                     species=species, Ti_ev=Ti_ev, view_angle_deg=view_angle_deg)
+    lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne_m3, Te_ev=Te_ev, Ti_ev=Ti_ev,
+                     species=species, view_angle_deg=view_angle_deg)
 
     delta_E_D        = calculate_doppler_width_ev(lp.E0, Ti_ev, A_emitter=1)
     delta_lambda_D_nm = lp.E0_wavelength_nm * delta_E_D / lp.E0
-    half_width_nm    = max(5.0, 5.0 * delta_lambda_D_nm)
+    half_width_nm    = max(2.0, 4.0 * delta_lambda_D_nm)
 
     # StarkZee computes in vacuum nm, on a grid centered on the gross-structure
     # Rydberg line center.  Compute it up front so the comparison models can be
     # referenced to its actual line center (next).
     wl_sz_nm = np.linspace(lp.E0_wavelength_nm - half_width_nm,
-                            lp.E0_wavelength_nm + half_width_nm, 2000)
+                            lp.E0_wavelength_nm + half_width_nm, 1000)
     print('--------\ntimings:\n--------')
     t0 = time.time()
-    lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm', num_f=20, num_mu=6, fine_structure=True)
+    lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=20, num_mu=6, fine_structure=True, frequency_dependent_width=False)
     print(f'starkzee: {time.time() - t0:.3g} sec')
 
     # Physical line center = intensity-weighted centroid of the StarkZee profile.
@@ -79,6 +79,7 @@ def run():
         'stehle':       models.stehle,
         'stehle_param': models.stehle_param,
         'lomanowski':   models.lomanowski,
+        'rosato':   models.rosato,
     }
 
     for name, func in cmp_funcs.items():

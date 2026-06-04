@@ -105,6 +105,73 @@ pi, sp, sm = calculate_ffm_profile(
 starkzee -Z 1 -B 5 --Ne 1e20 --Te 5 -o profile.txt -p profile.png
 ```
 
+### Comparison with all models — D_γ
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from starkzee.line_profile import LineProfile
+import starkzee.models as models
+
+# D_γ (n=5→2) at low-density edge conditions
+Ne_m3   = 1e19    # electron density   [m⁻³]
+Te_ev   = 0.5     # electron temperature [eV]
+Ti_ev   = 0.5     # ion temperature      [eV]
+B       = 3.0     # magnetic field       [T]
+n_u, n_l = 5, 2
+half_width_nm = 1.5
+
+# Ti_ev supplied → compute_profile applies Doppler broadening automatically
+lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne_m3,
+                 Te_ev=Te_ev, Ti_ev=Ti_ev, species='D', view_angle_deg=90.0)
+
+wl_vac = np.linspace(lp.E0_wavelength_nm - half_width_nm,
+                     lp.E0_wavelength_nm + half_width_nm, 1000)
+lp.compute_profile(wl_vac, grid_type='wavelength_nm')
+sz = lp.profile
+
+# Comparison models share the same air-wavelength grid
+wl = np.linspace(lp.E0_wavelength_air_nm - half_width_nm,
+                 lp.E0_wavelength_air_nm + half_width_nm, 1000)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4),
+                               sharex=False, sharey=False)
+fig.suptitle(r'D$_\gamma$  —  '
+             f'$N_e={Ne_m3:.0e}$ m$^{{-3}}$, '
+             f'$T_i=T_e={Ti_ev}$ eV, $B={B}$ T')
+
+for ax in (ax1, ax2):
+    ax.plot(lp.wavelengths_air_nm, sz / sz.max(),
+            'k--', lw=2, label='StarkZee', zorder=10)
+
+comparison_models = [
+    ('Voigt',          models.voigt),
+    ('Stehle',         models.stehle),
+    ('Stehle (param)', models.stehle_param),
+    ('Lomanowski',     models.lomanowski),
+    ('Rosato',         models.rosato),
+]
+for label, func in comparison_models:
+    try:
+        p = func(wl, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev, species='D')
+        ax1.plot(wl, p / p.max(), label=label, alpha=0.85)
+        ax2.plot(wl, p / p.max(), label=label, alpha=0.85)
+    except Exception as exc:
+        print(f'{label}: {exc}')
+
+ax1.set_xlabel('wavelength (nm)')
+ax1.set_ylabel('normalized intensity')
+ax1.legend(fontsize=9)
+ax1.grid(ls=':', alpha=0.4)
+
+ax2.semilogy()
+ax2.set_xlabel('wavelength (nm)')
+ax2.grid(ls=':', alpha=0.4)
+
+plt.tight_layout()
+plt.show()
+```
+
 ---
 
 ## Package overview

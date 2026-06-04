@@ -7,6 +7,10 @@ Based on pystark package (https://github.com/jsallcock/pystark).
 import os
 import numpy as np
 from scipy.constants import c as C, e as E, h as H, m_e as M_E
+try:
+    from numpy import trapezoid as trapz
+except ImportError:
+    from numpy import trapz
 from scipy.io import netcdf_file
 from scipy.signal import fftconvolve
 
@@ -238,7 +242,7 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     # Detuning (eV) → absolute frequency [Hz]; intensity 1/eV → 1/Hz; area-normalize.
     freqs    = E * det_ev / H + freq_ctr
     ls_sz_hz = ls_sz * E / H
-    ls_sz_hz /= np.trapz(ls_sz_hz, freqs)
+    ls_sz_hz /= trapz(ls_sz_hz, freqs)
 
     # Uniform internal frequency axis covering the output grid (+5 % margin), as in
     # pystark's freq_axis. Interpolate the Stark-Zeeman profile onto it.
@@ -264,7 +268,7 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     # Zero points outside the Rosato table support: the FFT convolution spreads the
     # profile via Gaussian tails into that region, so force it back to the boundary.
     ls_szd[~rosato_support] = 0.
-    ls_szd /= np.trapz(ls_szd, freq_axis)
+    ls_szd /= trapz(ls_szd, freq_axis)
 
     # Convert frequency → wavelength: I(λ) = I(ν) · c/λ²; interpolate onto output grid.
     wl_from_freq_nm = C / freq_axis * 1e9
@@ -274,7 +278,7 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                        left=0., right=0.)
 
     # Area-normalize in wavelength [m]
-    area = np.trapz(ls_out, wavelengths_nm * 1e-9)
+    area = trapz(ls_out, wavelengths_nm * 1e-9)
     if area > 0:
         ls_out /= area
 

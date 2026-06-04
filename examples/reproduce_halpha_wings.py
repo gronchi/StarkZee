@@ -44,12 +44,12 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import calculate_static_profile
-from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T
 
 # ── parameters ───────────────────────────────────────────────────────────────
 Z, n_u, n_l = 1, 3, 2
 Ne, Te      = 1e17, 5.0
-E0          = RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)   # ≈ 1.889 eV
+E0          = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
 
 # Fine energy grid — wide enough to cover both σ± at B=1000 T
 DET_HALF = 0.10          # ±100 meV

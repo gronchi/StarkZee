@@ -21,6 +21,11 @@ from scipy.signal import fftconvolve
 
 from starkzee.utils import species_to_ZA
 
+try:
+    from numpy import trapezoid as trapz
+except ImportError:
+    from numpy import trapz
+
 _SIGMA2FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
 
 # NIST air wavelengths [nm] — intensity-weighted mean of fine-structure components.
@@ -136,7 +141,7 @@ def _build_freq_axis(wavelengths_nm, freq_center, npts=2001, margin=1.05):
 
 
 def _zeeman_split_freq(freq_axis, profile, B, view_angle_deg):
-    """First-order Zeeman splitting in frequency space (mirrors pystark.zeeman_split)."""
+    """First-order Zeeman splitting in frequency space."""
     if B == 0.0:
         return profile
     theta = np.deg2rad(view_angle_deg)
@@ -155,7 +160,7 @@ def _freq_to_wl_norm(freq_axis, profile_freq, wavelengths_nm):
     ls_wl  = profile_freq * C / (C / freq_axis)**2
     order  = np.argsort(wlf_nm)
     out    = np.interp(wavelengths_nm, wlf_nm[order], ls_wl[order], left=0., right=0.)
-    area   = np.trapz(out, wavelengths_nm * 1e-9)
+    area   = trapz(out, wavelengths_nm * 1e-9)
     return out / area if area > 0 else out
 
 
@@ -227,7 +232,7 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     # Stark profile on the output wavelength grid, area-normalised in m (mirrors pystark).
     delta_wl12 = _fwhm_stark_loman_nm(n_u, n_l, Ne_m3, Te_ev)
     ls_s_wl    = 1.0 / (np.abs(wavelengths_nm - lambda0_nm)**2.5 + (delta_wl12 / 2.0)**2.5)
-    ls_s_wl   /= np.trapz(ls_s_wl, wavelengths_nm * 1e-9)
+    ls_s_wl   /= trapz(ls_s_wl, wavelengths_nm * 1e-9)
 
     # Convert to freq_axis: interpolate with boundary extension (no zero-fill at edges)
     # then apply λ→ν Jacobian I(ν) = I(λ) · c/ν².
@@ -248,7 +253,7 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
             * np.exp(-0.5 * ((freq_conv - freq_center) / sigma_hz)**2))
 
     ls_sd  = fftconvolve(ls_s, ls_d, 'same')
-    ls_sd /= np.trapz(ls_sd, freq_axis)
+    ls_sd /= trapz(ls_sd, freq_axis)
 
     profile = _zeeman_split_freq(freq_axis, ls_sd, B, view_angle_deg)
     return _freq_to_wl_norm(freq_axis, profile, wavelengths_nm)
