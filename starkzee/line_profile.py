@@ -27,6 +27,7 @@ Typical usage::
     lp.profile_pi           # π component
     lp.profile_sig_plus     # σ+ component
     lp.profile_sig_minus    # σ- component
+    lp.profile              # intensity at view_angle_deg (default 90°)
     lp.profile_transverse   # π + 0.5*(σ+ + σ-)  (90° observation)
     lp.profile_parallel     # σ+ + σ-             (0° observation)
 
@@ -130,12 +131,17 @@ class LineProfile:
         Ion temperature [eV].  When supplied, :meth:`compute_profile` applies
         thermal Doppler broadening automatically after the static Stark-Zeeman
         calculation.  Default is ``None`` (no Doppler broadening).
+    view_angle_deg : float, optional
+        Default observation angle relative to **B** [degrees].  Used by
+        :meth:`compute_profile` to set ``lp.profile`` via the Stokes formula.
+        Can be overridden per-call in :meth:`compute_profile`.  Default is
+        ``90`` (perpendicular to **B**).
     """
 
     #: Accepted values for the ``grid_type`` parameter of :meth:`compute_profile`.
     GRID_TYPES = ('energy_ev', 'wavelength_nm', 'frequency_thz', 'wavenumber_cm')
 
-    def __init__(self, n_u, n_l, B, Ne_m3, Te_ev, species='H', Ti_ev=None, view_angle_deg=None):
+    def __init__(self, n_u, n_l, B, Ne_m3, Te_ev, species='H', Ti_ev=None, view_angle_deg=90):
         from starkzee.utils import species_to_ZA
         Z, A = species_to_ZA(species)
         self.n_u     = n_u
@@ -170,7 +176,7 @@ class LineProfile:
         self.profile_pi        = None
         self.profile_sig_plus  = None
         self.profile_sig_minus = None
-        self.profile           = None  # set by compute_profile() when view_angle_deg is provided
+        self.profile           = None  # set by compute_profile() via Stokes formula at view_angle_deg
 
         # Discrete transitions — set by compute_discrete()
         self.discrete = None
@@ -194,7 +200,7 @@ class LineProfile:
             f"Choose from {LineProfile.GRID_TYPES}."
         )
 
-    def compute_profile(self, grid, grid_type='energy_ev', **kwargs):
+    def compute_profile(self, grid, grid_type='energy_ev', view_angle_deg=None, **kwargs):
         """Compute the static Stark-Zeeman profile on the supplied grid.
 
         Parameters
@@ -212,6 +218,12 @@ class LineProfile:
                 Photon frequency [THz].
             ``'wavenumber_cm'``
                 Wavenumber [cm⁻¹].
+
+        view_angle_deg : float, optional
+            Observation angle relative to **B** [degrees] for this call.  When
+            given, overrides the class-level default for ``lp.profile``; the
+            class attribute is not modified.  When omitted, falls back to
+            ``self.view_angle_deg`` (default ``90``).
 
         **kwargs
             Forwarded to
@@ -238,6 +250,8 @@ class LineProfile:
             B=self.B, Ne_m3=self.Ne_m3, Te_ev=self.Te_ev,
             energies_ev=energies_ev,
             A=self.A,
+            Ti_ev=self.Ti_ev,
+            species=self.species,
             **kwargs,
         )
 
@@ -251,18 +265,12 @@ class LineProfile:
         self.wavenumbers_cm  = energy_ev_to_wavenumber_cm(energies_ev)
         self.detuning_cm     = self.wavenumbers_cm - self.E0_wavenumber_cm
 
-        if self.Ti_ev is not None:
-            from starkzee.convolutions import apply_doppler_broadening
-            pi = apply_doppler_broadening(self.wavelengths_nm, pi, self.Ti_ev, self.species)
-            sp = apply_doppler_broadening(self.wavelengths_nm, sp, self.Ti_ev, self.species)
-            sm = apply_doppler_broadening(self.wavelengths_nm, sm, self.Ti_ev, self.species)
-
         self.profile_pi        = pi
         self.profile_sig_plus  = sp
         self.profile_sig_minus = sm
 
-        if self.view_angle_deg is not None:
-            self.profile = self.profile_at_angle(self.view_angle_deg)
+        angle = view_angle_deg if view_angle_deg is not None else self.view_angle_deg
+        self.profile = self.profile_at_angle(angle)
 
         return self
 
@@ -277,6 +285,7 @@ class LineProfile:
 
         Returns *self* to allow method chaining.
         """
+        kwargs.setdefault('A', self.A)
         raw = discrete_transitions(
             n_u=self.n_u, n_l=self.n_l, Z=self.Z,
             B=self.B, Fz=Fz, Fx=Fx,

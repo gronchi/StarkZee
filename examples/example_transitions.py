@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.static_profile import discrete_transitions, calculate_static_profile
 from starkzee.atomic_hamiltonian import line_strength, oscillator_strength, einstein_a
-from starkzee.utils import RYDBERG_EV, energy_ev_to_wavelength_nm
+from starkzee.utils import reduced_mass_rydberg_ev, energy_ev_to_wavelength_nm
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -32,8 +32,8 @@ POL_COLOR = {0: "#e74c3c", -1: "#3498db", 1: "#2ecc71"}  # π, σ+, σ−
 POL_LABEL = {0: "π (q=0)", -1: "σ+ (q=−1)", 1: "σ− (q=+1)"}
 
 
-def bohr_energy(n_u, n_l, Z):
-    return (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
+def bohr_energy(n_u, n_l, Z, A=1):
+    return (Z**2) * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
 
 
 def plot_stick_spectrum(ax, tr, E0, normalize=True, title="", show_legend=True):

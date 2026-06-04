@@ -7,6 +7,10 @@ Based on pystark package (https://github.com/jsallcock/pystark).
 import os
 import numpy as np
 from scipy.constants import c as C, e as E, k as K, m_e as M_E
+try:
+    from numpy import trapezoid as trapz
+except ImportError:
+    from numpy import trapz
 from scipy.io import netcdf_file
 from scipy.signal import fftconvolve
 
@@ -266,7 +270,7 @@ def stehle(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     ls_out = np.interp(wavelengths_nm, wl_sorted, ls_sorted, left=0., right=0.)
 
     # Area-normalize
-    area = np.trapz(ls_out, wavelengths_nm * 1e-9)
+    area = trapz(ls_out, wavelengths_nm * 1e-9)
     if area > 0:
         ls_out /= area
     return ls_out

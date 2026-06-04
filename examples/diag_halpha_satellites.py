@@ -30,11 +30,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.static_profile import calculate_static_profile
 from scipy.constants import e as E_CHARGE, m_e as M_E
-from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T, A0
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, A0
 
 Z, n_u, n_l = 1, 3, 2
+A  = 1
 Ne, Te = 1e17, 5.0
-E0 = RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)   # ≈ 1.889 eV
+E0 = (Z**2) * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
 
 muB_1000 = BOHR_MAGNETON_EV_T * 1000.0          # ≈ 57.9 meV
 

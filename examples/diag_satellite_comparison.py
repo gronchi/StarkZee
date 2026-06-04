@@ -24,7 +24,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import calculate_static_profile
-from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T
 
 B = 1000.0
 muB_B = BOHR_MAGNETON_EV_T * B
@@ -36,7 +36,7 @@ print()
 
 # ─── Hα (n=3→2) ──────────────────────────────────────────────────────────────
 n_u, n_l = 3, 2
-E0_Ha = RYDBERG_EV * (1/n_l**2 - 1/n_u**2)
+E0_Ha = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1/n_l**2 - 1/n_u**2)
 # Wide grid: σ+ region and satellite region (+40 to +170 meV from E0)
 det_Ha = np.linspace(0.040, 0.170, 2600)
 en_Ha  = E0_Ha + det_Ha
@@ -54,7 +54,7 @@ print()
 
 # ─── Hβ (n=4→2) ──────────────────────────────────────────────────────────────
 n_u4, n_l4 = 4, 2
-E0_Hb = RYDBERG_EV * (1/n_l4**2 - 1/n_u4**2)
+E0_Hb = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1/n_l4**2 - 1/n_u4**2)
 det_Hb = np.linspace(0.040, 0.170, 2600)
 en_Hb  = E0_Hb + det_Hb
 
