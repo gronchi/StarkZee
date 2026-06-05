@@ -23,6 +23,7 @@ class AtomicState:
     def __repr__(self):
         return f"|n={self.n}, l={self.l}, ml={self.ml}, ms={self.ms:.1f}>"
 
+@lru_cache(maxsize=None)
 def build_basis(n):
     """Return the ordered list of 2n² hydrogenic basis states for shell n.
 
@@ -171,6 +172,7 @@ def radial_dipole(n1, l1, n2, l2, Z):
     val, _ = quad(lambda r: radial_wavefunction(r, n1, l1, Z) * radial_wavefunction(r, n2, l2, Z) * r**3, 0, 150)
     return val
 
+@lru_cache(maxsize=None)
 def angular_dipole_element(l1, m1, l2, m2, q):
     """Return the angular part of the dipole matrix element ⟨l₁, m₁ | T_q^(1) | l₂, m₂⟩.
 
@@ -259,6 +261,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
             
     return 0.0
 
+@lru_cache(maxsize=None)
 def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
@@ -586,6 +589,7 @@ def _uncoupled_dipole_matrices(n_u, n_l, Z):
     return D_q
 
 
+@lru_cache(maxsize=None)
 def line_strength(n_u, n_l, Z):
     """Compute the line strength S_ul = Σ_{q,i,j} ``|⟨l_j|r_q|u_i⟩|²`` in a₀².
 
@@ -647,6 +651,7 @@ def oscillator_strength(n_u, n_l, Z):
     return (2.0/3.0) * (delta_E_ev / E_hartree) * S
 
 
+@lru_cache(maxsize=None)
 def einstein_a(n_u, n_l, Z):
     """Compute the Einstein A coefficient for spontaneous emission, in s⁻¹.
 

@@ -2,9 +2,15 @@
 
 **Coupled Stark-Zeeman plasma line-shape model for hydrogen-like radiators.**
 
-Computes emission line profiles of H-like ions in a magnetized plasma, coupling quasi-static ion microfield broadening (Holtsmark / Hooper distributions), electron impact broadening (GBK model), and optionally ion dynamics via the Frequency Fluctuation Model (FFM).
+**StarkZee** implements the Standard Lineshape Theory for emission lines of hydrogen-like ions in a magnetized plasma.
+Ions are treated in the quasi-static approximation: the ion microfield at the radiator site is assumed stationary on the timescale of the emitted photon, and the spectral profile is obtained by averaging Stark-Zeeman Hamiltonians over the ion microfield distribution.
+Electron broadening is represented by weak binary collisions within the Griem–Baranger–Kolb (GBK) binary-collision relaxation model, which accounts for the suppression of broadening at large frequency detunings through a semi-classical exponential-integral factor and a magnetic-field-dependent lower cutoff.
 
-Implements the model of [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **7**, 015901 (2022)](https://doi.org/10.1063/5.0058552).
+The static magnetic field enters the radiator Hamiltonian directly — within the electric-dipole approximation — producing coupled Stark-Zeeman energy levels and polarized π and σ± emission components.
+Ion dynamics (the finite velocity of the perturbing ions) are optionally included via the Frequency Fluctuation Model (FFM), which treats the microfield as a Markovian jump process between quasi-static configurations.
+The static ion microfield distribution is evaluated using the analytical Hooper screened distribution, parametrized by the electron–ion screening factor *a* = *r*_e / λ_D (ratio of the mean inter-particle distance to the electron Debye length), which smoothly interpolates between the unscreened Holtsmark limit (*a* → 0) and the strongly screened regime.
+
+Model based on [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **7**, 015901 (2022)](https://doi.org/10.1063/5.0058552).
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-≥3.9-blue)

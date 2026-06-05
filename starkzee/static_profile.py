@@ -1,6 +1,7 @@
 # PPP Component: Optimized Stark-Zeeman broadening and line profile calculations for starkzee
 
 import numpy as np
+from functools import lru_cache
 from starkzee.utils import A0, reduced_mass_rydberg_ev
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
 
@@ -42,6 +43,7 @@ from starkzee.atomic_hamiltonian import (
 from starkzee.microfield import microfield_quadrature
 from starkzee.broadening import electron_impact_width
 
+@lru_cache(maxsize=None)
 def _stark_templates(n, Z):
     """Return the field-independent Stark coupling matrices M_z and M_x [eV/(V/m)].
 
@@ -302,6 +304,18 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
         sigma_D = np.mean(energies_ev) * np.sqrt(Ti_ev / mc2_ev)
 
+    # Grid spacing — drives the adaptive Doppler strategy.
+    _dx = abs(energies_ev[1] - energies_ev[0])
+    # σ_D > 2 dx → Gaussian is well-resolved on the grid: accumulate Gaussians
+    # in the loop and apply the Lorentzian via FFT after.  Correct even when
+    # w ≪ dx (avoids undersampled-Lorentzian amplitude errors at low density).
+    # σ_D ≤ 2 dx → Gaussian aliases → accumulate Lorentzians in the loop and
+    # apply the Gaussian via FFT after (needed for coarse grids / wide windows).
+    _gaussian_loop = sigma_D is not None and sigma_D > 2.0 * _dx
+    if _gaussian_loop:
+        _two_sigma2 = 2.0 * sigma_D**2
+        _gauss_norm = 1.0 / (sigma_D * _SQRT_2PI)
+
     # Natural linewidth: ħ(Γ_u + Γ_l)/2, summing Einstein A over all decay channels.
     # This is the physically correct minimum Lorentzian half-width — it replaces
     # the arbitrary numerical floor and ensures correct behavior at low Ne or high B.
@@ -347,25 +361,39 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 act_dE    = dE[mask]
                 detuning  = energies_ev[:, np.newaxis] - act_dE[np.newaxis, :]
 
-                if frequency_dependent_width:
-                    w = (electron_impact_width(act_dE - E0_line, Ne_m3, Te_ev, B, Z, n=n_u)
-                         + w_natural_ev)
+                if _gaussian_loop:
+                    kernel = np.exp(-detuning**2 / _two_sigma2) * _gauss_norm
                 else:
-                    w = w_resonance
-                kernel = (w / np.pi) / (detuning**2 + w**2)
+                    if frequency_dependent_width:
+                        w = (electron_impact_width(act_dE - E0_line, Ne_m3, Te_ev, B, Z, n=n_u)
+                             + w_natural_ev)
+                    else:
+                        w = w_resonance
+                    kernel = (w / np.pi) / (detuning**2 + w**2)
 
                 profile_pi        += weight * (kernel @ I_pi[mask])
                 profile_sig_plus  += weight * (kernel @ I_sp[mask])
                 profile_sig_minus += weight * (kernel @ I_sm[mask])
 
-    # Post-loop FFT Gaussian: convolve accumulated Lorentzian profile with Doppler.
+    # Post-loop FFT to complete the Voigt when Doppler is active.
+    # Zero-pad to 2N so the circular convolution approximates a linear one,
+    # eliminating the periodic wrap-around that otherwise creates a DC floor in
+    # the far wings (the long Lorentzian tail from one side of the grid
+    # folds back onto the other in a naive N-point circular FFT).
     if sigma_D is not None:
-        dx = energies_ev[1] - energies_ev[0]
-        k  = np.fft.rfftfreq(len(energies_ev), d=dx)
-        fft_filter = np.exp(-2.0 * np.pi**2 * sigma_D**2 * k**2)
+        N = len(energies_ev)
+        N_pad = 2 * N
+        k = np.fft.rfftfreq(N_pad, d=_dx)
+        if _gaussian_loop:
+            fft_filter = np.exp(-2.0 * np.pi * k * w_resonance)
+        else:
+            fft_filter = np.exp(-2.0 * np.pi**2 * sigma_D**2 * k**2)
+        _padded = np.zeros(N_pad)
         for prof in (profile_pi, profile_sig_plus, profile_sig_minus):
-            prof[:] = np.fft.irfft(np.fft.rfft(prof) * fft_filter,
-                                   n=len(energies_ev))
+            _padded[:N] = prof
+            _padded[N:] = 0.0
+            conv = np.fft.irfft(np.fft.rfft(_padded) * fft_filter, n=N_pad)
+            prof[:] = conv[:N]
 
     return profile_pi, profile_sig_plus, profile_sig_minus
 
@@ -396,7 +424,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
     fine_structure : bool, optional
         Include mass-velocity + Darwin corrections (default True).
     min_strength : float, optional
-        Discard transitions with |d_q|² < min_strength [a₀²] (default 0).
+        Discard transitions with dipole strength abs(d_q)² < min_strength [a₀²] (default 0).
     A : int, optional
         Atomic mass number of the emitter (1 = H, 2 = D, 3 = T).  Sets the
         reduced-mass Rydberg used for the absolute level energies (default 1).
@@ -410,7 +438,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
     ``q``
         Polarization integer: 0 = π, −1 = σ−, +1 = σ+.
     ``strength``
-        |d_q(i→j)|² [a₀²].  Summed over all transitions equals
+        abs(d_q(i→j))² [a₀²].  Summed over all transitions equals
         :func:`~starkzee.atomic_hamiltonian.line_strength` (unitary invariance).
     ``upper_idx``
         Upper eigenstate index (0 … 2n_u²−1).

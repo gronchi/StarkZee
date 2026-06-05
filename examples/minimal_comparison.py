@@ -25,7 +25,7 @@ for ax, (n_u, n_l, name, hw) in zip(axes, transitions):
     wl = np.linspace(lp.E0_wavelength_air_nm - hw, lp.E0_wavelength_air_nm + hw, 1000)
 
     # StarkZee profile — Doppler already included via Voigt
-    wl_vac = np.linspace(lp.E0_wavelength_nm - hw, lp.E0_wavelength_nm + hw, 10000)
+    wl_vac = np.linspace(lp.E0_wavelength_nm - hw, lp.E0_wavelength_nm + hw, 1000)
     lp.compute_profile(wl_vac, grid_type='wavelength_nm')
     sz_prof = lp.profile
 
