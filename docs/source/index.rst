@@ -8,6 +8,25 @@ for hydrogen-like radiators, based on:
     "Stark-Zeeman line-shape model for multi-electron ions in hot dense plasmas",
     *Matter and Radiation at Extremes* **7**, 015901 (2022).
 
+StarkZee implements the **Standard Lineshape Theory** for emission lines of
+hydrogen-like ions in a magnetized plasma.  Ions are treated in the
+**quasi-static approximation**: the ion microfield at the radiator site is
+assumed stationary on the timescale of the emitted photon, and the spectral
+profile is obtained by averaging Stark-Zeeman Hamiltonians over the ion
+microfield distribution.  Electron broadening is represented by weak binary
+collisions within the **Griem–Baranger–Kolb (GBK) binary-collision relaxation
+model**, which accounts for the suppression of broadening at large frequency
+detunings through a semi-classical exponential-integral factor and a
+magnetic-field-dependent lower cutoff.  The static magnetic field enters the
+radiator Hamiltonian directly — in the electric-dipole approximation —
+producing coupled Stark-Zeeman energy levels and polarized π and σ± emission
+components.  **Ion dynamics** are optionally included via the **Frequency
+Fluctuation Model (FFM)**, which treats the microfield as a Markovian jump
+process between quasi-static configurations.  The static ion microfield
+distribution is evaluated using the analytical **Hooper screened distribution**,
+parametrized by the electron–ion screening factor *a* = *r*\ :sub:`e` / λ\ :sub:`D`
+(ratio of the mean inter-particle distance to the electron Debye length).
+
 The code computes emission line profiles of hydrogen-like ions in a magnetic
 field B, accounting for:
 

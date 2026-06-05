@@ -1,6 +1,7 @@
 # Microfield Component: Plasma electric microfield distributions for starkzee
 
 import numpy as np
+from functools import lru_cache
 from scipy.integrate import quad
 from scipy.constants import epsilon_0 as EPSILON_0, e as E_CHARGE
 
@@ -101,6 +102,7 @@ def _holtsmark_integrand(y, beta):
     return y * np.sin(beta * y) * np.exp(-y**1.5)
 
 
+@lru_cache(maxsize=None)
 def holtsmark_distribution(beta):
     """Return the Holtsmark microfield probability density W(β) at reduced field β.
 
@@ -140,6 +142,7 @@ def holtsmark_distribution(beta):
     return max(0.0, w_beta)
 
 
+@lru_cache(maxsize=None)
 def hooper_distribution(beta, a):
     """Return the Hooper screened microfield probability density W(β, a).
 
@@ -195,7 +198,7 @@ def hooper_distribution(beta, a):
 
 
 def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screening=True,
-                        species_charges=None, species_concentrations=None, custom_table_path=None):
+                          species_charges=None, species_concentrations=None, custom_table_path=None):
     """Build a quadrature grid of plasma electric microfield magnitudes and weights.
 
     Discretises the microfield integral ∫ W(F) dF over a uniform grid of
@@ -251,22 +254,36 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
     -----
     The grid starts at β = 0 (F = 0) where W(0) = 0.  Points with weight
     ≤ 1e-15 are skipped by the profile integrator for efficiency.
+
+    Results are cached internally; repeated calls with identical arguments
+    return the pre-computed arrays without re-evaluating the distribution
+    integrals.
     """
+    sc  = tuple(species_charges)       if species_charges       is not None else None
+    scc = tuple(species_concentrations) if species_concentrations is not None else None
+    return _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta,
+                                       use_screening, sc, scc, custom_table_path)
+
+
+@lru_cache(maxsize=None)
+def _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta, use_screening,
+                                species_charges, species_concentrations, custom_table_path):
+    """Cached backend for :func:`microfield_quadrature`."""
     F0, re = calculate_normal_field(Ne_m3)
     beta_grid = np.linspace(0.0, max_beta, num_points)
 
+    w_grid = None
     if custom_table_path is not None:
         try:
             print(f"Loading custom microfield database from: {custom_table_path} ...")
             data = np.loadtxt(custom_table_path)
             custom_beta = data[:, 0]
-            custom_W = data[:, 1]
+            custom_W    = data[:, 1]
             w_grid = np.interp(beta_grid, custom_beta, custom_W, left=0.0, right=0.0)
         except Exception as e:
             print(f"Error loading custom microfield file, falling back to analytical Hooper: {e}")
-            custom_table_path = None
 
-    if custom_table_path is None:
+    if w_grid is None:
         if use_screening:
             lambda_D = calculate_multispecies_debye_length(Te_ev, Ne_m3, species_charges, species_concentrations)
             a = re / lambda_D
@@ -285,7 +302,7 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
     if total_area > 0:
         w_grid = w_grid / total_area
 
-    fields = beta_grid * F0
+    fields  = beta_grid * F0
     weights = w_grid * dbeta
 
     return fields, weights
