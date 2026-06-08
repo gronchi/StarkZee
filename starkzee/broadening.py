@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.special import exp1
-from scipy.constants import hbar as HBAR, m_e as M_E, e as E_CHARGE, epsilon_0 as EPSILON_0, k as K_B
+from scipy.constants import hbar as HBAR, m_e as M_E, e as E_CHARGE, epsilon_0 as EPSILON_0
 from starkzee.utils import RYDBERG_EV
 
 

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.atomic_hamiltonian import build_hamiltonian, diagonalize_hamiltonian, build_basis
 from scipy.constants import fine_structure as FINE_STRUCTURE
-from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, RYDBERG_EV
+from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, RYDBERG_EV, G_S
 
 
 def relerr(got, ref):
@@ -28,7 +28,7 @@ def test_zeeman_diagonal_l0_states():
     The two ms=±½ states split by g_s × μ_B × B.
     """
     Z, n, B = 1, 1, 100.0  # n=1: only l=0
-    g_s = 2.0023192
+    g_s = G_S
 
     H_B0  = build_hamiltonian(n, Z, B=0.0,  quadratic_zeeman=False)
     H_B   = build_hamiltonian(n, Z, B=B,    quadratic_zeeman=False)
@@ -49,7 +49,7 @@ def test_zeeman_diagonal_l1_states():
     Test all 6 substates (ml=−1,0,1 × ms=±½).
     """
     Z, n, B = 1, 2, 100.0
-    g_s = 2.0023192
+    g_s = G_S
 
     H_B0 = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     H_B  = build_hamiltonian(n, Z, B=B,   quadratic_zeeman=False)
@@ -85,7 +85,7 @@ def test_zeeman_splits_n1_into_two():
     The gap must equal g_s × μ_B × B.
     """
     Z, B = 1, 100.0
-    g_s = 2.0023192
+    g_s = G_S
     evals, _ = diagonalize_hamiltonian(n=1, Z=Z, B=B, quadratic_zeeman=False)
     gap = evals.real.max() - evals.real.min()
     expected = g_s * BOHR_MAGNETON_EV_T * B
@@ -99,7 +99,7 @@ def test_zeeman_n2_l1_splits_into_multiple():
     Minimum and maximum shift from the centroid must be ±(1 + g_s/2)×μ_B×B.
     """
     Z, B = 1, 100.0
-    g_s = 2.0023192
+    g_s = G_S
 
     evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=B, quadratic_zeeman=False)
     E_centroid = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / 4.0

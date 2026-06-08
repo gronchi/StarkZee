@@ -3,7 +3,7 @@
 import numpy as np
 from scipy.fft import fft, ifft, fftshift
 from scipy.constants import c as C_LIGHT, e as E_CHARGE, m_p as _M_P
-from starkzee.utils import energy_ev_to_wavelength_nm
+
 
 
 def calculate_doppler_width_ev(E0_ev, Ti_ev, A_emitter):

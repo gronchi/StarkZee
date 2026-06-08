@@ -45,7 +45,6 @@ Typical usage::
 import numpy as np
 
 from starkzee.utils import (
-    RYDBERG_EV,
     reduced_mass_rydberg_ev,
     energy_ev_to_wavelength_nm,
     vacuum_to_air_wavelength_nm,
