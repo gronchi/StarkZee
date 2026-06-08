@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
-from scipy.constants import hbar as HBAR, m_e as M_E, e as E_CHARGE, fine_structure as FINE_STRUCTURE
-from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, reduced_mass_rydberg_ev
+from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE
 
 
 @dataclass(frozen=True)
@@ -383,9 +382,8 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
                 H[i, i] += -A_fs * (n / (l + 0.5) - 0.75)
 
     # 3. Linear Zeeman Effect: mu_B * B * (L_z + g_s * S_z)
-    g_s = 2.0023192
     for i, state in enumerate(basis):
-        H[i, i] += BOHR_MAGNETON_EV_T * B * (state.ml + g_s * state.ms)
+        H[i, i] += BOHR_MAGNETON_EV_T * B * (state.ml + G_S * state.ms)
 
     # 4. Quadratic Zeeman Effect: (e^2 * B^2 / 8me) * r^2 * sin^2(theta)
     if quadratic_zeeman and B > 0:
@@ -459,8 +457,15 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
         Columns are the corresponding orthonormal eigenstates expressed in the
         ``|n, l, m_l, m_s⟩`` basis of :func:`build_basis`.
     """
-    H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
+    H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A).copy()
+    # Shift diagonal by -En to center eigenvalues near 0, reducing the spectral norm.
+    # This improves the eigh solver's absolute resolution limit from ~1e-16 eV to ~1e-20 eV.
+    En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
+    for i in range(H.shape[0]):
+        H[i, i] -= En
     eigenvalues, eigenvectors = np.linalg.eigh(H)
+    # Add En back to restore absolute energies
+    eigenvalues += En
     return eigenvalues, eigenvectors
 
 def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
