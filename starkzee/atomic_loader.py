@@ -1,7 +1,7 @@
 # Loader module for arbitrary multi-electron atomic data for starkzee
 
 from dataclasses import dataclass
-import numpy as np
+
 
 
 @dataclass

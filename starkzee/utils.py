@@ -10,6 +10,11 @@ from scipy import constants as _c
 A0                 = _c.physical_constants['Bohr radius'][0]               # m
 RYDBERG_EV         = _c.physical_constants['Rydberg constant times hc in eV'][0]  # eV  (infinite nuclear mass)
 BOHR_MAGNETON_EV_T = _c.physical_constants['Bohr magneton in eV/T'][0]            # eV/T
+G_S                = abs(_c.physical_constants['electron g factor'][0])   # g_s
+HBAR               = _c.hbar
+M_E                = _c.m_e
+E_CHARGE           = _c.e
+FINE_STRUCTURE     = _c.fine_structure
 
 # Nuclear masses for common hydrogenic species (most abundant isotope).
 # Used for the reduced-mass Rydberg correction R_atom = R_∞ / (1 + m_e/M_nucleus).

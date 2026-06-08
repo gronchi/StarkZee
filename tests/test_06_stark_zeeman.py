@@ -115,7 +115,7 @@ def test_forbidden_transitions_zero_intensity():
     The sum rule naturally enforces Δl=±1 through the angular matrix elements,
     but we check that no forbidden transitions sneak through.
     """
-    # For n_u=n_l=2, both levels have same n → forbidden (not computed in ppp.py,
+    # For n_u=n_l=2, both levels have same n → forbidden (not computed in the code)
     # but the angular elements should give zero for same-l couplings).
     # We test a simpler case: verify directly on the angular element.
     for l in [0, 1, 2]:
