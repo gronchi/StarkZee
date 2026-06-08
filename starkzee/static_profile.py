@@ -1,4 +1,4 @@
-# PPP Component: Optimized Stark-Zeeman broadening and line profile calculations for starkzee
+# Stark-Zeeman broadening and line profile calculations for starkzee
 
 import numpy as np
 from functools import lru_cache
@@ -180,7 +180,15 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     V_E = build_stark_matrix(n, Z, Fz, Fx)
     H_total = H_atom + V_E
 
+    # Shift diagonal to center eigenvalues near 0, reducing the spectral norm.
+    # This improves the eigh solver's numerical precision.
+    En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
+    for i in range(H_total.shape[0]):
+        H_total[i, i] -= En
+
     eigenvalues, eigenvectors = np.linalg.eigh(H_total)
+    # Add En back to restore absolute energies
+    eigenvalues += En
     return eigenvalues, eigenvectors
 
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
@@ -289,6 +297,16 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # M_z/M_x templates let V_E = Fz*M_z + Fx*M_x without a Python double-loop each time.
     H_atom_u = build_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure, A)
     H_atom_l = build_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure, A)
+    En_u = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n_u**2)
+    En_l = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n_l**2)
+    H_atom_u = H_atom_u.copy()
+    H_atom_l = H_atom_l.copy()
+    # Subtract shell unperturbed energies from diagonal to keep H_atom_u and H_atom_l
+    # well-conditioned (norm ~1e-3 eV instead of ~3 eV) before diagonalizing in the loop.
+    for i in range(H_atom_u.shape[0]):
+        H_atom_u[i, i] -= En_u
+    for i in range(H_atom_l.shape[0]):
+        H_atom_l[i, i] -= En_l
     M_z_u, M_x_u = _stark_templates(n_u, Z)
     M_z_l, M_x_l = _stark_templates(n_l, Z)
 
@@ -349,7 +367,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             
             # Compute all three dipole intensity matrices; dE is shared across q.
             V_l_adj = sz_vectors_l.conj().T
-            dE = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
+            # Compute transition energies using high-precision shifted eigenvalues
+            # and add the gross structure line center back. This prevents catastrophic
+            # cancellation from subtracting large energy levels directly.
+            dE_shifted = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
+            dE = dE_shifted + E0_line
 
             I_pi = np.abs(V_l_adj @ D_q_uncoupled[ 0] @ sz_vectors_u)**2
             I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
@@ -365,7 +387,7 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                     kernel = np.exp(-detuning**2 / _two_sigma2) * _gauss_norm
                 else:
                     if frequency_dependent_width:
-                        w = (electron_impact_width(act_dE - E0_line, Ne_m3, Te_ev, B, Z, n=n_u)
+                        w = (electron_impact_width(dE_shifted[mask], Ne_m3, Te_ev, B, Z, n=n_u)
                              + w_natural_ev)
                     else:
                         w = w_resonance
