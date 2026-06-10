@@ -261,7 +261,7 @@ def angular_dipole_element(l1, m1, l2, m2, q):
     return 0.0
 
 @lru_cache(maxsize=None)
-def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
+def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, use_empirical_data=False, atom="H"):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
     Constructs the full magnetic Hamiltonian in the uncoupled ``|n, l, m_l, m_s⟩``
@@ -315,6 +315,10 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
         Include mass-velocity and Darwin corrections alongside spin-orbit
         (default True).  When False, only H_SO is added, breaking the
         2s_{1/2} = 2p_{1/2} degeneracy — useful for isolated unit tests.
+    use_empirical_data : bool, optional
+        If True, injects precise empirical field-free energies from atomic_data.
+    atom : str, optional
+        Element symbol used to fetch empirical data.
 
     Returns
     -------
@@ -333,6 +337,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
     """
     basis = build_basis(n)
     dim = len(basis)
+
     H = np.zeros((dim, dim), dtype=complex)
 
     # 1. Unperturbed energy (En = -Z^2 * R_atom / n^2)
@@ -343,35 +348,23 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
         H[i, i] += En
 
     # 2. Spin-Orbit Coupling: xi * (L . S)
-    # xi = Z^4 * alpha^2 * Ry / (n^3 * l * (l+1) * (l+1/2))
     for i, state_i in enumerate(basis):
         for j, state_j in enumerate(basis):
             if state_i.l == state_j.l and state_i.l > 0:
                 l = state_i.l
                 xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
-                
-                # L_z * S_z term
                 if i == j:
                     H[i, j] += xi * state_i.ml * state_i.ms
-                # L_+ * S_- term
                 elif state_i.ml == state_j.ml + 1 and state_i.ms == state_j.ms - 1:
                     term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml + 1))
                     term_s = 1.0 if state_j.ms == 0.5 else 0.0
                     H[i, j] += 0.5 * xi * term_l * term_s
-                # L_- * S_+ term
                 elif state_i.ml == state_j.ml - 1 and state_i.ms == state_j.ms + 1:
                     term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml - 1))
                     term_s = 1.0 if state_j.ms == -0.5 else 0.0
                     H[i, j] += 0.5 * xi * term_l * term_s
 
     # 2b. Mass-velocity and Darwin corrections (completes Dirac fine structure).
-    # These are diagonal in |n,l,ml,ms> and do not depend on ml or ms.
-    # Together with SO they give exact Dirac eigenvalues, restoring the
-    # 2s_{1/2} = 2p_{1/2} degeneracy that SO alone breaks.
-    #
-    # For l=0: ΔE = -A*(n - 3/4)        [MV + Darwin, Darwin is non-zero only at l=0]
-    # For l>0: ΔE = -A*(n/(l+1/2) - 3/4) [MV only; Darwin vanishes for l>0]
-    # where A = Z^4 * alpha^2 * Ry / n^4.
     if fine_structure:
         A_fs = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**4)
         for i, state in enumerate(basis):
@@ -381,53 +374,98 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
             else:
                 H[i, i] += -A_fs * (n / (l + 0.5) - 0.75)
 
-    # 3. Linear Zeeman Effect: mu_B * B * (L_z + g_s * S_z)
+    if use_empirical_data:
+        # Load empirical energy levels (in cm⁻¹) for the specified atom.
+        from starkzee.atomic_data import load_levels
+        emp_states = load_levels(atom, fine_structure=fine_structure)
+        emp_energy_map = {}
+        for st in emp_states:
+            if st.n == n:
+                if st.l is not None and st.j is not None:
+                    emp_energy_map[(st.l, st.j)] = st.energy
+        
+        # To map properly, diagonalize H (which is B=0) to get coupled basis V
+        # Because fine structure makes 2s_1/2 and 2p_1/2 degenerate in Dirac theory,
+        # np.linalg.eigh can mix l. To prevent this, we diagonalize a slightly modified
+        # H that breaks l-degeneracy, e.g., H without the MV/Darwin correction.
+        H_break_deg = np.zeros((dim, dim), dtype=complex)
+        for i in range(dim): H_break_deg[i, i] += En
+        for i, state_i in enumerate(basis):
+            for j, state_j in enumerate(basis):
+                if state_i.l == state_j.l and state_i.l > 0:
+                    l = state_i.l
+                    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
+                    if i == j: H_break_deg[i, j] += xi * state_i.ml * state_i.ms
+                    elif state_i.ml == state_j.ml + 1 and state_i.ms == state_j.ms - 1:
+                        term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml + 1))
+                        term_s = 1.0 if state_j.ms == 0.5 else 0.0
+                        H_break_deg[i, j] += 0.5 * xi * term_l * term_s
+                    elif state_i.ml == state_j.ml - 1 and state_i.ms == state_j.ms + 1:
+                        term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml - 1))
+                        term_s = 1.0 if state_j.ms == -0.5 else 0.0
+                        H_break_deg[i, j] += 0.5 * xi * term_l * term_s
+
+        evals, V = np.linalg.eigh(H_break_deg)
+        D_emp = np.zeros(dim)
+        
+        for k in range(dim):
+            v = V[:, k]
+            # Find l from the dominant basis component
+            idx = np.argmax(np.abs(v))
+            l = basis[idx].l
+            
+            if l == 0:
+                j = 0.5
+            else:
+                # Calculate <L.S> to distinguish j = l + 0.5 from j = l - 0.5
+                ls_val = 0.0
+                xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
+                # Using the exact energy eigenvalue of H_break_deg!
+                # E = En + xi <L.S>
+                ls_val = (evals[k] - En) / xi
+                if ls_val > 0:
+                    j = l + 0.5
+                else:
+                    j = l - 0.5
+            try:
+                D_emp[k] = emp_energy_map[(l, j)]
+            except KeyError:
+                raise ValueError(f"Empirical energy for n={n}, l={l}, j={j} not found in database.")
+                
+        H = V @ np.diag(D_emp) @ V.conj().T
+
+    # 3. Linear Zeeman Effect
     for i, state in enumerate(basis):
         H[i, i] += BOHR_MAGNETON_EV_T * B * (state.ml + G_S * state.ms)
 
-    # 4. Quadratic Zeeman Effect: (e^2 * B^2 / 8me) * r^2 * sin^2(theta)
+    # 4. Quadratic Zeeman Effect
     if quadratic_zeeman and B > 0:
         quad_coeff_ev = (E_CHARGE * (B**2) * (A0**2)) / (8.0 * M_E)
-        
-        # We need the matrix elements of r^2 * sin^2(theta)
-        # sin^2(theta) = 1 - cos^2(theta)
-        # Radial matrix element <n, l1 | r^2 | n, l2> is only diagonal:
-        # <r^2>_nl = (n^2 / 2Z^2) * [5n^2 + 1 - 3l(l+1)]
-        # For off-diagonal in l, <r^2>_nl1_nl2 is 0. So r^2 is diagonal in l.
         for i, state_i in enumerate(basis):
             for j, state_j in enumerate(basis):
                 if state_i.ms == state_j.ms and state_i.ml == state_j.ml:
-                    # check l selection rule: delta_l = 0 or delta_l = +-2
-                    # Since r^2 is diagonal in l, we only have delta_l = 0 or delta_l = +-2 for sin^2(theta)
                     l1, l2 = state_i.l, state_j.l
                     ml = state_i.ml
-                    
                     if l1 == l2:
                         r2_val = (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l1 * (l1 + 1.0))
-                        # <l, ml | cos^2(theta) | l, ml>
                         if l1 == 0:
                             cos2_val = 1.0 / 3.0
                         else:
                             cos2_val = (2.0 * l1**2 + 2.0 * l1 - 1.0 - 2.0 * ml**2) / ((2.0 * l1 - 1.0) * (2.0 * l1 + 3.0))
                         sin2_val = 1.0 - cos2_val
                         H[i, j] += quad_coeff_ev * r2_val * sin2_val
-                        
                     elif abs(l1 - l2) == 2:
-                        # Off-diagonal element due to cos^2(theta)
-                        # <l_lower, ml | cos^2(theta) | l_lower+2, ml>
                         l_low = min(l1, l2)
                         num_term = ((l_low + 1.0)**2 - ml**2) * ((l_low + 2.0)**2 - ml**2)
                         den_term = (2.0 * l_low + 1.0) * (2.0 * l_low + 3.0)**2 * (2.0 * l_low + 5.0)
                         cos2_val = np.sqrt(num_term / den_term)
-                        # sin2_val = - cos2_val (since delta_l = 2, the 1 in 1-cos^2 is orthogonal and yields 0)
                         sin2_val = - cos2_val
-                        
                         r2_val = radial_r2_element(n, l1, l2, Z)
                         H[i, j] += quad_coeff_ev * r2_val * sin2_val
 
     return H
 
-def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1):
+def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, use_empirical_data=False, atom="H"):
     """Diagonalize the field-free (F = 0) magnetic Hamiltonian for shell n.
 
     Builds the (2n²) × (2n²) Hamiltonian via :func:`build_hamiltonian`
@@ -448,6 +486,10 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     fine_structure : bool, optional
         Include mass-velocity and Darwin corrections alongside spin-orbit
         coupling (default True).
+    use_empirical_data : bool, optional
+        If True, injects precise empirical field-free energies.
+    atom : str, optional
+        Element symbol used to fetch empirical data.
 
     Returns
     -------
@@ -457,7 +499,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
         Columns are the corresponding orthonormal eigenstates expressed in the
         ``|n, l, m_l, m_s⟩`` basis of :func:`build_basis`.
     """
-    H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A).copy()
+    H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A, use_empirical_data, atom).copy()
     # Shift diagonal by -En to center eigenvalues near 0, reducing the spectral norm.
     # This improves the eigh solver's absolute resolution limit from ~1e-16 eV to ~1e-20 eV.
     En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
@@ -469,7 +511,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     return eigenvalues, eigenvectors
 
 def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
-                                       fine_structure=True, A=1):
+                                       fine_structure=True, A=1, use_empirical_data=False, atom="H"):
     """Return transition dipole matrices between the eigenstate bases of n_u and n_l.
 
     Diagonalizes the Hamiltonian for both shells and rotates the uncoupled
@@ -491,6 +533,10 @@ def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
         Include diamagnetic Zeeman term (default True).
     fine_structure : bool, optional
         Include MV + Darwin corrections (default True).
+    use_empirical_data : bool, optional
+        If True, injects precise empirical field-free energies.
+    atom : str, optional
+        Element symbol used to fetch empirical data.
 
     Returns
     -------
@@ -504,8 +550,8 @@ def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
         element between upper eigenstate i and lower eigenstate j.
     """
     # Diagonalize atomic Hamiltonian for upper and lower shells
-    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure, A)
-    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure, A)
+    eigenvalues_u, eigenvectors_u = diagonalize_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure, A, use_empirical_data, atom)
+    eigenvalues_l, eigenvectors_l = diagonalize_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure, A, use_empirical_data, atom)
     
     basis_u = build_basis(n_u)
     basis_l = build_basis(n_l)
