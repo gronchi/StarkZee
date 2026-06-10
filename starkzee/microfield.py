@@ -1,4 +1,4 @@
-# Microfield Component: Plasma electric microfield distributions for starkzee
+# Plasma electric microfield distributions
 
 import numpy as np
 from functools import lru_cache
