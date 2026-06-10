@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "starkzee"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Coupled Stark-Zeeman plasma line-shape model for hydrogen-like radiators"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -26,3 +26,6 @@ starkzee = "starkzee.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["starkzee*"]
+
+[tool.setuptools_scm]
+write_to = "starkzee/_version.py"
