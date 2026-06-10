@@ -41,7 +41,7 @@ def balmer_spectrum(B, Ne, Te, wavelengths_nm):
     energies = wavelength_nm_to_energy_ev(wavelengths_nm)
     total = np.zeros_like(energies)
     for n_u in [3, 4, 5, 6, 7]:
-        print(f"    n={n_u}→2 … ", end="", flush=True)
+        print(f"    n={n_u}->2 ... ", end="", flush=True)
         S_n = line_strength(n_u, n_l=2, Z=1)
         weight = _CASEB[n_u] / S_n          # ∫ weight × profile dE ≈ _CASEB[n_u]
         pi, sp, sm = calculate_static_profile(
@@ -84,38 +84,28 @@ if __name__ == "__main__":
         r"H$\epsilon$": 3970,
     }
 
-    fig, (ax_log, ax_lin) = plt.subplots(
-        2, 1, figsize=(11, 8), sharex=True,
-        gridspec_kw={"hspace": 0.08},
+    fig, axes = plt.subplots(
+        3, 1, figsize=(11, 10), sharex=True,
+        gridspec_kw={"hspace": 0.15},
     )
 
-    for B, color in zip(B_list, colors):
+    for ax, B, color in zip(axes, B_list, colors):
         label = f"B = {int(B)} T"
-        ax_log.plot(wavelengths_ang, normed[B], color=color, lw=1.6, label=label)
-        ax_lin.plot(wavelengths_ang, normed[B], color=color, lw=1.6, label=label)
+        ax.plot(wavelengths_ang, normed[B], color=color, lw=1.6, label=label)
 
-    # ── Log panel ────────────────────────────────────────────────────────────
-    ax_log.set_yscale("log")
-    ax_log.set_ylim(1e-4, 3.0)
-    ax_log.set_ylabel("Normalized intensity (log)", fontsize=11)
-    ax_log.grid(True, which="both", ls=":", alpha=0.4)
-    ax_log.legend(fontsize=10, loc="upper right")
+        ax.set_yscale("log")
+        ax.set_ylim(1e-4, 3.0)
+        ax.set_ylabel("Normalized intensity (log)", fontsize=11)
+        ax.grid(True, which="both", ls=":", alpha=0.4)
+        ax.legend(fontsize=10, loc="upper right")
 
-    for name, wl in line_centers.items():
-        ax_log.axvline(wl, color="gray", lw=0.6, ls="--", alpha=0.5)
-        ax_log.text(wl, 2.0, name, ha="center", va="bottom", fontsize=9,
+        for name, wl in line_centers.items():
+            ax.axvline(wl, color="gray", lw=0.6, ls="--", alpha=0.5)
+            ax.text(wl, 2.0, name, ha="center", va="bottom", fontsize=9,
                     bbox=dict(facecolor="white", alpha=0.7, pad=1, edgecolor="none"))
 
-    # ── Linear panel ─────────────────────────────────────────────────────────
-    ax_lin.set_ylim(0, 1.15)
-    ax_lin.set_ylabel("Normalized intensity (linear)", fontsize=11)
-    ax_lin.grid(True, ls=":", alpha=0.4)
-
-    for name, wl in line_centers.items():
-        ax_lin.axvline(wl, color="gray", lw=0.6, ls="--", alpha=0.5)
-
-    ax_lin.set_xlabel(r"Wavelength ($\AA$)", fontsize=12)
-    ax_lin.set_xlim(3500, 7200)
+    axes[-1].set_xlabel(r"Wavelength ($\AA$)", fontsize=12)
+    axes[-1].set_xlim(3500, 7200)
 
     fig.suptitle(
         r"Balmer-series Stark-Zeeman profiles  —  H, $N_e = 10^{23}$ m$^{-3}$, $T_e = 5$ eV",
