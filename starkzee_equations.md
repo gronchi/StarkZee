@@ -27,17 +27,17 @@ Core constants are taken from `scipy.constants` (CODATA):
 
 ### 1.1. Reduced-mass Rydberg
 $$R_\text{atom}(Z,A) = \frac{R_\infty}{1 + m_e / M_\text{nucleus}(Z,A)}$$
-- **Code**: [`reduced_mass_rydberg_ev`](starkzee/utils.py#L98) — isotope nuclear
+- **Code**: [`reduced_mass_rydberg_ev`](starkzee/utils.py#L103) — isotope nuclear
   masses (H/D/T/⁴He) from CODATA; sets the absolute line center.
 
 ### 1.2. Unit conversions
 $$E = \frac{hc}{\lambda},\quad E = hf,\quad E = hc\,\tilde\nu,\quad hc \approx 1239.84\ \text{eV·nm}$$
-- **Code**: [`energy_ev_to_wavelength_nm`](starkzee/utils.py#L159),
+- **Code**: [`energy_ev_to_wavelength_nm`](starkzee/utils.py#L164),
   `*_to_frequency_thz`, `*_to_wavenumber_cm` (hc derived from ħ, c — no hardcoding).
 
 ### 1.3. Vacuum → air wavelength (Edlén 1966)
 $$(n-1)\times10^8 = 8342.13 + \frac{2406030}{130-\sigma^2} + \frac{15997}{38.9-\sigma^2},\quad \sigma = \frac{1000}{\lambda_\text{vac}[\text{nm}]}$$
-- **Code**: [`vacuum_to_air_wavelength_nm`](starkzee/utils.py#L187).
+- **Code**: [`vacuum_to_air_wavelength_nm`](starkzee/utils.py#L192).
 
 ---
 
@@ -45,35 +45,35 @@ $$(n-1)\times10^8 = 8342.13 + \frac{2406030}{130-\sigma^2} + \frac{15997}{38.9-\
 
 The field-free + magnetic Hamiltonian for one shell n, in the `|n,l,m_l,m_s⟩` basis:
 $$H_A = H_0 + V_\text{SO} + H_\text{MV+D} + H_Z^{(1)} + H_Z^{(2)}$$
-- **Code**: [`build_hamiltonian`](starkzee/atomic_hamiltonian.py#L264).
+- **Code**: [`build_hamiltonian`](starkzee/atomic_hamiltonian.py#L391).
 
 ### 2.1. Hydrogenic radial wavefunction
 $$R_{nl}(r) = N_{nl}\, e^{-Zr/n}\,(2Zr/n)^l\, L_{n-l-1}^{2l+1}(2Zr/n),\quad
 N_{nl} = \sqrt{\left(\tfrac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n\,(n+l)!}}$$
-- **Code**: [`radial_wavefunction`](starkzee/atomic_hamiltonian.py#L54) (r in a₀).
+- **Code**: [`radial_wavefunction`](starkzee/atomic_hamiltonian.py#L53) (r in a₀).
 
 ### 2.2. Unperturbed energy (diagonal, degenerate over the shell)
 $$E_n = -\frac{Z^2 R_\text{atom}(Z,A)}{n^2}$$
-- **Code**: [line 342](starkzee/atomic_hamiltonian.py#L342). Uses the reduced-mass
+- **Code**: [lines 470–476](starkzee/atomic_hamiltonian.py#L470). Uses the reduced-mass
   Rydberg → absolute energies match NIST.
 
 ### 2.3. Spin-orbit coupling
 $$V_\text{SO} = \xi_{nl}\,\vec L\cdot\vec S,\qquad
 \xi_{nl} = \frac{Z^4 \alpha^2 R_\infty}{n^3\,l\,(l+1)(l+\tfrac12)}$$
 with $\vec L\cdot\vec S = L_z S_z + \tfrac12(L_+S_- + L_-S_+)$.
-- **Code**: [lines 348–366](starkzee/atomic_hamiltonian.py#L348). Off-diagonal in
+- **Code**: [lines 477–493](starkzee/atomic_hamiltonian.py#L477). Off-diagonal in
   (m_l, m_s); the ladder terms couple $|m_l{+}1, m_s{-}1\rangle \leftrightarrow |m_l, m_s\rangle$.
 
 ### 2.4. Mass-velocity + Darwin (completes Dirac fine structure)
 $$\Delta E_{l=0} = -A_\text{fs}\,(n - \tfrac34),\qquad
 \Delta E_{l>0} = -A_\text{fs}\!\left(\frac{n}{l+\tfrac12} - \tfrac34\right),\qquad
 A_\text{fs} = \frac{Z^4\alpha^2 R_\infty}{n^4}$$
-- **Code**: [lines 376–383](starkzee/atomic_hamiltonian.py#L376). Together with
+- **Code**: [lines 495–503](starkzee/atomic_hamiltonian.py#L495). Together with
   V_SO restores the Dirac degeneracy 2s₁/₂ = 2p₁/₂. Toggle: `fine_structure`.
 
 ### 2.5. Linear (paramagnetic) Zeeman
 $$H_Z^{(1)} = \mu_B B\,(m_l + g_s m_s),\qquad g_s = |g_e|_\text{CODATA} \approx 2.00231930436$$
-- **Code**: [lines 386–388](starkzee/atomic_hamiltonian.py#L386).
+- **Code**: [lines 564–567](starkzee/atomic_hamiltonian.py#L564).
 
 ### 2.6. Quadratic (diamagnetic) Zeeman
 $$H_Z^{(2)} = \frac{e^2 B^2}{8 m_e}\, r^2 \sin^2\theta$$
@@ -85,34 +85,34 @@ $$\langle l, m_l|\cos^2\theta|l{+}2, m_l\rangle =
 \sqrt{\frac{[(l{+}1)^2-m_l^2][(l{+}2)^2-m_l^2]}{(2l{+}1)(2l{+}3)^2(2l{+}5)}}$$
 with the off-diagonal radial element $\langle n,l|r^2|n,l{\pm}2\rangle$ computed by
 numerical integration.
-- **Code**: [lines 391–428](starkzee/atomic_hamiltonian.py#L391); radial off-diagonal
-  [`radial_r2_element`](starkzee/atomic_hamiltonian.py#L96). Toggle: `quadratic_zeeman`.
+- **Code**: [lines 568–592](starkzee/atomic_hamiltonian.py#L568); radial off-diagonal
+  [`radial_r2_element`](starkzee/atomic_hamiltonian.py#L129). Toggle: `quadratic_zeeman`.
 
 ### 2.7. Angular dipole matrix elements (spherical tensor T_q^(1) of r̂)
 $$q=0:\ \langle l,m|\cos\theta|l{+}1,m\rangle = \sqrt{\frac{(l{+}1)^2-m^2}{(2l{+}1)(2l{+}3)}}$$
 $$q=\pm1:\ \langle\,\cdot\,|T_{\pm1}|\,\cdot\,\rangle = \mp\sqrt{\frac{(l\mp m)(l\mp m-1)}{2(2l-1)(2l+1)}}\ \text{(branch-dependent)}$$
-- **Code**: [`angular_dipole_element`](starkzee/atomic_hamiltonian.py#L176)
+- **Code**: [`angular_dipole_element`](starkzee/atomic_hamiltonian.py#L302)
   (Condon-Shortley phases; nonzero only for |Δl|=1, Δm=q).
 
 ### 2.8. Radial dipole element
 $$\langle n_1 l_1|r|n_2 l_2\rangle = \int_0^\infty R_{n_1 l_1}(r)\,r\,R_{n_2 l_2}(r)\,r^2\,dr$$
-- **Code**: [`radial_dipole`](starkzee/atomic_hamiltonian.py#L135) (numerical, |Δl|=1).
+- **Code**: [`radial_dipole`](starkzee/atomic_hamiltonian.py#L230) (numerical, |Δl|=1).
 
 ### 2.9. Diagonalization & dipole rotation
 $$H_A\,|\psi_k\rangle = E_k\,|\psi_k\rangle,\qquad
 d_q[i,j] = \langle\psi_l^j|\,r_q\,|\psi_u^i\rangle = \sum_{k_l,k_u}
 U_l^{*}[k_l,j]\,U_u[k_u,i]\,(-R\,\text{ang}_q)$$
-- **Code**: [`diagonalize_hamiltonian`](starkzee/atomic_hamiltonian.py#L432),
-  [`dipole_matrix_elements`](starkzee/atomic_hamiltonian.py#L466),
-  [`_uncoupled_dipole_matrices`](starkzee/atomic_hamiltonian.py#L542) (units a₀).
+- **Code**: [`diagonalize_hamiltonian`](starkzee/atomic_hamiltonian.py#L595),
+  [`dipole_matrix_elements`](starkzee/atomic_hamiltonian.py#L640),
+  [`_uncoupled_dipole_matrices`](starkzee/atomic_hamiltonian.py#L720) (units a₀).
 
 ### 2.10. Line strength, oscillator strength, Einstein A
 $$S_{ul} = \sum_{q,i,j}\big|\langle l_j|r_q|u_i\rangle\big|^2\ [a_0^2]$$
 $$gf = \frac{2}{3}\frac{\Delta E}{E_h}\,S_{ul},\qquad
 A_{ul} = \frac{4\alpha^3}{3}\left(\frac{\Delta E}{E_h}\right)^3 \frac{S_{ul}}{2n_u^2\,\tau_\text{au}},\quad E_h = 2R_\infty$$
-- **Code**: [`line_strength`](starkzee/atomic_hamiltonian.py#L592),
-  [`oscillator_strength`](starkzee/atomic_hamiltonian.py#L629),
-  [`einstein_a`](starkzee/atomic_hamiltonian.py#L654).
+- **Code**: [`line_strength`](starkzee/atomic_hamiltonian.py#L776),
+  [`oscillator_strength`](starkzee/atomic_hamiltonian.py#L812),
+  [`einstein_a`](starkzee/atomic_hamiltonian.py#L838).
 
 ---
 
@@ -132,7 +132,7 @@ $$H = H_A(B) + V_E(F_z, F_x),\qquad H|\psi_k\rangle = E_k|\psi_k\rangle$$
 
 ### 3.3. Microfield magnitude quadrature
 Fields $F = \beta F_0$ with weights $W(\beta)\,\Delta\beta$ (∑ weights ≈ 1).
-- **Code**: [`microfield_quadrature`](starkzee/microfield.py#L200) (see §4).
+- **Code**: [`microfield_quadrature`](starkzee/microfield.py#L496) (see §4).
 
 ### 3.4. Field-angle quadrature (μ = cos θ)
 Gauss-Legendre mapped to **μ ∈ [0, 1]** with weights summing to 1:
@@ -140,12 +140,12 @@ $$\langle\cdot\rangle_\text{angle} = \int_0^1 (\cdot)\,d\mu = \tfrac12\!\int_{-1
 (the half-range is exact: the integrand is symmetric under F_z → −F_z, so the ½
 solid-angle factor and the 2× hemisphere factor cancel — verified numerically).
 For each (β, μ): $F_z = \beta F_0\,\mu$, $F_x = \beta F_0\sqrt{1-\mu^2}$.
-- **Code**: [lines 281–283, 343–344](starkzee/static_profile.py#L281).
+- **Code**: [lines 292 & 359](starkzee/static_profile.py#L292).
 
 ### 3.5. Per-quadrature transition intensities
 $$\Delta E_{ji} = E_u^i - E_l^j,\qquad
 I_q[j,i] = \big|\,(U_l^\dagger D_q U_u)[j,i]\,\big|^2,\quad q\in\{0,+1,-1\}$$
-- **Code**: [lines 347–356](starkzee/static_profile.py#L347).
+- **Code**: [lines 379–382](starkzee/static_profile.py#L379).
 
 ### 3.6. Profile accumulation (Lorentzian or Voigt)
 Each component is the microfield-weighted sum over transitions:
@@ -153,7 +153,7 @@ $$I_q(E) = \sum_{\beta,\mu} w_{\beta\mu}\sum_k I_q^k\,\mathcal{L}\!\big(E - \Del
 - Bare Lorentzian (no Doppler): $\mathcal{L}(x;w) = \dfrac{w/\pi}{x^2 + w^2}$.
 - With Doppler ($T_i$ set): a Gaussian is accumulated in-loop and the Lorentzian
   applied by FFT afterwards (adaptive: which factor is in-loop depends on σ_D vs Δx).
-- **Code**: [lines 362–396](starkzee/static_profile.py#L362). The half-width is
+- **Code**: [lines 389–401](starkzee/static_profile.py#L389). The half-width is
   $w = W_e(\Delta\omega) + w_\text{natural}$ (§5), with
   $w_\text{natural} = \hbar(\Gamma_u + \Gamma_l)/2$ from summed Einstein A.
 
@@ -172,7 +172,7 @@ Angle-averaged: $\tfrac23 I_\pi + \tfrac13(I_{\sigma+}+I_{\sigma-})$.
 
 ### 3.9. Discrete stick spectrum
 Enumerate every (i, j, q) with $|d_q(i\to j)|^2 > $ threshold at a single (F_z, F_x).
-- **Code**: [`discrete_transitions`](starkzee/static_profile.py#L401).
+- **Code**: [`discrete_transitions`](starkzee/static_profile.py#L426).
 
 ---
 
@@ -181,30 +181,52 @@ Enumerate every (i, j, q) with $|d_q(i\to j)|^2 > $ threshold at a single (F_z, 
 ### 4.1. Holtsmark normal field & mean spacing
 $$r_e = \left(\frac{3}{4\pi N_e}\right)^{1/3},\qquad
 F_0 = \frac{e}{4\pi\varepsilon_0\, r_e^2}$$
-- **Code**: [`calculate_normal_field`](starkzee/microfield.py#L9).
+- **Code**: [`calculate_normal_field`](starkzee/microfield.py#L11).
 
 ### 4.2. Debye length (classical)
 $$\lambda_D = \sqrt{\frac{\varepsilon_0 T_e}{N_e\, e}}\quad(T_e\ \text{in eV})$$
 Multi-species: $\lambda_D = \sqrt{\varepsilon_0 T_e / [N_e e (1 + \sum_i X_i Z_i^2)]}$.
-- **Code**: [`calculate_debye_length`](starkzee/microfield.py#L36),
-  [`calculate_multispecies_debye_length`](starkzee/microfield.py#L60).
+- **Code**: [`calculate_debye_length`](starkzee/microfield.py#L38),
+  [`calculate_multispecies_debye_length`](starkzee/microfield.py#L62).
 
 ### 4.3. Holtsmark distribution (unscreened)
 $$W(\beta) = \frac{2\beta}{\pi}\int_0^\infty y\,\sin(\beta y)\,e^{-y^{3/2}}\,dy$$
-- **Code**: [`holtsmark_distribution`](starkzee/microfield.py#L105).
+- **Code**: [`holtsmark_distribution`](starkzee/microfield.py#L127).
 
 ### 4.4. Hooper screened distribution
 $$W(\beta,a) = \frac{2\beta}{\pi}\int_0^\infty y\,\sin(\beta y)\,e^{-y^{3/2} S(y,a)}\,dy,\quad
-S(y,a) = \left(1 + \frac{1.5\,a^2}{y^2}\right)^{-3/4},\quad a = \frac{r_e}{\lambda_D}$$
+S(y,a) = \left(1 + \frac{f_\text{emit}\,a^2}{y^2}\right)^{-3/4},\quad a = \frac{r_e}{\lambda_D}$$
+where $f_\text{emit} = 1.5$ for a charged radiator (ion emitter, default `charged=True`), and $f_\text{emit} = 1.0$ for a neutral radiator (atom emitter, `charged=False`).
 $a \to 0$ recovers Holtsmark.
-- **Code**: [`hooper_distribution`](starkzee/microfield.py#L145).
-- **NOTE**: depends only on the screening parameter `a`; there is **no ion-coupling
+- **Code**: [`hooper_distribution`](starkzee/microfield.py#L196).
+- **NOTE**: depends on the screening parameter `a` and emitter charging `charged`; there is **no ion-coupling
   (Γ) correlation correction** (unlike zest's Potekhin fits).
 
-### 4.5. Quadrature normalization
+### 4.5. Potekhin distribution models (Zest-compatible, natively implemented)
+Fits for electric microfield distributions $P(\beta)$ based on Potekhin, Chabrier, and Gilles (*Phys. Rev. E* 65, 036412, 2002).
+- **Code**: [`potekhin_distribution`](starkzee/microfield.py#L456).
+
+#### 4.5.1. Unscreened Coulomb Potential ($s = 0$)
+- **Neutral Point**:
+  $$Q(\beta) = \frac{q_0 \beta^3 - 1.33 \beta^{9/2} + \beta^6}{q_1 + q_2 \beta^2 + q_3 \beta^3 - \frac{1}{3}\beta^{9/2} + \beta^6},\quad q_n = \alpha_n (1 + \beta_n \Gamma)^{-\gamma_n}$$
+  with parameters $(\alpha_n, \beta_n, \gamma_n)$ as defined in Eq. 17.
+- **Charged Point**:
+  $$Q(\beta) = \frac{Q_0(\beta) + 0.873\sqrt{\Gamma} Q_M(\beta, \Gamma_\text{eff})}{1 + 0.873\sqrt{\Gamma}}$$
+  where $Q_M$ is the Mayer distribution (Eq. 18):
+  $$Q_M(\beta, \Gamma) = \text{erf}\left(\beta \sqrt{\frac{\Gamma}{2}}\right) - \sqrt{\frac{2\Gamma}{\pi}} \beta e^{-\Gamma\beta^2/2}$$
+
+#### 4.5.2. Screened Potential (Yukawa, $s > 0$)
+- **Neutral Point**:
+  $$Q(\beta) = \frac{a_0 \beta^3 - 2 \beta^{9/2} + \beta^6}{a_1 + a_2 \beta + a_3 \beta^2 + a_4 \beta^3 - \beta^{9/2} + \beta^6}$$
+  where parameters $a_0$ to $a_4$ are functions of $s$ and $\Gamma$ (Eq. 30–35).
+- **Charged Point**:
+  $$P(\beta) \approx \beta^2 S_N \left[ A e^{-a\beta^\alpha} + B e^{-b\beta^\gamma} + \frac{e^{-\Gamma\beta^{1/2}}}{1 + c\beta^{9/2}} \right]$$
+  where $S_N$ is the normalization constant, and parameters $A, a, \alpha, B, b, \gamma, c$ are fitting functions of $s$ and $\Gamma$ (Eq. 36–52).
+
+### 4.6. Quadrature normalization
 Uniform β grid; W normalized so $\sum_i W_i\,\Delta\beta = 1$; returns
 $\text{fields} = \beta F_0$, $\text{weights} = W\,\Delta\beta$.
-- **Code**: [`_microfield_quadrature_impl`](starkzee/microfield.py#L268).
+- **Code**: [`_microfield_quadrature_impl`](starkzee/microfield.py#L569).
 
 ---
 
@@ -301,8 +323,7 @@ Area-normalized kernel; edge-padded profile, zero-padded kernel.
 - **Intra-shell linear Stark only** — quadratic / inter-n Stark neglected.
 - Full magnetic Hamiltonian: spin-orbit + Dirac fine structure + linear and
   **quadratic (diamagnetic) Zeeman** simultaneously diagonalized with the Stark term.
-- **Microfield**: Holtsmark / Hooper-screened, classical Debye, neutral-point;
-  no ion-coupling (Γ) correlation correction.
+- **Microfield**: Holtsmark / Hooper-screened (classical Debye, neutral-point), plus native implementations of the Zest-compatible Potekhin (2002) model (incorporating ion-coupling $\Gamma$ and screened/unscreened, neutral/charged points).
 - **Electron broadening**: GBK semi-classical, frequency-dependent, magnetic (Larmor)
   cutoff, single shell-averaged ⟨r²⟩_n width for all transitions.
 - **Ion dynamics**: quasi-static + optional FFM (Sherman-Morrison or full inversion).

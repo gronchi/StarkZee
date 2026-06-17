@@ -35,9 +35,8 @@ Model based on [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **
 ```bash
 git clone https://github.com/g-ronchi/starkzee.git
 cd starkzee
-pip install -e .            # core — numpy, scipy only
-pip install -e ".[plot]"    # add matplotlib
-pip install -e ".[dev]"     # add pytest + matplotlib
+pip install -e .
+
 ```
 
 ---

@@ -17,6 +17,7 @@ extensions = [
     "sphinx.ext.mathjax",        # LaTeX math in RST
     "sphinx.ext.intersphinx",    # cross-links to NumPy / SciPy
     "sphinx.ext.autosummary",    # summary tables
+    "sphinx_rtd_theme",          # Read the Docs HTML theme
 ]
 
 # ── napoleon settings ─────────────────────────────────────────────────────────
@@ -43,13 +44,15 @@ intersphinx_mapping = {
 }
 
 # ── HTML output ───────────────────────────────────────────────────────────────
-html_theme   = "furo"
+html_theme   = "sphinx_rtd_theme"
 html_title   = "StarkZee"
 html_static_path = []
 
 html_theme_options = {
-    "sidebar_hide_name": False,
-    "navigation_with_keys": True,
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+    "sticky_navigation": True,
+    "prev_next_buttons_location": "bottom",
 }
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
