@@ -5,7 +5,7 @@ def test_load_levels_success():
     """Test loading atomic states successfully from the JSON."""
     # Test without fine structure
     levels_no_fs = load_levels("H", fine_structure=False)
-    assert len(levels_no_fs) == 3
+    assert len(levels_no_fs) == 12
     assert levels_no_fs[0].n == 1
     assert levels_no_fs[0].energy == 0.0
     
@@ -14,7 +14,7 @@ def test_load_levels_success():
     
     # Test with fine structure
     levels_fs = load_levels("H", fine_structure=True)
-    assert len(levels_fs) == 9
+    assert len(levels_fs) == 64
     
     # Check 2p 3/2 state
     state_2p_3_2 = levels_fs[3]

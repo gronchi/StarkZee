@@ -19,6 +19,8 @@ from starkzee.microfield import (
     holtsmark_distribution,
     hooper_distribution,
     microfield_quadrature,
+    calculate_coupling_parameter,
+    potekhin_distribution,
 )
 from scipy.constants import epsilon_0 as EPSILON_0, e as E_CHARGE
 
@@ -47,6 +49,43 @@ def test_F0_scales_as_Ne_two_thirds():
     ratio = F0_2 / F0_1
     expected = 8.0**(2.0/3.0)  # = 4.0
     assert relerr(ratio, expected) < 1e-8, f"F0 ratio = {ratio:.6f}, expected {expected:.6f}"
+
+
+def test_normal_field_with_Z_bar():
+    """Verify that calculate_normal_field correctly scales with Z_bar."""
+    Ne = 1e25
+    # Default Z_bar=1.0
+    F0_def, re_def = calculate_normal_field(Ne)
+    F0_1, re_1 = calculate_normal_field(Ne, Z_bar=1.0)
+    assert F0_def == F0_1
+    assert re_def == re_1
+
+    # Z_bar=2.0
+    F0_2, re_2 = calculate_normal_field(Ne, Z_bar=2.0)
+    
+    # re should scale as Z_bar^(1/3) -> 2^(1/3)
+    re_expected = re_1 * (2.0**(1.0 / 3.0))
+    # F0 should scale as Z_bar / re^2 -> 2 / (2^(2/3)) = 2^(1/3)
+    F0_expected = F0_1 * (2.0**(1.0 / 3.0))
+
+    assert relerr(re_2, re_expected) < 1e-10
+    assert relerr(F0_2, F0_expected) < 1e-10
+
+
+def test_microfield_quadrature_with_Z_bar():
+    """Verify that microfield_quadrature scales fields and screening correctly with Z_bar."""
+    Ne, Te = 5e25, 100.0
+    # Unscreened (Holtsmark)
+    fields_1, weights_1 = microfield_quadrature(Ne, Te, num_points=30, use_screening=False, Z_bar=1.0)
+    fields_2, weights_2 = microfield_quadrature(Ne, Te, num_points=30, use_screening=False, Z_bar=2.0)
+    
+    # Weights should be identical since the beta grid is the same and Holtsmark is Z_bar-independent
+    np.testing.assert_allclose(weights_1, weights_2, rtol=1e-10)
+    
+    # Fields should scale as 2^(1/3)
+    factor = 2.0**(1.0 / 3.0)
+    np.testing.assert_allclose(fields_2, fields_1 * factor, rtol=1e-10)
+
 
 
 # ── 2. Debye length ───────────────────────────────────────────────────────────
@@ -182,3 +221,92 @@ def test_screening_parameter_range():
         assert 0.001 < a < 5.0, (
             f"Screening parameter a={a:.4f} out of expected range for Ne={Ne:.0e}, Te={Te}"
         )
+
+
+# ── 7. Zest Microfield integration ───────────────────────────────────────────
+
+def test_potekhin_normalization():
+    """Verify that the Zest Potekhin distribution integrates to ~1."""
+    beta_grid = np.linspace(0.01, 15.0, 1000)
+    # Screened charged case
+    gamma = 0.5
+    s = 0.3
+    P_screened = potekhin_distribution(beta_grid, gamma=gamma, s=s, charged=True)
+    integral_screened = np.trapezoid(P_screened, beta_grid)
+    assert relerr(integral_screened, 1.0) < 0.05, f"Screened integral = {integral_screened:.4f}"
+
+    # Unscreened neutral case (s = 0, charged = False)
+    P_unscreened = potekhin_distribution(beta_grid, gamma=gamma, s=0.0, charged=False)
+    integral_unscreened = np.trapezoid(P_unscreened, beta_grid)
+    assert relerr(integral_unscreened, 1.0) < 0.05, f"Unscreened integral = {integral_unscreened:.4f}"
+
+
+
+def test_calculate_coupling_parameter():
+    """Test coupling parameter calculation."""
+    # Compute for some physical case and check
+    # Let Z_bar=1, Ti_ev=10 eV, R_ii = 1e-9 m
+    gamma = calculate_coupling_parameter(1.0, 10.0, 1e-9)
+    # expected: (1^2 * e) / (4 * pi * eps_0 * 10 * 1e-9)
+    expected = E_CHARGE / (4.0 * np.pi * EPSILON_0 * 10.0 * 1e-9)
+    assert relerr(gamma, expected) < 1e-10
+
+
+def test_holtsmark_distribution_methods():
+    """Test holtsmark_distribution with exact, vectorized, and potekhin methods."""
+    beta = 1.2
+    val_vec = holtsmark_distribution(beta, method='vectorized')
+    val_ex = holtsmark_distribution(beta, method='exact')
+    val_pot = holtsmark_distribution(beta, method='potekhin')
+    
+    assert relerr(val_vec, val_ex) < 1e-6, f"vectorized vs exact relative difference: {relerr(val_vec, val_ex):.2e}"
+    assert relerr(val_pot, val_ex) < 2e-3, f"potekhin vs exact relative difference: {relerr(val_pot, val_ex):.2e}"
+    
+    # Test with array input
+    beta_arr = np.linspace(0.1, 5.0, 50)
+    arr_vec = holtsmark_distribution(beta_arr, method='vectorized')
+    arr_ex = holtsmark_distribution(beta_arr, method='exact')
+    
+    np.testing.assert_allclose(arr_vec, arr_ex, rtol=1e-5, atol=1e-6)
+    
+    # Test invalid method
+    with pytest.raises(ValueError, match="Unknown method 'invalid'"):
+        holtsmark_distribution(beta, method='invalid')
+
+
+def test_hooper_distribution_methods():
+    """Test hooper_distribution with exact and vectorized methods."""
+    beta = 1.5
+    a = 0.5
+    val_vec = hooper_distribution(beta, a, charged=True, method='vectorized')
+    val_ex = hooper_distribution(beta, a, charged=True, method='exact')
+    
+    assert relerr(val_vec, val_ex) < 1e-6
+    
+    # Test array input
+    beta_arr = np.linspace(0.1, 5.0, 50)
+    arr_vec = hooper_distribution(beta_arr, a, charged=True, method='vectorized')
+    arr_ex = hooper_distribution(beta_arr, a, charged=True, method='exact')
+    
+    np.testing.assert_allclose(arr_vec, arr_ex, rtol=1e-5, atol=1e-6)
+    
+    with pytest.raises(ValueError, match="Unknown method 'invalid'"):
+        hooper_distribution(beta, a, charged=True, method='invalid')
+
+
+def test_hooper_charged_parameter():
+    """Verify that hooper_distribution with charged=True/False works and is different."""
+    beta = np.linspace(0.1, 5.0, 50)
+    a = 0.4
+    
+    val_sz_charged = hooper_distribution(beta, a, charged=True)
+    val_sz_neutral = hooper_distribution(beta, a, charged=False)
+    
+    # Both should be non-negative
+    assert np.all(val_sz_charged >= 0.0)
+    assert np.all(val_sz_neutral >= 0.0)
+    
+    # Check that charged and neutral are actually different
+    assert np.any(np.abs(val_sz_charged - val_sz_neutral) > 1e-4)
+
+

@@ -52,7 +52,8 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion):
 def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_ev,
                                   num_f=30, num_mu=10, use_screening=True,
                                   quadratic_zeeman=True, fine_structure=True,
-                                  numerical_inversion=False):
+                                  numerical_inversion=False,
+                                  use_empirical_data=False, atom="H"):
     """Compute the dynamical Stark-Zeeman line profile using the Frequency Fluctuation Model.
 
     The FFM treats the ion microfield as a Markov jump process between
@@ -114,6 +115,12 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         If True, solve the full Markov matrix by direct inversion instead of
         the Sherman-Morrison approximation (default False).  Falls back to
         Sherman-Morrison if the matrix is singular.
+    use_empirical_data : bool, optional
+        Use NIST empirical level energies (default False); forwarded to
+        :func:`~starkzee.static_profile.solve_starkzee`.
+    atom : str, optional
+        Atom identifier for empirical data (default ``"H"``); forwarded to
+        :func:`~starkzee.static_profile.solve_starkzee`.
 
     Returns
     -------
@@ -170,8 +177,10 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             Fx = fi * np.sqrt(1.0 - mu**2)
             
             # Solve combined Stark-Zeeman Hamiltonian for upper and lower states
-            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
-            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure)
+            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                         use_empirical_data=use_empirical_data, atom=atom)
+            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                         use_empirical_data=use_empirical_data, atom=atom)
             
             V_l_adj = sz_vectors_l.conj().T
             dE = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
