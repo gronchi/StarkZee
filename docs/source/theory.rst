@@ -12,7 +12,7 @@ Liouville space representation
 -------------------------------
 
 The spectral line-shape intensity :math:`I(\omega)` is the Fourier transform
-of the dipole autocorrelation function:
+of the dipole autocorrelation function [Baranger1958]_:
 
 .. math::
 
@@ -64,7 +64,8 @@ the atomic Hamiltonian in the uncoupled
 where :math:`\alpha` is the fine-structure constant.  Together with the
 mass-velocity and Darwin corrections (also included when
 ``fine_structure=True``), this reproduces the Dirac fine-structure
-splitting and restores the :math:`2s_{1/2} = 2p_{1/2}` degeneracy.
+splitting and restores the :math:`2s_{1/2} = 2p_{1/2}` degeneracy
+[BetheSalpeter1957]_.
 
 **Linear Zeeman** (diagonal):
 
@@ -92,7 +93,7 @@ geometric-mean approximation
 overestimates the true value by 12 % (:math:`n=3`), 21 % (:math:`n=4`), and
 41 % (:math:`n=5`).  StarkZee computes these integrals by direct numerical
 quadrature (``scipy.integrate.quad``) over the analytical hydrogenic radial
-wavefunctions
+wavefunctions [BetheSalpeter1957]_
 
 .. math::
 
@@ -103,8 +104,45 @@ wavefunctions
 
 with results cached after the first call.
 
-Stark perturbation
-------------------
+Empirical field-free energies
+-----------------------------
+
+The analytic diagonal :math:`H_0 = -Z^2\,\text{Ry}_\text{red}/n^2`, together with
+the spin-orbit and fine-structure terms, reproduces the field-free level
+positions only to the accuracy of the hydrogenic Dirac formula.  For
+quantitative line centers, StarkZee can instead inject *measured* field-free
+energies through ``use_empirical_data=True`` (with the element symbol ``atom``).
+The values are read from a tabulated database (``atomic_data.load_levels``)
+holding NIST level energies in wavenumbers [cm\ :sup:`-1`], resolved by
+:math:`(n, l, j)`.  The empirical Hamiltonian is kept in cm\ :sup:`-1`
+throughout, so callers can operate entirely in wavenumber units; all Zeeman
+contributions are converted from eV to cm\ :sup:`-1` before being added,
+keeping every term on the same scale.
+
+Because the field-free Hamiltonian is degenerate (the Dirac formula makes
+:math:`2s_{1/2}` and :math:`2p_{1/2}` coincide), the empirical energies cannot
+simply be placed on the diagonal of the uncoupled basis — ``numpy.linalg.eigh``
+would mix the degenerate :math:`l` states arbitrarily.  StarkZee instead:
+
+1. diagonalizes a degeneracy-broken field-free Hamiltonian (unperturbed energy
+   + spin-orbit only, *omitting* the mass-velocity/Darwin term so that
+   :math:`l` stays a good label), giving eigenvectors :math:`V`;
+2. labels each coupled eigenstate :math:`k` by its dominant orbital component
+   :math:`l` and its total angular momentum :math:`j = l \pm \tfrac{1}{2}`, the
+   branch set by the sign of
+   :math:`\langle \vec{L}\cdot\vec{S}\rangle = (E_k - E_n)/\xi_{nl}`;
+3. assigns the tabulated energy :math:`D_k = E^\text{emp}(l, j)` [cm\ :sup:`-1`]
+   to each eigenstate and reconstructs
+   :math:`H_0^\text{emp} = V\,\mathrm{diag}(D)\,V^\dagger`.
+
+The Zeeman terms (:math:`\mu_B B(m_l + g_s m_s)` and the diamagnetic
+correction) are converted from eV to cm\ :sup:`-1` and added on top of
+:math:`H_0^\text{emp}`.  Since the tabulated values are absolute level energies
+(ground state at 0), transition wavenumbers follow directly as differences
+:math:`E_u - E_l` and reproduce the observed NIST Lyman/Balmer line centers.
+
+Full electron-radiator Hamiltonian
+----------------------------------
 
 Under the quasi-static ion approximation the radiator sits in a constant
 microfield :math:`\vec{F}` at angle :math:`\theta` to :math:`\vec{B}`:
@@ -117,18 +155,28 @@ The Stark interaction is
 
 .. math::
 
-    V_E = -e\,(z\,F_z + x\,F_x)
+    V_E = -e\,(z\,F_z + x\,F_x) = -\hat{\boldsymbol{d}}\cdot\vec{F}
 
-Within the :math:`n`-shell the radial element is analytic:
+where :math:`\hat{\boldsymbol{d}} = e\vec{r}` is the electric dipole operator.
+Within the :math:`n`-shell the radial element is analytic [BetheSalpeter1957]_:
 
 .. math::
 
     \langle n,l | r | n,l-1 \rangle = \frac{3n}{2Z}\sqrt{n^2 - l^2}
     \quad [a_0]
 
-The combined Hamiltonian :math:`H = H_A + V_E` is diagonalized by
-``numpy.linalg.eigh`` at every quadrature point to obtain the Stark-dressed
-transition frequencies :math:`\omega_k` and dipole weights :math:`|d_k|^2`.
+The full electron-radiator Hamiltonian
+
+.. math::
+
+    H = H_A + V_E = H_0 + V_\text{SO} + H_Z^{(1)} + H_Z^{(2)} + V_E
+
+is assembled and diagonalized **as a whole** by ``numpy.linalg.eigh`` at every
+microfield quadrature point (``solve_starkzee``).  :math:`V_E` is **not**
+treated perturbatively: there is no expansion in powers of the field.  The
+Stark, Zeeman, and fine-structure terms all enter the same matrix on equal
+footing, and the exact eigenvalues yield the Stark-dressed transition
+frequencies :math:`\omega_k` and dipole weights :math:`|d_k|^2`.
 
 Plasma microfield distributions
 ---------------------------------
@@ -164,6 +212,46 @@ where the screening function is
 and :math:`\lambda_D = \sqrt{\varepsilon_0 T_e / N_e e^2}` is the electron
 Debye length.  Setting :math:`a = 0` recovers the Holtsmark distribution.
 
+**Potekhin** (Zest-compatible, natively implemented) [Potekhin2002]_:
+
+Fits for electric microfield distributions :math:`P(\beta)` based on Potekhin, Chabrier, and Gilles (2002) [Potekhin2002]_. It supports neutral/charged radiators and screened/unscreened cases.
+
+- Unscreened Coulomb Potential (:math:`s = 0`):
+
+  Neutral point:
+
+  .. math::
+
+      Q(\beta) = \frac{q_0 \beta^3 - 1.33 \beta^{9/2} + \beta^6}{q_1 + q_2 \beta^2 + q_3 \beta^3 - \frac{1}{3}\beta^{9/2} + \beta^6}
+
+  with parameters :math:`q_n` as functions of the ion-ion coupling parameter :math:`\Gamma` (Eq. 17).
+
+  Charged point:
+
+  .. math::
+
+      Q(\beta) = \frac{Q_0(\beta) + 0.873\sqrt{\Gamma} Q_M(\beta, \Gamma_\text{eff})}{1 + 0.873\sqrt{\Gamma}}
+
+  where :math:`Q_M` is the Mayer distribution (Eq. 18).
+
+- Screened Potential (Yukawa, :math:`s > 0`):
+
+  Neutral point:
+
+  .. math::
+
+      Q(\beta) = \frac{a_0 \beta^3 - 2 \beta^{9/2} + \beta^6}{a_1 + a_2 \beta + a_3 \beta^2 + a_4 \beta^3 - \beta^{9/2} + \beta^6}
+
+  with parameters :math:`a_n` as functions of screening parameter :math:`s` and :math:`\Gamma` (Eq. 30).
+
+  Charged point:
+
+  .. math::
+
+      P(\beta) \approx \beta^2 S_N \left[ A e^{-a\beta^\alpha} + B e^{-b\beta^\gamma} + \frac{e^{-\Gamma\beta^{1/2}}}{1 + c\beta^{9/2}} \right]
+
+  where :math:`S_N` is the normalization constant, and parameters :math:`A, a, \alpha, B, b, \gamma, c` are fitting functions of :math:`s` and :math:`\Gamma` (Eq. 36).
+
 The profile integrator uses a uniform grid of ``num_f`` points in
 :math:`[0, 10\,F_0]` and ``num_mu`` Gauss-Legendre points for the angle
 :math:`\mu = \cos\theta \in [0, 1]`.
@@ -172,7 +260,8 @@ Electron impact broadening (GBK)
 ----------------------------------
 
 Fast electrons are treated in the impact (completed-collision) approximation
-[Griem1997]_.
+[Griem1997]_ using the semi-classical Griem-Baranger-Kolb (GBK) model
+[GriemBaranger1962]_.
 Their contribution is a homogeneous Lorentzian broadening of half-width
 (HWHM):
 
@@ -331,6 +420,11 @@ The line strength summed over all polarizations and substates is
 
     S_{ul} = \sum_{q,i,j} |\langle l_j | r_q | u_i \rangle|^2 \quad [a_0^2]
 
+The inter-shell hydrogenic radial dipole integrals
+:math:`\langle n_l, l_l | r | n_u, l_u \rangle` are evaluated exactly with
+Gordon's analytical formula [Gordon1929]_, and the angular factors follow the
+spherical-tensor (Wigner-Eckart) algebra [Edmonds1957]_.
+
 The weighted absorption oscillator strength is
 
 .. math::
@@ -349,7 +443,7 @@ where :math:`E_\text{H} = 2\,\text{Ry}` is the Hartree energy,
 :math:`g_u = 2n_u^2` the upper-shell statistical weight, and
 :math:`\tau_\text{au} = \hbar / E_\text{H} \approx 2.419 \times 10^{-17}` s
 the atomic unit of time.  Both :math:`gf` and :math:`A_{ul}` are validated
-against NIST ASD tabulated values to 0.5 % and 1 % respectively.
+against NIST ASD tabulated values [NIST_ASD]_ to 0.5 % and 1 % respectively.
 
 Physical features and validation
 ---------------------------------
@@ -416,12 +510,144 @@ Numerical simplifications
   :math:`\langle r^2\rangle` matrix elements are computed once and cached
   with ``functools.lru_cache``.
 
+Built-in reference models
+-------------------------
+
+The ``starkzee.models`` package provides five independent lineshape models that
+share a common call signature and serve as benchmarks against StarkZee's fully
+coupled solver.
+
+**Tabulated models** (read precomputed NetCDF databases):
+
+``stehle``
+    The Stehlé MMM database [Stehle1999]_ contains the *unmagnetized* (:math:`B=0`)
+    Stark + fine-structure profile for hydrogen Balmer/Paschen transitions, stored as
+    a function of reduced detuning :math:`\Delta\omega/F_0` on a density/temperature
+    grid.  Doppler broadening is applied first by FFT convolution, then Zeeman
+    splitting is added *after* as a rigid normal-triplet shift of the
+    Stark+Doppler profile:
+
+    .. math::
+
+        I(\theta) = \sin^2\!\theta\,I_\pi
+        + \tfrac{1+\cos^2\!\theta}{2}\,(I_{\sigma+} + I_{\sigma-})
+
+    Stark and Zeeman are treated as **separable** — valid only when
+    :math:`\mu_B B \ll \Delta\omega_S`.  Covers arbitrary :math:`(n_u, n_l)`.
+
+``rosato``
+    The Rosato database [Rosato2009]_ solves Stark and Zeeman *jointly*; :math:`B`
+    is an explicit table axis (:math:`B \in \{0,1,2,2.5,3,5\}` T).
+    Interpolation in :math:`B` is *scaled*: each bracketing profile's detuning axis
+    is stretched by :math:`B_\text{node}/B` before blending, exploiting the linear
+    scaling of Zeeman splitting with :math:`B`.  Angle dependence comes from two
+    real tables (parallel/perpendicular), blended as
+    :math:`I = I_\parallel\cos^2\theta + I_\perp\sin^2\theta`.
+    Restricted to deuterium Balmer lines,
+    :math:`N_e \in [10^{13}, 10^{16}]` cm\ :sup:`-3`,
+    :math:`T_e \in [0.316, 31.6]` eV, :math:`B \le 5` T.
+
+Tabulated model comparison:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Feature
+     - Stehlé
+     - Rosato
+   * - Table contents
+     - Field-free Stark only
+     - Stark + Zeeman jointly
+   * - :math:`B` enters as
+     - Post-processing rigid triplet
+     - Real table axis
+   * - Angle dependence
+     - Analytic :math:`\pi/\sigma` weights
+     - Two precomputed angle tables
+   * - Stark–Zeeman coupling
+     - None (separable approx.)
+     - Fully captured
+   * - Coverage
+     - Arbitrary :math:`(n_u,n_l)`, all :math:`B`
+     - D Balmer only, :math:`B \le 5` T
+
+**Analytical models** (no database required):
+
+``lomanowski``
+    Polynomial fits for the Stark FWHM from [Lomanowski2015]_:
+    :math:`\Delta\lambda_S = c\,N_e^a\,T_e^{-b}` [nm],
+    with tabulated :math:`(a,b,c)` for H/D Balmer/Paschen lines up to :math:`n_u=9`.
+
+``stehle_param``
+    A closed-form parametric fit to the Stehlé tables — fast approximation to the
+    field-free Stark profile without reading the NetCDF database.
+
+``voigt``
+    Pseudo-Voigt using the Griem :math:`\alpha_{12}` Stark half-width [Griem1997]_
+    plus Doppler broadening.  Suitable for order-of-magnitude estimates only.
+
+**StarkZee vs.\ the tabulated models:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Feature
+     - StarkZee
+     - Stehlé
+     - Rosato
+   * - Magnetic field
+     - Full simultaneous diagonalization of :math:`H = H_A + V_E`
+     - :math:`B=0` tables, triplet convolved after
+     - :math:`B` as table axis
+   * - Fine structure
+     - Spin-orbit, MV, Darwin
+     - No (degenerate hydrogenic)
+     - In tables
+   * - Electron broadening
+     - GBK semi-classical, frequency-dependent
+     - Unified theory (rigorous far wings)
+     - In tables
+   * - Ion dynamics
+     - Quasi-static + optional FFM
+     - Static (some ion-dynamics in tables)
+     - In tables
+   * - B-treatment
+     - Intrinsic to Hamiltonian
+     - External convolution
+     - B-scaled interpolation
+
+The most important distinction at :math:`B \ne 0`: StarkZee diagonalizes
+:math:`H = H_A + V_E` simultaneously for all fields.  When
+:math:`\mu_B B \sim 3n\,e\,a_0\,F` (Zeeman and Stark splittings comparable), the
+eigenstates are genuine Stark-Zeeman hybrids — neither pure Zeeman nor pure Stark
+states.  No post-processing convolution reproduces this mixing.  For H\ :math:`\alpha`
+at :math:`B = 10` T, :math:`\mu_B B \approx 0.58` meV and the Stark width at
+:math:`N_e = 5\times10^{21}` m\ :sup:`-3` is :math:`\approx 0.8` meV — the same
+order of magnitude, making the coupled treatment essential.
+
 References
 ----------
 
 .. [Ferri2022]
    S. Ferri, O. Peyrusse, A. Calisti,
    *Matter and Radiation at Extremes* **7**, 015901 (2022).
+
+.. [Baranger1958]
+   M. Baranger, *Phys. Rev.* **111**, 481 (1958);
+   *Phys. Rev.* **112**, 855 (1958).
+
+.. [BetheSalpeter1957]
+   H. A. Bethe, E. E. Salpeter, *Quantum Mechanics of One- and Two-Electron
+   Atoms*, Springer-Verlag (1957).
+
+.. [Gordon1929]
+   W. Gordon, *Ann. Phys.* **394**, 1031 (1929).
+
+.. [Edmonds1957]
+   A. R. Edmonds, *Angular Momentum in Quantum Mechanics*,
+   Princeton University Press (1957).
 
 .. [Talin1995]
    B. Talin, A. Calisti, L. Godbert, R. Stamm, R. W. Lee,
@@ -436,3 +662,33 @@ References
 .. [Griem1997]
    H. R. Griem, *Principles of Plasma Spectroscopy*,
    Cambridge University Press (1997).
+
+.. [GriemBaranger1962]
+   H. R. Griem, M. Baranger, A. C. Kolb, G. Oertel,
+   *Phys. Rev.* **125**, 177 (1962).
+
+.. [Potekhin2002]
+   A. Y. Potekhin, G. Chabrier, D. Gilles,
+   *Phys. Rev. E* **65**, 036412 (2002).
+
+.. [NIST_ASD]
+   A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team,
+   *NIST Atomic Spectra Database* (ver. 5.11),
+   National Institute of Standards and Technology (2023).
+
+.. [Stehle1999]
+   C. Stehlé, R. Hutcheon,
+   *Extensive tabulations of Stark broadened hydrogen line profiles*,
+   *Astron. Astrophys. Suppl. Ser.* **140**, 93 (1999).
+
+.. [Rosato2009]
+   J. Rosato, H. Capes, R. Stamm,
+   *Influence of ion dynamics and multiple body effects on hydrogen lines
+   in magnetized fusion plasmas*,
+   *Phys. Rev. E* **79**, 046408 (2009).
+
+.. [Lomanowski2015]
+   B. A. Lomanowski *et al.*,
+   *Inferring divertor plasma properties from hydrogen Balmer and Paschen
+   series spectroscopy in JET-ILW*,
+   *Nucl. Fusion* **55**, 123028 (2015).
