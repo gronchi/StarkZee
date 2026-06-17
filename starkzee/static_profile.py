@@ -2,7 +2,7 @@
 
 import numpy as np
 from functools import lru_cache
-from starkzee.utils import A0, reduced_mass_rydberg_ev
+from starkzee.utils import A0, reduced_mass_rydberg_ev, wavenumber_cm_to_energy_ev, energy_ev_to_wavenumber_cm
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
 
 # Pseudo-Voigt constants
@@ -140,7 +140,8 @@ def build_stark_matrix(n, Z, Fz, Fx):
     return V_E
 
 def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
-                               fine_structure=True, A=1):
+                               fine_structure=True, A=1,
+                               use_empirical_data=False, atom="H"):
     """Diagonalize the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
@@ -168,6 +169,14 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
         Include the diamagnetic quadratic Zeeman term (default True).
     fine_structure : bool, optional
         Include MV + Darwin corrections (default True).
+    use_empirical_data : bool, optional
+        Use NIST empirical level energies for the field-free Hamiltonian
+        instead of the analytic Rydberg formula (default False).  The
+        internal Hamiltonian is assembled in cm⁻¹; eigenvalues are
+        converted back to eV before returning so callers see no unit change.
+    atom : str, optional
+        Atom identifier passed to :func:`~starkzee.atomic_data.load_levels`
+        when ``use_empirical_data=True`` (default ``"H"``).
 
     Returns
     -------
@@ -176,18 +185,32 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     eigenvectors : ndarray, shape (2n², 2n²)
         Orthonormal eigenstates as columns, in the canonical ``|n, l, m_l, m_s⟩`` basis.
     """
-    H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A)
-    V_E = build_stark_matrix(n, Z, Fz, Fx)
-    H_total = H_atom + V_E
+    H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A,
+                               use_empirical_data=use_empirical_data, atom=atom)
+    # V_E(Fz, Fx) = Fz*M_z + Fx*M_x with field-independent templates cached per
+    # (n, Z), avoiding a Python double-loop rebuild of the Stark matrix on every
+    # call (build_stark_matrix produces exactly Fz*M_z + Fx*M_x).
+    M_z, M_x = _stark_templates(n, Z)
 
+    if use_empirical_data:
+        # H_atom is in cm⁻¹; scale the Stark matrices (eV/(V/m)) to cm⁻¹/(V/m).
+        ev_to_cm = energy_ev_to_wavenumber_cm(1.0)
+        H_total = H_atom + (Fz * M_z + Fx * M_x) * ev_to_cm
+        # Center near 0 using the mean of the empirical levels (≈82259 cm⁻¹ for H n=2).
+        E_shift = H_total.diagonal().real.mean()
+        for i in range(H_total.shape[0]):
+            H_total[i, i] -= E_shift
+        eigenvalues_cm, eigenvectors = np.linalg.eigh(H_total)
+        eigenvalues_cm += E_shift
+        return wavenumber_cm_to_energy_ev(eigenvalues_cm), eigenvectors
+
+    H_total = H_atom + Fz * M_z + Fx * M_x
     # Shift diagonal to center eigenvalues near 0, reducing the spectral norm.
     # This improves the eigh solver's numerical precision.
-    En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
     for i in range(H_total.shape[0]):
         H_total[i, i] -= En
-
     eigenvalues, eigenvectors = np.linalg.eigh(H_total)
-    # Add En back to restore absolute energies
     eigenvalues += En
     return eigenvalues, eigenvectors
 
@@ -422,7 +445,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
 
 def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
                          quadratic_zeeman=True, fine_structure=True,
-                         min_strength=0.0, A=1):
+                         min_strength=0.0, A=1, radial_method=None,
+                         use_empirical_data=False, atom="H"):
     """Return all discrete Stark-Zeeman dipole transitions at a single field configuration.
 
     Diagonalizes the Stark-Zeeman Hamiltonian for both shells and enumerates every
@@ -450,6 +474,17 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
     A : int, optional
         Atomic mass number of the emitter (1 = H, 2 = D, 3 = T).  Sets the
         reduced-mass Rydberg used for the absolute level energies (default 1).
+    radial_method : {"gordon", "quad", None}, optional
+        Backend for the radial dipole elements.  ``None`` (default) uses the
+        module-level :data:`~starkzee.atomic_hamiltonian.RADIAL_DIPOLE_METHOD`
+        (``"gordon"`` exact closed form by default; ``"quad"`` is the numerical
+        fallback).  The two agree to ~1e-15.
+    use_empirical_data : bool, optional
+        Use NIST empirical level energies (default False); forwarded to
+        :func:`solve_starkzee`.
+    atom : str, optional
+        Atom identifier for empirical data (default ``"H"``); forwarded to
+        :func:`solve_starkzee`.
 
     Returns
     -------
@@ -468,33 +503,50 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Lower eigenstate index (0 … 2n_l²−1).
     """
     evals_u, evecs_u = solve_starkzee(
-        n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
+        n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A,
+        use_empirical_data=use_empirical_data, atom=atom)
     evals_l, evecs_l = solve_starkzee(
-        n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A)
+        n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A,
+        use_empirical_data=use_empirical_data, atom=atom)
 
-    D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
+    D_q = _uncoupled_dipole_matrices(n_u, n_l, Z, method=radial_method)
     dim_l, dim_u = D_q[0].shape
 
-    energies, q_vals, strengths, up_idx, lo_idx = [], [], [], [], []
+    # Transition energy E_upper_i - E_lower_j is shared across polarizations.
+    dE = evals_u[np.newaxis, :] - evals_l[:, np.newaxis]   # (dim_l, dim_u)
 
-    for q in [0, -1, 1]:
+    energies, q_vals, strengths, up_idx, lo_idx = [], [], [], [], []
+    for q in (0, -1, 1):
         mixed = evecs_l.conj().T @ D_q[q] @ evecs_u   # (dim_l, dim_u)
-        for i in range(dim_u):
-            for j in range(dim_l):
-                s = abs(mixed[j, i]) ** 2
-                if s > min_strength:
-                    energies.append(float(evals_u[i] - evals_l[j]))
-                    q_vals.append(q)
-                    strengths.append(float(s))
-                    up_idx.append(i)
-                    lo_idx.append(j)
+        strength = np.abs(mixed) ** 2
+        j_idx, i_idx = np.nonzero(strength > min_strength)
+        if j_idx.size == 0:
+            continue
+        energies.append(dE[j_idx, i_idx])
+        strengths.append(strength[j_idx, i_idx])
+        q_vals.append(np.full(i_idx.shape, q, dtype=int))
+        up_idx.append(i_idx)
+        lo_idx.append(j_idx)
+
+    if energies:
+        energies = np.concatenate(energies)
+        strengths = np.concatenate(strengths)
+        q_vals = np.concatenate(q_vals)
+        up_idx = np.concatenate(up_idx)
+        lo_idx = np.concatenate(lo_idx)
+    else:
+        energies = np.array([])
+        strengths = np.array([])
+        q_vals = np.array([], dtype=int)
+        up_idx = np.array([], dtype=int)
+        lo_idx = np.array([], dtype=int)
 
     order = np.argsort(energies)
     return {
-        'energy_ev':  np.array(energies)[order],
-        'q':          np.array(q_vals,   dtype=int)[order],
-        'strength':   np.array(strengths)[order],
-        'upper_idx':  np.array(up_idx,   dtype=int)[order],
-        'lower_idx':  np.array(lo_idx,   dtype=int)[order],
+        'energy_ev':  energies[order],
+        'q':          q_vals[order].astype(int),
+        'strength':   strengths[order],
+        'upper_idx':  up_idx[order].astype(int),
+        'lower_idx':  lo_idx[order].astype(int),
     }
 

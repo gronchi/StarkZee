@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
-from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE
+from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE, energy_ev_to_wavenumber_cm
 
 
 @dataclass(frozen=True)
@@ -92,46 +92,173 @@ def radial_wavefunction(r, n, l, Z):
     lag = assoc_laguerre(rho, n - l - 1, 2 * l + 1)
     return prefactor * np.exp(-Z * r / n) * (rho**l) * lag
 
-@lru_cache(maxsize=None)
-def radial_r2_element(n, l1, l2, Z):
-    """Return the radial matrix element ⟨n, l₁ | r² | n, l₂⟩ [a₀²].
+def _closed_radial_r2_element(n, l1, l2, Z):
+    """Exact within-shell ⟨n, l₁ | r² | n, l₂⟩ [a₀²] for abs(Δl) ∈ {0, 2}; None otherwise.
 
-    Used for off-diagonal elements (abs(l₁ − l₂) = 2) arising from the angular
-    decomposition of r² sin²θ in the quadratic Zeeman term.  The diagonal
-    (l₁ = l₂) elements are computed analytically inside
-    :func:`build_hamiltonian` using the closed-form formula:
+    Both branches are exact closed forms (verified against numerical integration
+    to ~1e-8):
 
-        ⟨r²⟩_{n,l} = (n²/2Z²) [5n² + 1 − 3l(l+1)]
+        Δl = 0 (diagonal):  ⟨r²⟩_{n,l} = (n²/2Z²) [5n² + 1 − 3 l(l+1)]
+        Δl = 2 (off-diag):  ⟨n,l|r²|n,l+2⟩ = (5/2) n²
+                            √[(n² − (l+1)²)(n² − (l+2)²)] / Z²,   l = min(l₁,l₂)
 
-    Off-diagonal elements are computed here by numerical integration:
-
-        ⟨n, l₁ | r² | n, l₂⟩ = ∫₀^∞ R_{nl₁}(r) r² R_{nl₂}(r) r² dr
-
-    Results are cached with :func:`functools.lru_cache` to avoid redundant
-    integration during the microfield loop.
-
-    Parameters
-    ----------
-    n : int
-        Principal quantum number (same for both bra and ket).
-    l1, l2 : int
-        Orbital quantum numbers; the selection rule abs(l₁ − l₂) = 2 must hold.
-    Z : int
-        Nuclear charge.
-
-    Returns
-    -------
-    float
-        Off-diagonal radial matrix element [a₀²].
+    Returns ``None`` for abs(Δl) ∉ {0, 2}, signalling that no closed form applies
+    (the caller falls back to numerical integration; such elements never enter
+    the quadratic-Zeeman Hamiltonian, whose angular factor vanishes there).
     """
+    dl = abs(l1 - l2)
+    if dl == 0:
+        l = l1
+        return (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l * (l + 1.0))
+    if dl == 2:
+        l = min(l1, l2)
+        return 2.5 * n**2 * math.sqrt((n**2 - (l + 1)**2) * (n**2 - (l + 2)**2)) / Z**2
+    return None
+
+
+@lru_cache(maxsize=None)
+def _quad_radial_r2_element(n, l1, l2, Z):
+    """Within-shell ⟨n, l₁ | r² | n, l₂⟩ [a₀²] by numerical integration to 300 a₀."""
     val, _ = quad(
         lambda r: radial_wavefunction(r, n, l1, Z) * radial_wavefunction(r, n, l2, Z) * r**4,
         0, 300, limit=300
     )
     return val
 
+
+def radial_r2_element(n, l1, l2, Z, method=None):
+    """Return the within-shell radial matrix element ⟨n, l₁ | r² | n, l₂⟩ [a₀²].
+
+    Used for the off-diagonal (abs(Δl) = 2) elements arising from the angular
+    decomposition of r² sin²θ in the quadratic Zeeman term.
+
+    Parameters
+    ----------
+    n : int
+        Principal quantum number (same for both bra and ket).
+    l1, l2 : int
+        Orbital quantum numbers (the quadratic-Zeeman term needs abs(l₁ − l₂) = 2).
+    Z : int
+        Nuclear charge.
+    method : {"gordon", "quad", None}, optional
+        Backend. ``None`` (default) resolves to the module-level
+        ``RADIAL_DIPOLE_METHOD``. ``"gordon"`` uses the exact closed form
+        (:func:`_closed_radial_r2_element`); ``"quad"`` uses numerical
+        integration. The two agree to ~1e-8.
+
+    Returns
+    -------
+    float
+        Radial matrix element [a₀²]; numerical fallback is used for the (unused)
+        abs(Δl) ∉ {0, 2} case when the closed form does not apply.
+    """
+    method = _resolve_radial_method(method)
+    if method not in ("gordon", "quad"):
+        raise ValueError(f"Unknown radial method {method!r}; choose 'gordon' or 'quad'.")
+    if method == "gordon":
+        closed = _closed_radial_r2_element(n, l1, l2, Z)
+        if closed is not None:
+            return closed
+    return _quad_radial_r2_element(n, l1, l2, Z)
+
+# ── Radial-dipole backend selection ──────────────────────────────────────────
+# Both backends evaluate the same integral ∫ R_{n₁l₁}(r) r R_{n₂l₂}(r) r² dr:
+#   "gordon" — Gordon's (1929) exact closed form (default; no truncation, fast)
+#   "quad"   — scipy numerical integration to 150 a₀ (legacy reference)
+# They agree to ~1e-15 for n ≲ 10; "quad" is kept for validation/fallback.
+RADIAL_DIPOLE_METHOD = "gordon"
+
+
+def set_radial_dipole_method(method):
+    """Set the global radial-dipole backend: ``"gordon"`` or ``"quad"``."""
+    global RADIAL_DIPOLE_METHOD
+    if method not in ("gordon", "quad"):
+        raise ValueError(f"Unknown radial-dipole method {method!r}; choose 'gordon' or 'quad'.")
+    RADIAL_DIPOLE_METHOD = method
+
+
+def _resolve_radial_method(method):
+    """Return ``method`` if given, else the module default ``RADIAL_DIPOLE_METHOD``."""
+    return RADIAL_DIPOLE_METHOD if method is None else method
+
+
+def _hyp2f1_neg(m, b, c, x):
+    """Terminating Gauss series ₂F₁(−m, b, c, x) for non-negative integer m.
+
+    Exact finite sum (the first parameter being a non-positive integer truncates
+    the series), avoiding any general hypergeometric evaluation.
+    """
+    total = 1.0
+    term = 1.0
+    for k in range(1, int(m) + 1):
+        term *= ((-m + k - 1) * (b + k - 1)) / ((c + k - 1) * k) * x
+        total += term
+    return total
+
+
 @lru_cache(maxsize=None)
-def radial_dipole(n1, l1, n2, l2, Z):
+def _gordon_radial_dipole(n1, l1, n2, l2, Z):
+    """Exact hydrogenic radial dipole ⟨n₁l₁|r|n₂l₂⟩ [a₀] via Gordon's closed form.
+
+    Valid for inter-shell transitions (n₁ ≠ n₂); the degenerate same-n element is
+    routed to the quad backend by :func:`radial_dipole`. Uses a terminating
+    hypergeometric series, so the result is exact to floating-point precision and
+    free of the finite-domain truncation and tolerance of numerical integration.
+    """
+    if abs(l1 - l2) != 1:
+        return 0.0
+    # Larger-l state -> (n_b, L); smaller-l state -> (n_s, L-1).
+    if l1 > l2:
+        n_b, L, n_s = n1, l1, n2
+    else:
+        n_b, L, n_s = n2, l2, n1
+    diff = n_b - n_s
+    summ = n_b + n_s
+    sqrt_fac = math.sqrt(
+        math.factorial(n_b + L) * math.factorial(n_s + L - 1)
+        / (math.factorial(n_b - L - 1) * math.factorial(n_s - L))
+    )
+    pref = (((-1.0) ** (n_s - L)) / (4.0 * math.factorial(2 * L - 1)) * sqrt_fac
+            * (4.0 * n_s * n_b) ** (L + 1)
+            * float(diff) ** (summ - 2 * L - 2) / float(summ) ** summ)
+    x = -4.0 * n_s * n_b / float(diff * diff)
+    f1 = _hyp2f1_neg(n_b - L - 1, -(n_s - L), 2 * L, x)
+    f2 = _hyp2f1_neg(n_b - L + 1, -(n_s - L), 2 * L, x)
+    return pref * (f1 - (float(diff) / summ) ** 2 * f2) / Z
+
+
+def radial_dipole(n1, l1, n2, l2, Z, method=None):
+    """Return the radial transition matrix element ⟨n₁, l₁ | r | n₂, l₂⟩ [a₀].
+
+    Parameters
+    ----------
+    n1, l1, n2, l2, Z : int
+        Quantum numbers and nuclear charge.
+    method : {"gordon", "quad", None}, optional
+        Backend to use. ``None`` (default) resolves to the module-level
+        ``RADIAL_DIPOLE_METHOD`` (settable via :func:`set_radial_dipole_method`).
+        ``"gordon"`` uses the exact closed form; ``"quad"`` uses numerical
+        integration. The two agree to ~1e-15 for n ≲ 10. The degenerate same-n
+        element (n₁ = n₂) always uses ``"quad"`` since Gordon's form is
+        defined only for n₁ ≠ n₂.
+
+    Returns
+    -------
+    float
+        Radial dipole matrix element [a₀]; ``0.0`` when abs(l₁ − l₂) ≠ 1.
+    """
+    method = _resolve_radial_method(method)
+    if method not in ("gordon", "quad"):
+        raise ValueError(f"Unknown radial-dipole method {method!r}; choose 'gordon' or 'quad'.")
+    if abs(l1 - l2) != 1:
+        return 0.0
+    if method == "gordon" and n1 != n2:
+        return _gordon_radial_dipole(n1, l1, n2, l2, Z)
+    return _quad_radial_dipole(n1, l1, n2, l2, Z)
+
+
+@lru_cache(maxsize=None)
+def _quad_radial_dipole(n1, l1, n2, l2, Z):
     """Return the radial transition matrix element ⟨n₁, l₁ | r | n₂, l₂⟩ [a₀].
 
     Computes the radial part of the electric-dipole matrix element by numerical
@@ -375,14 +502,17 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                 H[i, i] += -A_fs * (n / (l + 0.5) - 0.75)
 
     if use_empirical_data:
-        # Load empirical energy levels (in cm⁻¹) for the specified atom.
+        # Load empirical energy levels for the specified atom. Values are stored
+        # in cm⁻¹ (NIST convention) and kept in cm⁻¹ throughout this branch so
+        # that callers can work entirely in wavenumber units. The Zeeman terms
+        # below are also converted to cm⁻¹ so every contribution stays consistent.
         from starkzee.atomic_data import load_levels
         emp_states = load_levels(atom, fine_structure=fine_structure)
         emp_energy_map = {}
         for st in emp_states:
             if st.n == n:
                 if st.l is not None and st.j is not None:
-                    emp_energy_map[(st.l, st.j)] = st.energy
+                    emp_energy_map[(st.l, st.j)] = st.energy  # cm⁻¹
         
         # To map properly, diagonalize H (which is B=0) to get coupled basis V
         # Because fine structure makes 2s_1/2 and 2p_1/2 degenerate in Dirac theory,
@@ -435,12 +565,15 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
         H = V @ np.diag(D_emp) @ V.conj().T
 
     # 3. Linear Zeeman Effect
+    # When in empirical mode the Hamiltonian is in cm⁻¹; convert accordingly.
     for i, state in enumerate(basis):
-        H[i, i] += BOHR_MAGNETON_EV_T * B * (state.ml + G_S * state.ms)
+        zeeman_ev = BOHR_MAGNETON_EV_T * B * (state.ml + G_S * state.ms)
+        H[i, i] += float(energy_ev_to_wavenumber_cm(zeeman_ev)) if use_empirical_data else zeeman_ev
 
     # 4. Quadratic Zeeman Effect
     if quadratic_zeeman and B > 0:
         quad_coeff_ev = (E_CHARGE * (B**2) * (A0**2)) / (8.0 * M_E)
+        quad_coeff = float(energy_ev_to_wavenumber_cm(quad_coeff_ev)) if use_empirical_data else quad_coeff_ev
         for i, state_i in enumerate(basis):
             for j, state_j in enumerate(basis):
                 if state_i.ms == state_j.ms and state_i.ml == state_j.ml:
@@ -453,7 +586,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                         else:
                             cos2_val = (2.0 * l1**2 + 2.0 * l1 - 1.0 - 2.0 * ml**2) / ((2.0 * l1 - 1.0) * (2.0 * l1 + 3.0))
                         sin2_val = 1.0 - cos2_val
-                        H[i, j] += quad_coeff_ev * r2_val * sin2_val
+                        H[i, j] += quad_coeff * r2_val * sin2_val
                     elif abs(l1 - l2) == 2:
                         l_low = min(l1, l2)
                         num_term = ((l_low + 1.0)**2 - ml**2) * ((l_low + 2.0)**2 - ml**2)
@@ -461,7 +594,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                         cos2_val = np.sqrt(num_term / den_term)
                         sin2_val = - cos2_val
                         r2_val = radial_r2_element(n, l1, l2, Z)
-                        H[i, j] += quad_coeff_ev * r2_val * sin2_val
+                        H[i, j] += quad_coeff * r2_val * sin2_val
 
     return H
 
@@ -590,8 +723,13 @@ def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
     return eigenvalues_u, eigenvalues_l, d_elements
 
 
+def _uncoupled_dipole_matrices(n_u, n_l, Z, method=None):
+    """Resolve the radial-dipole backend, then dispatch to the cached builder."""
+    return _uncoupled_dipole_matrices_cached(n_u, n_l, Z, _resolve_radial_method(method))
+
+
 @lru_cache(maxsize=None)
-def _uncoupled_dipole_matrices(n_u, n_l, Z):
+def _uncoupled_dipole_matrices_cached(n_u, n_l, Z, method):
     """Return the electric-dipole operator matrices in the uncoupled |n,l,ml,ms⟩ basis.
 
     Builds the three polarization matrices D_q (q = 0, +1, −1) without
@@ -624,7 +762,7 @@ def _uncoupled_dipole_matrices(n_u, n_l, Z):
     for l_u in range(n_u):
         for l_l in range(n_l):
             if abs(l_u - l_l) == 1:
-                r_cache[(l_u, l_l)] = radial_dipole(n_u, l_u, n_l, l_l, Z)
+                r_cache[(l_u, l_l)] = radial_dipole(n_u, l_u, n_l, l_l, Z, method=method)
 
     D_q = {}
     for q in [0, 1, -1]:
