@@ -49,7 +49,7 @@ import matplotlib.pyplot as plt
 from starkzee.line_profile import LineProfile
 
 # Hydrogen Balmer-α (n=3→2) at typical tokamak edge conditions
-lp = LineProfile(n_u=3, n_l=2, Z=1, B=5.0, Ne_m3=1e20, Te_ev=5.0)
+lp = LineProfile(n_u=3, n_l=2, B=5.0, Ne_m3=1e20, Te_ev=5.0)
 
 # Provide the spectral grid in any unit system
 wl_grid = np.linspace(lp.E0_wavelength_nm - 1.0,
@@ -100,7 +100,7 @@ from starkzee.ffm import calculate_ffm_profile
 
 pi, sp, sm = calculate_ffm_profile(
     n_u=3, n_l=2, Z=1, B=5.0, Ne_m3=1e20, Te_ev=5.0, Ti_ev=5.0,
-    energies_ev=lp.energies_ev,
+    A_ion=1, energies_ev=lp.energies_ev,
 )
 ```
 
@@ -186,7 +186,7 @@ plt.show()
 | `line_profile.py` | `LineProfile` — main high-level API |
 | `static_profile.py` | Static Stark-Zeeman solver; Gauss-Legendre quadrature over the microfield |
 | `ffm.py` | Frequency Fluctuation Model for dynamic ion broadening |
-| `atomic_hamiltonian.py` | Hamiltonian construction: spin-orbit, Zeeman, radial matrix elements |
+| `radiator.py` | Quantum basis, wavefunctions, dipole transitions, and Hamiltonian construction |
 | `microfield.py` | Hooper and Holtsmark microfield distributions |
 | `broadening.py` | GBK electron impact width with Larmor-frequency cutoff |
 | `convolutions.py` | FFT Doppler and instrumental broadening (post-processing) |
@@ -225,6 +225,15 @@ pytest tests/ -v
 ```
 
 332 tests covering constants (CODATA), Hamiltonian construction, Zeeman splitting, Stark matrix elements, microfield distributions, GBK broadening, profile shapes, fine structure, quadratic Zeeman wings, satellite features, oscillator strengths, and FFM limiting cases.
+
+---
+
+## Documentation
+
+A comprehensive PDF manual detailing the physics and implementation is available in the `docs` folder. To compile the LaTeX manual `docs/manual.tex`:
+
+- **Windows**: Run the batch file `docs/compile_manual.bat`. It will perform a double-pass compilation and automatically handle PDF reader file locks.
+- **Linux / macOS**: Run `make` inside the `docs/` directory.
 
 ---
 

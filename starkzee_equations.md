@@ -9,11 +9,11 @@ organized by module, with `file:line` references.
 
 Conventions: StarkZee works in **eV** for all energies (zest works in rad/s). The
 uncoupled basis is `|n, l, m_l, m_s⟩` ordered (l, then m_l, then m_s) — see
-`atomic_hamiltonian.build_basis`.
+`radiator.build_basis`.
 
 ---
 
-## 1. Physical Constants & Units (`utils.py`, `atomic_hamiltonian.py`)
+## 1. Physical Constants & Units (`utils.py`, `radiator.py`)
 
 Core constants are taken from `scipy.constants` (CODATA):
 
@@ -41,39 +41,39 @@ $$(n-1)\times10^8 = 8342.13 + \frac{2406030}{130-\sigma^2} + \frac{15997}{38.9-\
 
 ---
 
-## 2. Atomic / Magnetic Hamiltonian (`atomic_hamiltonian.py`)
+## 2. Atomic / Magnetic Hamiltonian (`radiator.py`)
 
 The field-free + magnetic Hamiltonian for one shell n, in the `|n,l,m_l,m_s⟩` basis:
 $$H_A = H_0 + V_\text{SO} + H_\text{MV+D} + H_Z^{(1)} + H_Z^{(2)}$$
-- **Code**: [`build_hamiltonian`](starkzee/atomic_hamiltonian.py#L391).
+- **Code**: [`build_hamiltonian`](starkzee/radiator.py#L391).
 
 ### 2.1. Hydrogenic radial wavefunction
 $$R_{nl}(r) = N_{nl}\, e^{-Zr/n}\,(2Zr/n)^l\, L_{n-l-1}^{2l+1}(2Zr/n),\quad
 N_{nl} = \sqrt{\left(\tfrac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n\,(n+l)!}}$$
-- **Code**: [`radial_wavefunction`](starkzee/atomic_hamiltonian.py#L53) (r in a₀).
+- **Code**: [`radial_wavefunction`](starkzee/radiator.py#L53) (r in a₀).
 
 ### 2.2. Unperturbed energy (diagonal, degenerate over the shell)
 $$E_n = -\frac{Z^2 R_\text{atom}(Z,A)}{n^2}$$
-- **Code**: [lines 470–476](starkzee/atomic_hamiltonian.py#L470). Uses the reduced-mass
+- **Code**: [lines 470–476](starkzee/radiator.py#L470). Uses the reduced-mass
   Rydberg → absolute energies match NIST.
 
 ### 2.3. Spin-orbit coupling
 $$V_\text{SO} = \xi_{nl}\,\vec L\cdot\vec S,\qquad
 \xi_{nl} = \frac{Z^4 \alpha^2 R_\infty}{n^3\,l\,(l+1)(l+\tfrac12)}$$
 with $\vec L\cdot\vec S = L_z S_z + \tfrac12(L_+S_- + L_-S_+)$.
-- **Code**: [lines 477–493](starkzee/atomic_hamiltonian.py#L477). Off-diagonal in
+- **Code**: [lines 477–493](starkzee/radiator.py#L477). Off-diagonal in
   (m_l, m_s); the ladder terms couple $|m_l{+}1, m_s{-}1\rangle \leftrightarrow |m_l, m_s\rangle$.
 
 ### 2.4. Mass-velocity + Darwin (completes Dirac fine structure)
 $$\Delta E_{l=0} = -A_\text{fs}\,(n - \tfrac34),\qquad
 \Delta E_{l>0} = -A_\text{fs}\!\left(\frac{n}{l+\tfrac12} - \tfrac34\right),\qquad
 A_\text{fs} = \frac{Z^4\alpha^2 R_\infty}{n^4}$$
-- **Code**: [lines 495–503](starkzee/atomic_hamiltonian.py#L495). Together with
+- **Code**: [lines 495–503](starkzee/radiator.py#L495). Together with
   V_SO restores the Dirac degeneracy 2s₁/₂ = 2p₁/₂. Toggle: `fine_structure`.
 
 ### 2.5. Linear (paramagnetic) Zeeman
 $$H_Z^{(1)} = \mu_B B\,(m_l + g_s m_s),\qquad g_s = |g_e|_\text{CODATA} \approx 2.00231930436$$
-- **Code**: [lines 564–567](starkzee/atomic_hamiltonian.py#L564).
+- **Code**: [lines 564–567](starkzee/radiator.py#L564).
 
 ### 2.6. Quadratic (diamagnetic) Zeeman
 $$H_Z^{(2)} = \frac{e^2 B^2}{8 m_e}\, r^2 \sin^2\theta$$
@@ -85,34 +85,34 @@ $$\langle l, m_l|\cos^2\theta|l{+}2, m_l\rangle =
 \sqrt{\frac{[(l{+}1)^2-m_l^2][(l{+}2)^2-m_l^2]}{(2l{+}1)(2l{+}3)^2(2l{+}5)}}$$
 with the off-diagonal radial element $\langle n,l|r^2|n,l{\pm}2\rangle$ computed by
 numerical integration.
-- **Code**: [lines 568–592](starkzee/atomic_hamiltonian.py#L568); radial off-diagonal
-  [`radial_r2_element`](starkzee/atomic_hamiltonian.py#L129). Toggle: `quadratic_zeeman`.
+- **Code**: [lines 568–592](starkzee/radiator.py#L568); radial off-diagonal
+  [`radial_r2_element`](starkzee/radiator.py#L129). Toggle: `quadratic_zeeman`.
 
 ### 2.7. Angular dipole matrix elements (spherical tensor T_q^(1) of r̂)
 $$q=0:\ \langle l,m|\cos\theta|l{+}1,m\rangle = \sqrt{\frac{(l{+}1)^2-m^2}{(2l{+}1)(2l{+}3)}}$$
 $$q=\pm1:\ \langle\,\cdot\,|T_{\pm1}|\,\cdot\,\rangle = \mp\sqrt{\frac{(l\mp m)(l\mp m-1)}{2(2l-1)(2l+1)}}\ \text{(branch-dependent)}$$
-- **Code**: [`angular_dipole_element`](starkzee/atomic_hamiltonian.py#L302)
+- **Code**: [`angular_dipole_element`](starkzee/radiator.py#L302)
   (Condon-Shortley phases; nonzero only for |Δl|=1, Δm=q).
 
 ### 2.8. Radial dipole element
 $$\langle n_1 l_1|r|n_2 l_2\rangle = \int_0^\infty R_{n_1 l_1}(r)\,r\,R_{n_2 l_2}(r)\,r^2\,dr$$
-- **Code**: [`radial_dipole`](starkzee/atomic_hamiltonian.py#L230) (numerical, |Δl|=1).
+- **Code**: [`radial_dipole`](starkzee/radiator.py#L230) (numerical, |Δl|=1).
 
 ### 2.9. Diagonalization & dipole rotation
 $$H_A\,|\psi_k\rangle = E_k\,|\psi_k\rangle,\qquad
 d_q[i,j] = \langle\psi_l^j|\,r_q\,|\psi_u^i\rangle = \sum_{k_l,k_u}
 U_l^{*}[k_l,j]\,U_u[k_u,i]\,(-R\,\text{ang}_q)$$
-- **Code**: [`diagonalize_hamiltonian`](starkzee/atomic_hamiltonian.py#L595),
-  [`dipole_matrix_elements`](starkzee/atomic_hamiltonian.py#L640),
-  [`_uncoupled_dipole_matrices`](starkzee/atomic_hamiltonian.py#L720) (units a₀).
+- **Code**: [`diagonalize_hamiltonian`](starkzee/radiator.py#L595),
+  [`dipole_matrix_elements`](starkzee/radiator.py#L640),
+  [`_uncoupled_dipole_matrices`](starkzee/radiator.py#L720) (units a₀).
 
 ### 2.10. Line strength, oscillator strength, Einstein A
 $$S_{ul} = \sum_{q,i,j}\big|\langle l_j|r_q|u_i\rangle\big|^2\ [a_0^2]$$
 $$gf = \frac{2}{3}\frac{\Delta E}{E_h}\,S_{ul},\qquad
 A_{ul} = \frac{4\alpha^3}{3}\left(\frac{\Delta E}{E_h}\right)^3 \frac{S_{ul}}{2n_u^2\,\tau_\text{au}},\quad E_h = 2R_\infty$$
-- **Code**: [`line_strength`](starkzee/atomic_hamiltonian.py#L776),
-  [`oscillator_strength`](starkzee/atomic_hamiltonian.py#L812),
-  [`einstein_a`](starkzee/atomic_hamiltonian.py#L838).
+- **Code**: [`line_strength`](starkzee/radiator.py#L776),
+  [`oscillator_strength`](starkzee/radiator.py#L812),
+  [`einstein_a`](starkzee/radiator.py#L838).
 
 ---
 
@@ -248,19 +248,79 @@ $$W_0 = \frac{4\pi}{3} N_e \sqrt{\frac{2 m_e}{\pi k_B T_e}}\left(\frac{\hbar}{m_
 
 ### 5.3. GBK dynamical factor
 $$G(\Delta\omega) = \tfrac12 E_1(y),\qquad
-y = \left(\frac{n^2}{2Z}\right)^2\frac{\Delta\omega^2 + \omega_c^2}{E_H\,T_e},\quad
-E_H = 2R_\infty$$
+y = \left(\frac{n^2}{2Z}\right)^2\frac{\Delta\omega^2 + \omega_c^2}{\mathrm{Ry}_\infty\,T_e},\quad
+\mathrm{Ry}_\infty = R_\infty \approx 13.6057\ \text{eV}$$
+Note: Ry_∞ is the Rydberg energy (= e²/2a₀, ionization energy of hydrogen), **not** the Hartree (which is 2 Ry_∞).
 - **Code**: [`gbk_model`](starkzee/broadening.py#L129). Δω and ω_c in eV.
 
-### 5.4. Total electron half-width (HWHM)
+### 5.4. Total electron half-width — PPPB/Ferri model (default)
 $$W_e(\Delta\omega) = W_0\,\langle r^2\rangle_n\,\big[C_n + G(\Delta\omega,\omega_c)\big]$$
-$$\langle r^2\rangle_n = \frac{1}{n^2}\sum_{l=0}^{n-1}(2l+1)\,\frac{n^2}{2Z^2}\big[5n^2+1-3l(l+1)\big]$$
+
+**Full shell-averaged squared radius** (statistical weight (2l+1), normalized by n²):
+$$\langle r^2\rangle_n = \frac{1}{n^2}\sum_{l=0}^{n-1}(2l+1)\,\frac{n^2}{2Z^2}\big[5n^2+1-3l(l+1)\big]\quad[a_0^2]$$
+Numerical values for H (Z=1): n=2: 33 a₀², n=3: 153 a₀², n=4: 468 a₀².
 $$\omega_c = \max(\omega_p,\,\omega_L,\,\omega_e),\qquad
-C_n = \begin{cases}1.50 & n\le2\\ 0.75 & n=3,4\\ 0.40 & n\ge5\end{cases}$$
+C_n = \begin{cases}1.50 & n\le2\\ 1.00 & n=3\\ 0.75 & n=4\\ 0.50 & n=5\\ 0.40 & n>5\end{cases}$$
 - **Code**: [`electron_impact_width`](starkzee/broadening.py#L182). C_n from Ferri
   et al. (2021) Table 1; the magnetic cutoff ω_L suppresses the width at high B.
 - **Frequency-dependent** by default: G is evaluated at each transition's detuning
   $\Delta E_i - E_0$ (`static_profile.py:367`).
+
+### 5.5. ZEST electron broadening model (`electron_model='zest'`)
+
+Same prefactor W₀ and G_n / G-function structure as §5.4, but with the **intra-shell**
+squared-radius average replacing the full shell average:
+$$W_e^\text{ZEST}(\Delta\omega) = W_0\,\langle r^2_\text{intra}\rangle_n\,\big[G_n + G_\text{ZEST}(\Delta\omega)\big]$$
+
+**Justification — Δn = 0 interaction channels (Layzer complex).** The ZEST paper
+(Calisti et al. 2014, §2.1) explicitly adopts the approximation that only states
+belonging to the same Layzer complex (same principal quantum number n) may be mixed
+by Stark or Zeeman effects ("Δn = 0 interaction channels").  The no-quenching
+approximation also forbids transitions between the upper and lower manifolds.  Both
+restrict the dipole sum in the broadening operator to within-shell matrix elements.
+The restriction is also automatic from the G-function: inter-shell detunings
+Δω_inter ≫ ω_p drive G(Δω_inter) → 0 exponentially (e.g. for n=3→2, the argument
+is ~29000, giving G ≈ 0).
+
+**Intra-shell squared radius (per-l).** From the intra-shell radial element
+⟨n,l|r|n,l±1⟩ = (3n/2Z)√(n²−(l±1)²) and angular weight factors
+C(l,l+1) = (l+1)/(2l+1), C(l,l−1) = l/(2l+1):
+$$r^2_{\text{intra},l} = \frac{9n^2}{4Z^2}\big(n^2 - l(l+1) - 1\big)\quad[a_0^2]$$
+This formula holds for all l ∈ [0, n−1], including the boundary cases l=0 (no l−1
+neighbor) and l=n−1 (no l+1 neighbor).
+
+**Shell average** (exact closed form, averaging over n² spatial states with weight (2l+1)):
+$$\langle r^2_\text{intra}\rangle_n = \frac{9n^2(n^2-1)}{8Z^2}\quad[a_0^2]$$
+Numerical values for H (Z=1): n=2: 13.5 a₀², n=3: 81 a₀², n=4: 270 a₀².
+Ratio to full §5.4 average: n=2: 0.41, n=3: 0.53, n=4: 0.58.
+
+**Maximum wave-number cutoff κ_m.** All three ZEST G-functions share a temperature-
+and density-dependent upper cutoff replacing the fixed ρ_min of GBK:
+$$\kappa_m = \min\!\left(\frac{Z}{n^2 a_0},\,\frac{Z\sqrt{2 m_e k_B T_e}}{\hbar\, n^2}\right)\quad[\text{m}^{-1}]$$
+The first branch (Bohr radius limit) dominates at low T_e; the second (de Broglie
+limit) at high T_e. With $x = \kappa_m \lambda_D$:
+
+**G-function variants:**
+
+*GBK-ZEST* (`electron_model='zest'` or `'zest-gbk'`):
+$$G^\text{ZEST}(\Delta\omega) = \tfrac{1}{2}E_1\!\left(\frac{\Delta\omega^2 + \omega_p^2}{2\,x^2\,\omega_p^2}\right)$$
+Recovers the GBK E₁ form with κ_m-based cutoff (ω_p only; no Larmor or ω_e term).
+
+*Lee* (`'zest-lee'`): interpolates between the static and impact limits
+$$G^\text{Lee}(\Delta\omega) = \min\!\left(G_0,\, G_\infty\right)$$
+$$G_0 = \tfrac{1}{2}\!\left[\ln(1+x^2) - \frac{x^2}{1+x^2}\right],\qquad
+G_\infty = \tfrac{1}{2}E_1\!\left(\frac{\Delta\omega^2}{2\,x^2\,\omega_p^2}\right)$$
+$G_0$ is the Δω → 0 (static) limit; $G_\infty$ is the far-wing (impact) limit.
+
+*Dufty RPA* (`'zest-dufty'`): numerically integrates the RPA response
+$$G^\text{RPA}(\Delta\omega) = \int_0^{\kappa_m} \frac{e^{-\kappa^2/2\kappa_m^2}}{\kappa\,|\varepsilon(\kappa,\Delta\omega)|^2}\,d\kappa$$
+where $\varepsilon(\kappa,\omega)$ is the dielectric function evaluated with the Dawson
+function, capturing plasma-wave corrections beyond the GBK binary-collision picture.
+
+**G_n constants** are identical to the C_n values in §5.4.
+
+- **Code**: [`electron_impact_width_zest`](starkzee/broadening.py#L527).
+  Activated by `electron_model='zest'`/`'zest-gbk'`/`'zest-lee'`/`'zest-dufty'`.
 
 ---
 
@@ -281,8 +341,12 @@ $\Delta E_k$ and weights $d_k^2 = w_{\beta\mu}\,I_q^k$.
 $$I_q(\omega) = \frac{R_q^2}{\pi}\,\mathrm{Re}\!\left[\frac{S(\omega)}{1 - \nu_i S(\omega)}\right],\qquad
 S(\omega) = \sum_k \frac{p_k}{\nu_i + \gamma_k + i(\omega - \omega_k)}$$
 with $p_k = d_k^2 / \sum_k d_k^2$, $R_q^2 = \sum_k d_k^2$, and the homogeneous
-half-width $\gamma_k = W_e(0) + 10^{-4}$ eV (single on-resonance value for all SDTs).
-- **Code**: [lines 240–247](starkzee/ffm.py#L240).
+half-width
+$$\gamma_k = W_e(0) + w_\text{natural},\qquad w_\text{natural} = \frac{\hbar(\Gamma_u + \Gamma_l)}{2}$$
+$\Gamma_u = \sum_{k<n_u} A(n_u \to k)$, $\Gamma_l = \sum_{k<n_l} A(n_l \to k)$ (summed
+Einstein A over all lower levels) — single on-resonance value for all SDTs.
+- **Code**: [lines 240–247](starkzee/ffm.py#L240). Natural linewidth via
+  [`einstein_a`](starkzee/radiator.py#L838).
 - Limits: $\nu_i \to 0$ → quasi-static (static profile); $\nu_i \to \infty$ →
   motional-narrowing (single Lorentzian).
 
@@ -292,8 +356,15 @@ I(\omega) = \frac{1}{\pi}\,\mathrm{Re}\Big(i\,\textstyle\sum_k d_k\,[A^{-1}b]_k\
 - **Code**: [lines 216–236](starkzee/ffm.py#L216) (`numerical_inversion=True`;
   falls back to Sherman-Morrison if singular).
 
-> Doppler is **not** folded into the FFM kernel (unlike zest); apply it afterward
-> via `convolutions.py` if needed.
+### 6.5. FFM — thermal Doppler broadening
+After the Markov accumulation, a Gaussian Doppler kernel is applied by zero-padded
+FFT (same strategy as `calculate_static_profile`):
+$$\sigma_D = E_0\sqrt{\frac{T_i}{m_\text{ion}c^2}},\qquad
+\tilde{I}(k) \leftarrow \tilde{I}(k)\cdot e^{-2\pi^2 \sigma_D^2 k^2}$$
+where $k$ are the frequency-domain grid points of the zero-padded ($2N$) array.
+Controlled by `apply_doppler=True` (default); set `False` to obtain the
+purely Stark-Zeeman FFM output without Doppler.
+- **Code**: [lines 297–313](starkzee/ffm.py#L297).
 
 ---
 
@@ -324,7 +395,12 @@ Area-normalized kernel; edge-padded profile, zero-padded kernel.
 - Full magnetic Hamiltonian: spin-orbit + Dirac fine structure + linear and
   **quadratic (diamagnetic) Zeeman** simultaneously diagonalized with the Stark term.
 - **Microfield**: Holtsmark / Hooper-screened (classical Debye, neutral-point), plus native implementations of the Zest-compatible Potekhin (2002) model (incorporating ion-coupling $\Gamma$ and screened/unscreened, neutral/charged points).
-- **Electron broadening**: GBK semi-classical, frequency-dependent, magnetic (Larmor)
-  cutoff, single shell-averaged ⟨r²⟩_n width for all transitions.
+- **Electron broadening**: Two models — (1) default PPPB/Ferri: GBK semi-classical,
+  frequency-dependent, magnetic (Larmor) cutoff, full shell-averaged ⟨r²⟩_n;
+  (2) ZEST model (`electron_model='zest'`/`'zest-gbk'`/`'zest-lee'`/`'zest-dufty'`):
+  intra-shell ⟨r²_intra⟩_n = (9n²/8Z²)(n²−1), κ_m-based G-function, ω_p cutoff
+  only (Δn = 0 / Layzer complex restriction).
 - **Ion dynamics**: quasi-static + optional FFM (Sherman-Morrison or full inversion).
-- **Doppler / instrument**: post-processing FFT convolution (not inside the FFM).
+- **Doppler**: inside `calculate_ffm_profile` by default (`apply_doppler=True`,
+  zero-padded FFT); also available via `convolutions.py` for post-processing.
+- **Instrumental**: post-processing FFT convolution via `convolutions.py`.
