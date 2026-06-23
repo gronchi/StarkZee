@@ -366,9 +366,9 @@ def dufty_model(delta_omega_ev, Ne_m3, Te_ev, Z, n=2):
     Integrates the electron RPA dielectric function over wave numbers κ_min to
     κ_m, accounting for Landau damping via the Dawson function:
 
-        G(Δω) = ∫_{κ_min}^{κ_m} e^{−x²} / (κ |ε(κ, Δω)|²) dκ
+        G(Δω) = ∫_{κ_min}^{κ_m} e^{−x²} / (κ ‖ε(κ, Δω)‖²) dκ
 
-    where x = |Δω| / (κ v_th) and v_th = √(2 k_B T_e / m_e).  This is the most
+    where x = abs(Δω) / (κ v_th) and v_th = √(2 k_B T_e / m_e).  This is the most
     accurate of the three G models but also the slowest (one quadrature per point).
 
     Parameters
@@ -536,7 +536,7 @@ def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'
     **Intra-shell squared radius** ⟨r²_intra⟩_n is the mean over the n²-degenerate
     spatial basis of the intra-shell dipole sum:
 
-        r²_intra,i = Σ_{j same shell} |⟨i|r|j⟩|²
+        r²_intra,i = Σ_{j same shell} ‖⟨i|r|j⟩‖²
 
     which uses only within-shell matrix elements, unlike the full ⟨r²⟩_{n,l} used by
     :func:`electron_impact_width`.  For hydrogen-like ions the per-l value is
@@ -659,7 +659,8 @@ def electron_impact_width_model(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2,
     n : int, optional
         Principal quantum number of the upper level (default 2).
     electron_model : str, optional
-        One of :data:`ELECTRON_MODELS` (default ``'pppb'``).
+        One of ``'pppb'``, ``'zest'``, ``'zest-gbk'``, ``'zest-lee'``, ``'zest-dufty'``
+        (default ``'pppb'``).
 
     Returns
     -------
