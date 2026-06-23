@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from starkzee.utils import (wavelength_nm_to_energy_ev, energy_ev_to_wavelength_nm,
                              RYDBERG_EV, reduced_mass_rydberg_ev)
 from starkzee.static_profile import calculate_static_profile
-from starkzee.atomic_hamiltonian import line_strength
+from starkzee.radiator import line_strength
 
 
 # ---------------------------------------------------------------------------
