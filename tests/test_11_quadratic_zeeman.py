@@ -25,7 +25,7 @@ from scipy.integrate import quad
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from starkzee.atomic_hamiltonian import (
+from starkzee.radiator import (
     build_hamiltonian, build_basis, diagonalize_hamiltonian,
     radial_wavefunction, radial_r2_element
 )

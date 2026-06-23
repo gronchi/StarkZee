@@ -1,11 +1,11 @@
 # FFM Component: Optimized Frequency Fluctuation Model (FFM) for any transition in starkzee
 
 import numpy as np
-from scipy.constants import hbar as HBAR, e as E_CHARGE, m_p as _M_P
-from starkzee.atomic_hamiltonian import _uncoupled_dipole_matrices
+from scipy.constants import hbar as HBAR, e as E_CHARGE, m_p as _M_P, c as _C_LIGHT
+from starkzee.radiator import _uncoupled_dipole_matrices, einstein_a
 from starkzee.microfield import microfield_quadrature
 from starkzee.static_profile import solve_starkzee
-from starkzee.broadening import electron_impact_width
+from starkzee.broadening import electron_impact_width, electron_impact_width_model
 
 def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion):
     """Return the ion fluctuation (jumping) rate ν_i [eV].
@@ -39,6 +39,12 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion):
     -------
     float
         Ion fluctuation rate ν_i [eV].
+
+    Notes
+    -----
+    The most-probable speed v_th = √(2 k_B T_i / m_i) is used here.
+    Ferri et al. (2022) do not specify the ion v_th prefactor explicitly;
+    this should be verified against Calisti et al., Phys. Rev. A 42, 5433 (1990).
     """
     Ni = Ne_m3 / Z_ion
     ri = (3.0 / (4.0 * np.pi * Ni))**(1.0 / 3.0)
@@ -53,7 +59,9 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                                   num_f=30, num_mu=10, use_screening=True,
                                   quadratic_zeeman=True, fine_structure=True,
                                   numerical_inversion=False,
-                                  use_empirical_data=False, atom="H"):
+                                  use_empirical_data=False, atom="H",
+                                  electron_model='pppb', parallel_stark=False,
+                                  apply_doppler=True):
     """Compute the dynamical Stark-Zeeman line profile using the Frequency Fluctuation Model.
 
     The FFM treats the ion microfield as a Markov jump process between
@@ -95,16 +103,24 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         Electron temperature [eV].  Used for Debye screening and electron
         impact width.
     Ti_ev : float
-        Ion temperature [eV].  Used to compute the ion fluctuation rate ν_i.
+        Ion (emitter) temperature [eV].  Used both to compute the ion
+        fluctuation rate ν_i and, when ``apply_doppler=True``, as the emitter
+        thermal velocity for Doppler broadening.
     A_ion : float
-        Atomic mass number of the perturbing ion species (e.g. 1 for H⁺).
+        Atomic mass number of the perturbing ion species (e.g. 1 for H⁺, 2 for
+        D⁺).  Also used as the emitter mass for the Doppler width (same-species
+        assumption).
     energies_ev : array-like
         Photon energies at which to evaluate the profile [eV].
     num_f : int, optional
-        Number of microfield quadrature points (default 30).
+        Number of microfield quadrature points (default 30).  Ferri et al.
+        (2022) recommend ~50; 30 is sufficient for hydrogen but should be
+        increased for multi-electron atoms (future: set dynamically by atom type).
     num_mu : int, optional
         Number of Gauss-Legendre points for the field-angle integration
-        over μ = cos θ ∈ [0, 1] (default 10).
+        over μ = cos θ ∈ [0, 1] (default 10).  Ferri et al. (2022) recommend
+        ~30; 10 is sufficient for hydrogen but should be increased for
+        multi-electron atoms (future: set dynamically by atom type).
     use_screening : bool, optional
         Use the Hooper screened microfield distribution (default True).
     quadratic_zeeman : bool, optional
@@ -121,6 +137,24 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
     atom : str, optional
         Atom identifier for empirical data (default ``"H"``); forwarded to
         :func:`~starkzee.static_profile.solve_starkzee`.
+    electron_model : str, optional
+        Electron-impact width prescription, forwarded to
+        :func:`~starkzee.broadening.electron_impact_width_model`.  ``'pppb'``
+        (default) is the PPPB model; ``'zest'``,
+        ``'zest-lee'``, ``'zest-dufty'`` select the ZEST model with the GBK, Lee,
+        or Dufty RPA G-function.  Note the FFM applies a single resonance width
+        to all SDTs.
+    parallel_stark : bool, optional
+        If True, use the parallel-Stark approximation: only the field component
+        parallel to B (Fz = F·μ) enters the Stark Hamiltonian; the perpendicular
+        component Fx is set to zero.  This matches the ``parallel_stark=True``
+        convention of the ZEST code (Ferri et al. 2022).  Default is False.
+    apply_doppler : bool, optional
+        If True (default), convolve the accumulated profile with a Gaussian
+        thermal Doppler kernel of 1/e half-width
+        σ_D = E₀ √(T_i / m_ion c²), using ``Ti_ev`` and ``A_ion``.
+        Set to False to obtain the purely Stark-Zeeman-broadened FFM profile
+        without Doppler.
 
     Returns
     -------
@@ -174,7 +208,7 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                 continue
                 
             Fz = fi * mu
-            Fx = fi * np.sqrt(1.0 - mu**2)
+            Fx = 0.0 if parallel_stark else fi * np.sqrt(1.0 - mu**2)
             
             # Solve combined Stark-Zeeman Hamiltonian for upper and lower states
             sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
@@ -200,9 +234,12 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                         
     output_profiles = {}
     
-    # Pre-calculate electron impact width at resonance
-    gamma_k = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u)
-    gamma_k += 1e-4
+    # Total Lorentzian half-width at resonance: electron impact + natural linewidth.
+    gamma_k = electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_u,
+                                          electron_model=electron_model)
+    gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
+    gamma_lower = sum(einstein_a(n_l, k, Z) for k in range(1, n_l)) if n_l > 1 else 0.0
+    gamma_k += HBAR * (gamma_upper + gamma_lower) / 2.0 / E_CHARGE
     
     for q in [0, 1, -1]:
         sdts = sdt_list[q]
@@ -224,21 +261,22 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         
         if numerical_inversion and N > 1:
             # Full Liouville-space Markov mixing matrix numerical inversion
-            # A_mj = delta_mj * (omega - w_j - i * (gamma + nu)) + i * nu * p_j
-            diag_term = (energies_ev[:, np.newaxis] - frequencies[np.newaxis, :]) - 1j * (gamma_k + nu_i) # shape (M, N)
+            # M_mj = delta_mj * (1j * (omega - w_j) + nu_i + gamma_j) - nu_i * p_m
+            # We solve M X = p, where p is the normalized intensities.
+            # The profile is then (r_q_sq / pi) * Re( sum_j X_j ).
+            diag_term = 1j * (energies_ev[:, np.newaxis] - frequencies[np.newaxis, :]) + (nu_i + gamma_k) # shape (M, N)
             
             # Build (M, N, N) stacked matrices
-            A = diag_term[:, :, np.newaxis] * np.eye(N)[np.newaxis, :, :] + 1j * nu_i * np.outer(np.ones(N), normalized_intensities)[np.newaxis, :, :]
+            A = (diag_term[:, :, np.newaxis] * np.eye(N)[np.newaxis, :, :] 
+                 - nu_i * normalized_intensities[np.newaxis, :, np.newaxis] * np.ones((N, N))[np.newaxis, :, :])
             
-            # Construct right-hand side vector: B shape (M, N)
-            d_left = np.sqrt(intensities)
-            d_right = np.sqrt(intensities) * normalized_intensities
-            B_rhs = np.repeat(d_right[np.newaxis, :], M, axis=0)
+            # Construct right-hand side vector: shape (M, N, 1)
+            B_rhs = np.broadcast_to(normalized_intensities[np.newaxis, :, np.newaxis], (M, N, 1))
             
             # Solve stacked system in a single NumPy call
             try:
-                X = np.linalg.solve(A, B_rhs) # shape (M, N)
-                profile = (1.0 / np.pi) * np.real(1j * np.sum(d_left[np.newaxis, :] * X, axis=1))
+                X = np.linalg.solve(A, B_rhs) # shape (M, N, 1)
+                profile = (r_q_sq / np.pi) * np.real(np.sum(X[:, :, 0], axis=1))
                 output_profiles[q] = np.maximum(0.0, profile)
             except np.linalg.LinAlgError:
                 # Fallback to analytical Sherman-Morrison solver if singular
@@ -248,11 +286,30 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             # Analytical Sherman-Morrison solver
             omega_diff = energies_ev[:, np.newaxis] - frequencies[np.newaxis, :]
             S_omega = np.sum(normalized_intensities[np.newaxis, :] / (nu_i + gamma_k + 1j * omega_diff), axis=1)
-            
+
             numerator = S_omega
             denominator = 1.0 - nu_i * S_omega
-            
+
             profile = (r_q_sq / np.pi) * np.real(numerator / denominator)
             output_profiles[q] = np.maximum(0.0, profile)
-        
+
+    # Thermal Doppler broadening: FFT convolution with Gaussian of 1/e half-width
+    # σ_D = E₀ √(T_i / m_ion c²).  Uses zero-padded rfft to avoid wrap-around
+    # artefacts, matching the strategy in calculate_static_profile.
+    if apply_doppler and Ti_ev > 0:
+        mc2_ev = A_ion * _M_P * (_C_LIGHT ** 2) / E_CHARGE
+        sigma_D = np.mean(energies_ev) * np.sqrt(Ti_ev / mc2_ev)
+        if sigma_D > 0:
+            n_pts = len(energies_ev)
+            n_pad = 2 * n_pts
+            dx = abs(energies_ev[1] - energies_ev[0])
+            k = np.fft.rfftfreq(n_pad, d=dx)
+            fft_filter = np.exp(-2.0 * np.pi**2 * sigma_D**2 * k**2)
+            padded = np.zeros(n_pad)
+            for q in [0, 1, -1]:
+                padded[:n_pts] = output_profiles[q]
+                padded[n_pts:] = 0.0
+                conv = np.fft.irfft(np.fft.rfft(padded) * fft_filter, n=n_pad)
+                output_profiles[q] = conv[:n_pts]
+
     return output_profiles[0], output_profiles[1], output_profiles[-1]

@@ -524,7 +524,7 @@ def potekhin_distribution(beta, gamma, s=0.0, charged=True):
 
 def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screening=True,
                           species_charges=None, species_concentrations=None, custom_table_path=None,
-                          charged=True, Z_bar=1.0):
+                          charged=False, Z_bar=1.0):
     """Build a quadrature grid of plasma electric microfield magnitudes and weights.
 
     Discretises the microfield integral ∫ W(F) dF over a uniform grid of
@@ -569,8 +569,11 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
         Path to a plain-text file with columns [β, W(β)].  If loading fails the
         function falls back to the analytical Hooper distribution with a warning.
     charged : bool, optional
-        True for a charged point (ion radiator), False for neutral (atom radiator).
-        Default is True.
+        True for a charged-point radiator (ion), False for a neutral atom
+        radiator (default False).  Ferri et al. (2022) use the Hooper neutral
+        distribution for hydrogen and the APEX distribution for charged emitters;
+        APEX is not yet implemented — pass a ``custom_table_path`` or use
+        ``charged=True`` as a Hooper approximation for charged emitters.
     Z_bar : float, optional
         Average background ion charge (default is 1.0).
 

@@ -11,6 +11,7 @@ Database models:
     rosato
 
 Native analytical models:
+    griem
     lomanowski
     stehle_param
     voigt
@@ -18,6 +19,7 @@ Native analytical models:
 """
 
 from starkzee.models.analytical import (  # noqa: F401
+    griem,
     lomanowski,
     stehle_param,
     voigt,

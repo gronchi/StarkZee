@@ -12,7 +12,7 @@ import pytest
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from starkzee.atomic_hamiltonian import (
+from starkzee.radiator import (
     build_basis, radial_dipole, angular_dipole_element, AtomicState
 )
 from starkzee.utils import RYDBERG_EV

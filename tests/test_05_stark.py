@@ -13,7 +13,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import build_stark_matrix, solve_starkzee
-from starkzee.atomic_hamiltonian import build_hamiltonian, build_basis
+from starkzee.radiator import build_hamiltonian, build_basis
 from scipy.constants import e as E_CHARGE
 from starkzee.utils import reduced_mass_rydberg_ev, A0
 
@@ -68,7 +68,7 @@ def test_within_n_radial_element_n2_l1():
     We verify it by looking at the matrix element between states
     |n=2,l=0,ml=0⟩ and |n=2,l=1,ml=0⟩ with Fz only (q=0).
     """
-    from starkzee.atomic_hamiltonian import angular_dipole_element
+    from starkzee.radiator import angular_dipole_element
     n, Z = 2, 1
     Fz = 1.0   # V/m (arbitrary for this test)
 
@@ -151,7 +151,7 @@ def test_linear_stark_energy_H_n2():
 def test_combined_hamiltonian_hermitian(n, Z, B, Fz, Fx):
     """Total Hamiltonian H_atom + V_Stark must be Hermitian."""
     from starkzee.static_profile import build_stark_matrix
-    from starkzee.atomic_hamiltonian import build_hamiltonian
+    from starkzee.radiator import build_hamiltonian
     H_atom = build_hamiltonian(n, Z, B, quadratic_zeeman=True)
     V_E    = build_stark_matrix(n, Z, Fz, Fx)
     H_tot  = H_atom + V_E
