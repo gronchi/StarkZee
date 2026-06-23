@@ -37,11 +37,10 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 
 # ── intersphinx ───────────────────────────────────────────────────────────────
-# Maps target domains to local objects.inv files to enable offline builds
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", "python-objects.inv"),
-    "numpy":  ("https://numpy.org/doc/stable/", "numpy-objects.inv"),
-    "scipy":  ("https://docs.scipy.org/doc/scipy/", "scipy-objects.inv"),
+    "python": ("https://docs.python.org/3", None),
+    "numpy":  ("https://numpy.org/doc/stable", None),
+    "scipy":  ("https://docs.scipy.org/doc/scipy", None),
 }
 intersphinx_timeout = 30
 
