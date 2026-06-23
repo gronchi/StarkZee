@@ -36,12 +36,14 @@ def _pseudo_voigt(x, sigma, gamma):
     L = hwhm / (np.pi * (x**2 + hwhm**2))
     G = np.exp(-0.5 * x**2 / sig**2) / (sig * _SQRT_2PI)
     return eta * L + (1.0 - eta) * G
-from starkzee.atomic_hamiltonian import (
+from starkzee.radiator import (
     build_hamiltonian, build_basis, angular_dipole_element, radial_dipole,
     _uncoupled_dipole_matrices, einstein_a,
 )
 from starkzee.microfield import microfield_quadrature
-from starkzee.broadening import electron_impact_width
+from starkzee.broadening import (
+    electron_impact_width, electron_impact_width_model, electron_impact_r2_scaling,
+)
 
 @lru_cache(maxsize=None)
 def _stark_templates(n, Z):
@@ -82,7 +84,7 @@ def build_stark_matrix(n, Z, Fz, Fx):
         ⟨n, l | r | n, l−1⟩ = (3n/2Z) √(n² − l²)   [a₀]
 
     The angular elements ⟨l, m_l | cos θ | l±1, m_l⟩ (for Fz) and the
-    combinations for Fx are provided by :func:`~starkzee.atomic_hamiltonian.angular_dipole_element`.
+    combinations for Fx are provided by :func:`~starkzee.radiator.angular_dipole_element`.
 
     The x-component is constructed as:
 
@@ -145,7 +147,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     """Diagonalize the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
-    atomic/magnetic Hamiltonian :func:`~starkzee.atomic_hamiltonian.build_hamiltonian` and
+    atomic/magnetic Hamiltonian :func:`~starkzee.radiator.build_hamiltonian` and
     diagonalizes the sum with ``numpy.linalg.eigh``:
 
         H = H_atom(B) + V_E(Fz, Fx)
@@ -218,7 +220,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, use_screening=True,
                                      quadratic_zeeman=True, fine_structure=True,
                                      frequency_dependent_width=True, A=1,
-                                     Ti_ev=None, species='H'):
+                                     Ti_ev=None, species='H', electron_model='pppb',
+                                     electron_operator=False):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -244,9 +247,13 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     energies_ev : array-like
         Photon energies at which to evaluate the profile [eV].
     num_f : int, optional
-        Number of microfield quadrature points (default 20).
+        Number of microfield quadrature points (default 20).  Ferri et al.
+        (2022) recommend ~50; 20 is sufficient for hydrogen but should be
+        increased for multi-electron atoms (future: set dynamically by atom type).
     num_mu : int, optional
-        Number of Gauss-Legendre angle points (default 6).
+        Number of Gauss-Legendre angle points (default 6).  Ferri et al.
+        (2022) recommend ~30; 6 is sufficient for hydrogen but should be
+        increased for multi-electron atoms (future: set dynamically by atom type).
     use_screening : bool, optional
         Use Hooper screened microfield distribution (default True).
     quadratic_zeeman : bool, optional
@@ -272,6 +279,23 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         Emitting species (``'H'``, ``'D'``, or ``'T'``); used to determine the
         ion mass for the Doppler width.  Only relevant when *Ti_ev* is set.
         Default is ``'H'``.
+    electron_model : str, optional
+        Electron-impact width prescription, forwarded to
+        :func:`~starkzee.broadening.electron_impact_width_model`.  ``'pppb'``
+        (default) is the PPPB model (B-dependent ω_c cutoff); ``'zest'``,
+        ``'zest-lee'``, ``'zest-dufty'`` select the ZEST model with the GBK,
+        Lee, or Dufty RPA G-function.
+    electron_operator : bool, optional
+        When ``True``, use the electron-impact **operator** diagonal: each
+        Stark-Zeeman dressed state gets a width scaled by its own ⟨k|r²|k⟩
+        (:func:`~starkzee.broadening.electron_impact_r2_scaling`) instead of the
+        shell-averaged scalar (default ``False``).  This is the **ZEST operator**
+        treatment with the off-diagonal / ``c_k`` set to zero.  The full PPPB
+        operator (off-diagonal → complex intensity ``a_k + i c_k``) and the
+        lower-manifold ``d†·d`` contribution are not yet implemented — see the
+        REVIEW note in :func:`~starkzee.broadening.electron_impact_r2_scaling`.
+        Currently applied in the in-loop Lorentzian path; with Doppler-dominant
+        grids (the post-FFT Lorentzian) the scalar resonance width is used.
 
     Notes on approximations
     -----------------------
@@ -369,7 +393,10 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
 
     # On-resonance width — used for the FFT Lorentzian step (both paths when
     # Doppler is active) and as the scalar w for frequency_dependent_width=False.
-    w_resonance = electron_impact_width(0.0, Ne_m3, Te_ev, B, Z, n=n_u) + w_natural_ev
+    # Keep the electron part separate so the operator path can rescale it per SDT.
+    w_resonance_e = electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_u,
+                                                electron_model=electron_model)
+    w_resonance = w_resonance_e + w_natural_ev
         
     # Main integration loop
     for fi, f_weight in zip(fields, f_weights):
@@ -387,6 +414,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             # Diagonalize using precomputed H_atom and Stark templates
             sz_energies_u, sz_vectors_u = np.linalg.eigh(H_atom_u + Fz * M_z_u + Fx * M_x_u)
             sz_energies_l, sz_vectors_l = np.linalg.eigh(H_atom_l + Fz * M_z_l + Fx * M_x_l)
+
+            # Electron-impact operator diagonal: per-upper-state ⟨k|r²|k⟩/⟨r²⟩_avg
+            # (c_k = 0 → ZEST operator). Off-diagonal (→ PPPB c_k) not implemented.
+            if electron_operator:
+                r2_scale_u = electron_impact_r2_scaling(sz_vectors_u, n_u, Z)
             
             # Compute all three dipole intensity matrices; dE is shared across q.
             V_l_adj = sz_vectors_l.conj().T
@@ -410,10 +442,17 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                     kernel = np.exp(-detuning**2 / _two_sigma2) * _gauss_norm
                 else:
                     if frequency_dependent_width:
-                        w = (electron_impact_width(dE_shifted[mask], Ne_m3, Te_ev, B, Z, n=n_u)
-                             + w_natural_ev)
+                        w_e = electron_impact_width_model(dE_shifted[mask], Ne_m3, Te_ev, B, Z,
+                                                          n=n_u, electron_model=electron_model)
                     else:
-                        w = w_resonance
+                        w_e = w_resonance_e
+                    if electron_operator:
+                        # Rescale the electron width per SDT by its upper-state ⟨r²⟩.
+                        # r2_scale_u is per upper eigenstate (column of dE); broadcast over
+                        # the lower index (rows) then select the active transitions.
+                        scale = np.broadcast_to(r2_scale_u[np.newaxis, :], dE.shape)[mask]
+                        w_e = w_e * scale
+                    w = w_e + w_natural_ev
                     kernel = (w / np.pi) / (detuning**2 + w**2)
 
                 profile_pi        += weight * (kernel @ I_pi[mask])
@@ -476,7 +515,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         reduced-mass Rydberg used for the absolute level energies (default 1).
     radial_method : {"gordon", "quad", None}, optional
         Backend for the radial dipole elements.  ``None`` (default) uses the
-        module-level :data:`~starkzee.atomic_hamiltonian.RADIAL_DIPOLE_METHOD`
+        module-level ``RADIAL_DIPOLE_METHOD``
         (``"gordon"`` exact closed form by default; ``"quad"`` is the numerical
         fallback).  The two agree to ~1e-15.
     use_empirical_data : bool, optional
@@ -496,7 +535,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         Polarization integer: 0 = π, −1 = σ−, +1 = σ+.
     ``strength``
         abs(d_q(i→j))² [a₀²].  Summed over all transitions equals
-        :func:`~starkzee.atomic_hamiltonian.line_strength` (unitary invariance).
+        :func:`~starkzee.radiator.line_strength` (unitary invariance).
     ``upper_idx``
         Upper eigenstate index (0 … 2n_u²−1).
     ``lower_idx``

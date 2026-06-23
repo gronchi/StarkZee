@@ -293,18 +293,23 @@ The GBK dynamical factor
 
     G(\Delta\omega) = \tfrac{1}{2}\,E_1(y), \qquad
     y = \left(\frac{n^2}{2Z}\right)^{\!2}
-    \frac{\Delta\omega^2 + \omega_c^2}{2\,\text{Ry}\cdot T_e}
+    \frac{\Delta\omega^2 + \omega_c^2}{\text{Ry}\cdot T_e}
 
-uses the exponential integral :math:`E_1` and the cutoff frequency
+uses the exponential integral :math:`E_1`, where :math:`\text{Ry} = e^2/2a_0 \approx 13.606`
+eV is the Rydberg energy (the ionisation energy of hydrogen; GBK denote this :math:`E_H`).
+
+The cutoff frequency
 
 .. math::
 
-    \omega_c = \max(\omega_p,\;\omega_L,\;\omega_e)
+    \omega_c = \max\!\left(\omega_p,\;\omega_e,\;\omega_L,\;\omega_{\alpha\alpha'}\right)
 
-where :math:`\omega_p = \sqrt{N_e e^2/\varepsilon_0 m_e}` is the plasma
-frequency, :math:`\omega_L = eB/m_e` the electron Larmor frequency (dominant
-at high :math:`B`), and :math:`\omega_e = 2\pi v_\text{th}/r_e` the
-configuration-change rate.
+is the largest of the plasma frequency :math:`\omega_p = \sqrt{N_e e^2/\varepsilon_0 m_e}`,
+the electron configuration-change frequency :math:`\omega_e = v_\text{th}/r_e` (with
+:math:`r_e = (3/4\pi N_e)^{1/3}` the mean inter-electron spacing), the Larmor frequency
+:math:`\omega_L = eB/m_e`, and the emitter level-splitting frequency
+:math:`\omega_{\alpha\alpha'}` (zero for hydrogen).
+The thermal velocity is :math:`v_\text{th} = \sqrt{k_B T_e/m_e}`.
 
 Each Stark-dressed transition component :math:`(i \to j, q)` is broadened by
 a Lorentzian of half-width :math:`\gamma_e`:
@@ -321,15 +326,84 @@ at the actual detuning of each component.  Setting
 ``frequency_dependent_width=False`` fixes it at the line-center value
 :math:`\gamma_e(0)`, which is faster but less accurate in the far wings.
 
-The strong-collision constants :math:`C_n` from Ferri *et al.* (2022):
+The strong-collision constants :math:`C_n` from Ferri, Peyrusse & Calisti (2022), Table 1:
 
 ===========  =====
 n            C_n
 ===========  =====
 ≤ 2          1.50
-3, 4         0.75
-≥ 5          0.40
+3            1.00
+4            0.75
+5            0.50
+≥ 6          0.40
 ===========  =====
+
+ZEST electron broadening model (``electron_model='zest'``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An alternative broadening model, activated by ``electron_model='zest'`` in
+:meth:`~starkzee.line_profile.LineProfile.compute_profile`, implements the
+electron broadening as defined in the ZEST code [Calisti2014]_.  The functional
+form is identical to the GBK expression above but uses the **intra-shell**
+squared-radius average:
+
+.. math::
+
+    W_e^\text{ZEST}(\Delta\omega) = W_\text{pref}\,\langle r^2_\text{intra}\rangle_n
+    \bigl[G_n + G_\text{ZEST}(\Delta\omega)\bigr]
+
+**Intra-shell squared radius.**
+The intra-shell sum retains only within-shell dipole matrix elements
+(:math:`\Delta n = 0`).  The exact per-:math:`l` value is
+
+.. math::
+
+    r^2_{\text{intra},l} = \frac{9n^2}{4Z^2}\bigl(n^2 - l(l+1) - 1\bigr)
+    \quad [a_0^2]
+
+derived from the within-shell radial element
+:math:`\langle n,l|r|n,l\pm 1\rangle = \tfrac{3n}{2Z}\sqrt{n^2-(l\pm 1)^2}`
+and angular weight factors :math:`C(l,l+1)=(l+1)/(2l+1)`,
+:math:`C(l,l-1)=l/(2l+1)`.  Averaging over the :math:`n^2` spatial states
+with :math:`(2l+1)` weight gives the exact closed form
+
+.. math::
+
+    \langle r^2_\text{intra}\rangle_n = \frac{9n^2(n^2-1)}{8Z^2}
+    \quad [a_0^2]
+
+Numerical values for H (:math:`Z=1`): :math:`n=2`: 13.5 :math:`a_0^2`;
+:math:`n=3`: 81 :math:`a_0^2`; :math:`n=4`: 270 :math:`a_0^2`.
+These are smaller than the full shell averages (33, 153, 468 :math:`a_0^2`) by
+factors of 0.41, 0.53, and 0.58 respectively.
+
+**Physical justification.**
+The ZEST paper (§2.1 of [Calisti2014]_) explicitly adopts two approximations that
+together restrict all perturber interactions to within-shell matrix elements:
+
+1. *No-quenching approximation* — perturbers may not induce transitions between
+   the lower and upper manifolds participating in the radiator emission.
+
+2. *Δn = 0 interaction channels* — "only states belonging to the same Layzer
+   complex [same :math:`n`] may be mixed by Stark and/or Zeeman effects."
+
+These constraints reduce the formal sum over all intermediate states in the
+broadening operator (ZEST Eq. 16) to within-shell terms, yielding
+:math:`\langle r^2_\text{intra}\rangle_n`.  The restriction is also automatic from
+the GBK dynamical factor: inter-shell detunings (e.g.\ the :math:`n=3 \to n=2`
+gap of :math:`\approx 1.89` eV) drive :math:`G(\Delta\omega_\text{inter}) \to 0`
+exponentially, so inter-shell contributions vanish regardless.
+
+The ZEST model uses the :math:`\kappa_m`-based G-function
+(:func:`~starkzee.broadening.gbk_zest_model`, cutoff :math:`\omega_p` only) rather
+than the fixed-:math:`\rho_\text{min}` form with the multi-frequency cutoff
+:math:`\omega_c = \max(\omega_p, \omega_e, \omega_L)`.  The :math:`G_n`
+strong-collision constants are numerically identical to the :math:`C_n` values above.
+
+.. [Calisti2014]
+   A. Calisti, S. Ferri, B. Talin,
+   *Journal of Physics B: Atomic, Molecular and Optical Physics*,
+   **47**, 175701 (2014).
 
 Thermal Doppler broadening
 --------------------------
@@ -365,8 +439,19 @@ Frequency Fluctuation Model
 
 When ion dynamics are important [Talin1995]_ (high :math:`N_e`, low :math:`B`, or
 high-:math:`n` lines) the static-ion approximation overestimates the central
-peak height.  The FFM treats the microfield as a Markov jump process switching
-between field configurations at rate :math:`\nu_i`.
+peak height.  The FFM corrects this by treating the ion microfield as a Markov
+jump process that switches between field configurations at rate :math:`\nu_i`.
+
+The Stark-Zeeman Hamiltonian :math:`H = H_A + V_E` is still diagonalized at
+each field configuration :math:`(F, \mu)`, yielding dressed-state frequencies
+:math:`\omega_k` and dipole weights :math:`|d_k|^2` — the Stark-Dressed
+Transitions (SDTs).  This part is purely static: :math:`\omega_k` and
+:math:`|d_k|^2` depend only on the instantaneous field.  Fast electron
+collisions add a homogeneous Lorentzian half-width :math:`\gamma_k` to each
+SDT (the GBK width of the previous section), acting on a timescale short enough
+that the ion configuration does not change during a single collision.  Ion
+dynamics enter exclusively through :math:`\nu_i`, which mixes the SDTs from all
+field configurations.
 
 The line profile is (Sherman–Morrison form):
 

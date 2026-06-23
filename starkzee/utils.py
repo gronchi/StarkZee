@@ -8,7 +8,8 @@ import numpy as np
 from scipy import constants as _c
 
 A0                 = _c.physical_constants['Bohr radius'][0]               # m
-RYDBERG_EV         = _c.physical_constants['Rydberg constant times hc in eV'][0]  # eV  (infinite nuclear mass)
+RYDBERG_EV         = _c.physical_constants['Rydberg constant times hc in eV'][0]  # eV  Ryd = 13.6057 eV
+HARTREE_EV         = 2.0 * RYDBERG_EV                                             # eV  E_H = 27.2114 eV
 BOHR_MAGNETON_EV_T = _c.physical_constants['Bohr magneton in eV/T'][0]            # eV/T
 G_S                = abs(_c.physical_constants['electron g factor'][0])   # g_s
 HBAR               = _c.hbar

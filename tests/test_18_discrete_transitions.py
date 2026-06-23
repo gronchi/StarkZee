@@ -17,7 +17,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import discrete_transitions
-from starkzee.atomic_hamiltonian import line_strength
+from starkzee.radiator import line_strength
 from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T
 
 

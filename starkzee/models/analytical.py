@@ -259,6 +259,18 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     return _freq_to_wl_norm(freq_axis, profile, wavelengths_nm)
 
 
+def griem(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
+          view_angle_deg=90.0, species='H'):
+    """Griem α₁₂ Stark profile — identical to ``voigt``.
+
+    Uses Griem's tabulated α₁₂ coefficient for the Stark HWHM and produces a
+    Voigt profile (Lorentzian Stark core + Gaussian Doppler).  Named separately
+    so comparison plots can label the curve by its physical origin.
+    """
+    return voigt(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
+                 view_angle_deg=view_angle_deg, species=species)
+
+
 def voigt(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
           view_angle_deg=90.0, species='H'):
     """Voigt (Griem Stark Lorentzian + Doppler Gaussian) Zeeman-split profile.

@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.static_profile import calculate_static_profile, solve_starkzee
 from starkzee.ffm import calculate_ffm_profile
-from starkzee.atomic_hamiltonian import diagonalize_hamiltonian
+from starkzee.radiator import diagonalize_hamiltonian
 from starkzee.broadening import electron_impact_width
 from starkzee.utils import RYDBERG_EV, BOHR_MAGNETON_EV_T
 

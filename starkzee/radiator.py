@@ -1,4 +1,4 @@
-# atomic_hamiltonian.py — Hydrogenic basis, Hamiltonian construction, and diagonalization in magnetic fields
+# radiator.py — Hydrogenic basis, Hamiltonian construction, and diagonalization in magnetic fields
 
 import numpy as np
 import math

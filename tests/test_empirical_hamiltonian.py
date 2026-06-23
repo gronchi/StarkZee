@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from starkzee.atomic_hamiltonian import build_hamiltonian, build_basis
+from starkzee.radiator import build_hamiltonian, build_basis
 from starkzee.utils import BOHR_MAGNETON_EV_T, G_S, energy_ev_to_wavenumber_cm
 
 def test_empirical_hamiltonian_b0():

@@ -7,7 +7,7 @@ API reference
    line_profile
    static_profile
    ffm
-   atomic_hamiltonian
+   radiator
    microfield
    broadening
    convolutions
@@ -28,7 +28,7 @@ Module overview
      - Static Stark-Zeeman profile solver and discrete-transition enumerator
    * - :mod:`starkzee.ffm`
      - Frequency Fluctuation Model (dynamic ion broadening)
-   * - :mod:`starkzee.atomic_hamiltonian`
+   * - :mod:`starkzee.radiator`
      - Basis states, Hamiltonian construction, dipole matrix elements,
        oscillator strengths, Einstein A coefficients
    * - :mod:`starkzee.microfield`
