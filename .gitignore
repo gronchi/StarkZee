@@ -49,3 +49,4 @@ env/
 .idea/
 *.swp
 *~
+*.bat

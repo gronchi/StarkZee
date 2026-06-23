@@ -37,11 +37,13 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 
 # ── intersphinx ───────────────────────────────────────────────────────────────
+# Maps target domains to local objects.inv files to enable offline builds
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy":  ("https://numpy.org/doc/stable", None),
-    "scipy":  ("https://docs.scipy.org/doc/scipy", None),
+    "python": ("https://docs.python.org/3/", "python-objects.inv"),
+    "numpy":  ("https://numpy.org/doc/stable/", "numpy-objects.inv"),
+    "scipy":  ("https://docs.scipy.org/doc/scipy/", "scipy-objects.inv"),
 }
+intersphinx_timeout = 30
 
 # ── HTML output ───────────────────────────────────────────────────────────────
 html_theme   = "sphinx_rtd_theme"
@@ -61,4 +63,4 @@ templates_path   = []
 
 # Suppress cross-reference warnings for bare type names (ndarray, array-like, etc.)
 # that appear in docstrings but aren't fully qualified Sphinx targets.
-suppress_warnings = ["ref.class", "ref.any", "ref.func"]
+suppress_warnings = ["ref.class", "ref.any", "ref.func", "intersphinx.fetch_inv"]
