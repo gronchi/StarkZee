@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.utils import wavelength_nm_to_energy_ev, energy_ev_to_wavelength_nm, RYDBERG_EV
 from starkzee.static_profile import calculate_static_profile
-from starkzee.atomic_hamiltonian import line_strength
+from starkzee.radiator import line_strength
 
 # Standard Case B recombination line intensities relative to Hβ = 1
 # (Osterbrock & Ferland 2006, T ≈ 10 000 K, ne → 0, optically thick Lyman series).
@@ -32,7 +32,7 @@ from starkzee.atomic_hamiltonian import line_strength
 _CASEB = {3: 2.86, 4: 1.00, 5: 0.47, 6: 0.26, 7: 0.16}
 
 
-def balmer_spectrum(B, Ne, Te, wavelengths_nm):
+def balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman=False):
     """Transverse intensity summed over Hα–Hε on a common wavelength grid.
 
     Each line n→2 is weighted by _CASEB[n] / S_ul(n) so that the integrated
@@ -49,7 +49,7 @@ def balmer_spectrum(B, Ne, Te, wavelengths_nm):
             energies_ev=energies,
             num_f=20, num_mu=6,
             use_screening=True,
-            quadratic_zeeman=True,
+            quadratic_zeeman=quadratic_zeeman,
             frequency_dependent_width=False,
         )
         total += weight * (pi + 0.5 * (sp + sm))
@@ -62,18 +62,23 @@ if __name__ == "__main__":
     B_list  = [100.0, 500.0, 1000.0]
     colors  = ["#4e79a7", "#f28e2b", "#e15759"]
 
-    wavelengths_nm  = np.linspace(350.0, 720.0, 1500)
+    wavelengths_nm  = np.linspace(380.0, 720.0, 1500)
     wavelengths_ang = wavelengths_nm * 10.0
 
     print(f"Ne = {Ne:.1e} m^-3, Te = {Te} eV")
 
-    spectra = {}
+    spectra    = {}
+    spectra_qz = {}
     for B in B_list:
-        print(f"\nB = {int(B)} T:")
-        spectra[B] = balmer_spectrum(B, Ne, Te, wavelengths_nm)
+        print(f"\nB = {int(B)} T (linear Zeeman):")
+        spectra[B] = balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman=False)
+        print(f"\nB = {int(B)} T (+ quadratic Zeeman):")
+        spectra_qz[B] = balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman=True)
 
-    # Normalize each spectrum to its own peak so relative shapes are visible
-    normed = {B: s / s.max() for B, s in spectra.items()}
+    # Normalize all spectra to the same reference (peak of the linear-Zeeman set)
+    norm_ref = {B: spectra[B].max() for B in B_list}
+    normed    = {B: spectra[B]    / norm_ref[B] for B in B_list}
+    normed_qz = {B: spectra_qz[B] / norm_ref[B] for B in B_list}
 
     # Approximate Balmer line centers (vacuum, Å)
     line_centers = {
@@ -87,11 +92,13 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(
         3, 1, figsize=(11, 10), sharex=True,
         gridspec_kw={"hspace": 0.15},
+        constrained_layout=True
     )
 
     for ax, B, color in zip(axes, B_list, colors):
         label = f"B = {int(B)} T"
-        ax.plot(wavelengths_ang, normed[B], color=color, lw=1.6, label=label)
+        ax.plot(wavelengths_ang, normed[B],    color=color, lw=1.6, ls='-',  label=label)
+        ax.plot(wavelengths_ang, normed_qz[B], color=color, lw=1.6, ls='--', label=f"{label} (+ QZ)")
 
         ax.set_yscale("log")
         ax.set_ylim(1e-4, 3.0)
@@ -101,18 +108,14 @@ if __name__ == "__main__":
 
         for name, wl in line_centers.items():
             ax.axvline(wl, color="gray", lw=0.6, ls="--", alpha=0.5)
-            ax.text(wl, 2.0, name, ha="center", va="bottom", fontsize=9,
+            ax.text(wl, 1.0, name, ha="center", va="bottom", fontsize=9,
                     bbox=dict(facecolor="white", alpha=0.7, pad=1, edgecolor="none"))
 
     axes[-1].set_xlabel(r"Wavelength ($\AA$)", fontsize=12)
-    axes[-1].set_xlim(3500, 7200)
+    axes[-1].set_xlim(3800, 7200)
 
     fig.suptitle(
         r"Balmer-series Stark-Zeeman profiles  —  H, $N_e = 10^{23}$ m$^{-3}$, $T_e = 5$ eV",
-        fontsize=12, y=0.98,
+        fontsize=12
     )
-
-    out = os.path.join(os.path.dirname(__file__), "reproduce_fig1.png")
-    plt.savefig(out, dpi=200, bbox_inches="tight")
-    print(f"\nSaved {out}")
     plt.show()

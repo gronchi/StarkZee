@@ -25,11 +25,11 @@ import starkzee.models as models
 def run():
     # ── parameters ────────────────────────────────────────────────────────────
     n_u, n_l       = 3, 2      # transition  (Hα)
-    species        = 'H'       # emitting species: 'H', 'D', or 'T'
+    species        = 'D'       # emitting species: 'H', 'D', or 'T'
     Ne_m3          = 1e20      # electron density          [m⁻³]
-    Te_ev          = .5       # electron temperature      [eV]  → Stark width
-    Ti_ev          = .5       # ion temperature           [eV]  → Doppler width
-    B              = 3.0       # magnetic field            [T]
+    Te_ev          = 1       # electron temperature      [eV]  → Stark width
+    Ti_ev          = 1       # ion temperature           [eV]  → Doppler width
+    B              = 10.0       # magnetic field            [T]
     view_angle_deg = 90.0      # observation angle to B    [deg]
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ def run():
 
     # Comparison models compute in air nm, centered on the same physical line center.
     wl_cmp_nm = np.linspace(center_air_nm - half_width_nm,
-                             center_air_nm + half_width_nm, 1000)
+                             center_air_nm + half_width_nm, 5000)
 
     # ── figure ────────────────────────────────────────────────────────────────
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[12, 5])

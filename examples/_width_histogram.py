@@ -4,7 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.broadening import electron_impact_width
-from starkzee.atomic_hamiltonian import einstein_a
+from starkzee.radiator import einstein_a
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE
 
 # Parameters from example_halpha.py

@@ -21,7 +21,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import discrete_transitions, calculate_static_profile
-from starkzee.atomic_hamiltonian import line_strength, oscillator_strength, einstein_a
+from starkzee.radiator import line_strength, oscillator_strength, einstein_a
 from starkzee.utils import reduced_mass_rydberg_ev, energy_ev_to_wavelength_nm
 
 # ─────────────────────────────────────────────────────────────────────────────
