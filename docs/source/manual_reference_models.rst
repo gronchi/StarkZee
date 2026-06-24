@@ -19,10 +19,8 @@ The Stehlé model reads precomputed Stark lineshapes from the Model Microfield M
 
    .. math::
 
-      \begin{equation}
               I(\theta) = \sin^2\!\theta\,I_\pi + \tfrac{1+\cos^2\!\theta}{2}\,(I_{\sigma+} + I_{\sigma-})
-              
-      \end{equation}
+
 
 The Stark and Zeeman effects are therefore treated as **separable**. This is valid only when the Zeeman splitting :math:`\mu_B B` is much smaller than the Stark width. Stehlé covers arbitrary :math:`(n_u, n_l)` and species with no restriction on :math:`B`-field value (it is simply ignored in the table lookup).
 
@@ -49,9 +47,8 @@ Polynomial fits for the Stark FWHM from Lomanowski *et al.* [lomanowski]_:
 
 .. math::
 
-   \begin{equation}
    \Delta\lambda_S = c_{n_u n_l}\,N_e^{a_{n_u n_l}}\,T_e^{-b_{n_u n_l}} \quad [\mathrm{nm}]
-   \end{equation}
+
 
 Coefficients :math:`(a, b, c)` are tabulated for H/D Balmer and Paschen lines up to :math:`n_u = 9`. A Voigt profile combines this Stark Lorentzian with a Doppler Gaussian. No magnetic field treatment.
 

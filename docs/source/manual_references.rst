@@ -86,10 +86,10 @@ References
    `DOI: 10.1103/PhysRevE.65.036412 <https://doi.org/10.1103/PhysRevE.65.036412>`__
 
 .. [rosato]
-   J. Rosato, Y. Marandet, H. Capes, et al.,
-   *Stark broadening of hydrogen lines in low-density magnetized plasmas*,
-   Phys. Rev. E **79**, 046408 (2009).
-   `DOI: 10.1103/PhysRevE.79.046408 <https://doi.org/10.1103/PhysRevE.79.046408>`__
+   J. Rosato, H. Capes, Y. Marandet, et al.,
+   *A new table of Balmer line shapes for the diagnostic of magnetic fusion plasmas*,
+   J. Quant. Spectrosc. Radiat. Transfer **190**, 1–5 (2017).
+   `DOI: 10.1016/j.jqsrt.2016.10.005 <https://doi.org/10.1016/j.jqsrt.2016.10.005>`__
 
 .. [stehle]
    C. Stehlé, R. Hutcheon,
