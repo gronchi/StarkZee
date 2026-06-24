@@ -1,0 +1,1044 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physics and Numerical Formulation &mdash; StarkZee</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Approximations and Numerical Choices" href="manual_approximations.html" />
+    <link rel="prev" title="Calculation Workflow and Package Map" href="manual_workflow.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            StarkZee
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#install">Install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#running-the-tests">Running the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#command-line-interface">Command-line interface</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-profile">Basic profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#discrete-transition-stick-spectrum">Discrete transition stick spectrum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#balmer-series-at-once">Balmer series at once</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#lower-level-api">Lower-level API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#ffm-dynamic-ion-profile">FFM (dynamic ion) profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#post-processing-doppler-and-instrumental-broadening">Post-processing: Doppler and instrumental broadening</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Manual</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="manual_introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual_workflow.html">Calculation Workflow and Package Map</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Physics and Numerical Formulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#liouville-space-representation">Liouville Space Representation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#from-propagator-to-resolvent">From propagator to resolvent.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#field-dependent-liouvillian-and-static-profile">Field-dependent Liouvillian and static profile.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#radiator-hamiltonian-in-magnetic-fields">Radiator Hamiltonian in Magnetic Fields</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#unperturbed-hydrogenic-energy-h-0">Unperturbed Hydrogenic Energy (<span class="math notranslate nohighlight">\(H_0\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#spin-orbit-coupling-h-rm-so">Spin-Orbit Coupling (<span class="math notranslate nohighlight">\(H_{\rm SO}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fine-structure-relativistic-corrections-h-rm-fs">Fine-Structure Relativistic Corrections (<span class="math notranslate nohighlight">\(H_{\rm FS}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#linear-zeeman-effect-h-z-1">Linear Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(1)}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#quadratic-diamagnetic-zeeman-effect-h-z-2">Quadratic (Diamagnetic) Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(2)}\)</span>)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#empirical-field-free-energies">Empirical Field-Free Energies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-electron-radiator-hamiltonian">Full Electron-Radiator Hamiltonian</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#stark-perturbation-matrix-elements">Stark Perturbation Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#radial-matrix-element">Radial matrix element.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#angular-matrix-elements">Angular matrix elements.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#transition-dipole-operator">Transition Dipole Operator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#angular-dipole-matrix-elements">Angular Dipole Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hydrogenic-radial-dipole-integrals-gordons-formula">Hydrogenic Radial Dipole Integrals (Gordon’s Formula)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#diagonalization-and-transition-dipole-basis-rotation">Diagonalization and Transition Dipole Basis Rotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plasma-microfield-distributions">Plasma Microfield Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#the-hooper-screened-microfield-distribution">The Hooper Screened Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-potekhin-microfield-distribution">The Potekhin Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#quadrature-discretization">Quadrature Discretization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#electron-impact-broadening">Electron Impact Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#liouville-space-structure-of-phi-omega-and-connection-to-langle-r-2-rangle">Liouville-space structure of <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> and connection to <span class="math notranslate nohighlight">\(\langle r^2\rangle\)</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shell-average-approximation">Shell-average approximation.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#density-temperature-prefactor">Density-Temperature Prefactor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shell-averaged-mean-square-radius">Shell-Averaged Mean-Square Radius</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#strong-collision-constant">Strong-Collision Constant</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dynamical-gbk-factor">Dynamical GBK Factor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cutoff-frequency">Cutoff frequency.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#frequency-dependent-vs-resonance-center-width">Frequency-dependent vs. resonance-center width.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#zest-electron-broadening-variant-electron-model-zest">ZEST electron broadening variant (<code class="docutils literal notranslate"><span class="pre">electron_model=’zest’</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#physical-justification-delta-n-0-interaction-channels">Physical justification — <span class="math notranslate nohighlight">\(\Delta n = 0\)</span> interaction channels.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#intra-shell-squared-radius">Intra-shell squared radius.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#maximum-wave-number-cutoff-kappa-m">Maximum wave-number cutoff <span class="math notranslate nohighlight">\(\kappa_m\)</span>.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#g-function-choices-electron-model-selector">G-function choices (<code class="docutils literal notranslate"><span class="pre">electron_model</span></code> selector).</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#profile-accumulation">Profile Accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#frequency-fluctuation-model-ffm">Frequency Fluctuation Model (FFM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#thermal-doppler-broadening">Thermal Doppler Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ffm-path-calculate-ffm-profile">FFM path (<code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#static-profile-path-calculate-static-profile">Static profile path (<code class="docutils literal notranslate"><span class="pre">calculate_static_profile</span></code>)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="manual_approximations.html">Approximations and Numerical Choices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual_reference_models.html">Built-in Reference Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="manual_reference_models.html#tabulated-models">Tabulated Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="manual_reference_models.html#stehle-mmm-stehle">Stehlé (MMM) — <code class="docutils literal notranslate"><span class="pre">stehle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="manual_reference_models.html#rosato-rosato">Rosato — <code class="docutils literal notranslate"><span class="pre">rosato</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="manual_reference_models.html#analytical-models">Analytical Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="manual_reference_models.html#lomanowski-lomanowski">Lomanowski — <code class="docutils literal notranslate"><span class="pre">lomanowski</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="manual_reference_models.html#parameterized-stehle-stehle-param">Parameterized Stehlé — <code class="docutils literal notranslate"><span class="pre">stehle_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="manual_reference_models.html#voigt-voigt">Voigt — <code class="docutils literal notranslate"><span class="pre">voigt</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="manual_reference_models.html#comparison-with-starkzee">Comparison with StarkZee</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="manual_validity.html">Physical Approximations and Domains of Validity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual_operational_limits.html">Physics Explanation of Use Cases and Operational Limits</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="manual_operational_limits.html#the-high-magnetic-field-regime">The High-Magnetic-Field Regime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="manual_operational_limits.html#density-limits">Density Limits</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="manual_references.html">References</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#balmer-series-lineprofile-class">Balmer series — LineProfile class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#h-stick-spectrum-and-broadened-profile">Hα stick spectrum and broadened profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#transition-anatomy">Transition anatomy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#reproducing-figure-1-from-ferri-et-al-2022">Reproducing Figure 1 from Ferri <em>et al.</em> (2022)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#satellite-features-at-b-1000-t">Satellite features at B = 1000 T</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#quadratic-zeeman-polarization-wings">Quadratic Zeeman polarization wings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#lyman-at-high-b">Lyman-α at high B</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/line_profile.html">line_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.energy_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.energy_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.detuning_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.detuning_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.wavelength_nm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavelength_nm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.frequency_thz"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.frequency_thz</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavenumber_cm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.q"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.q</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.strength"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.upper_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.upper_idx</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.DiscreteTransitions.lower_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.lower_idx</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile"><code class="docutils literal notranslate"><span class="pre">LineProfile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.GRID_TYPES"><code class="docutils literal notranslate"><span class="pre">LineProfile.GRID_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.compute_profile"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.compute_discrete"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_discrete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.profile_transverse"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_transverse</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.profile_parallel"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_parallel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/line_profile.html#starkzee.line_profile.LineProfile.profile_at_angle"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_at_angle()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/static_profile.html">static_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/static_profile.html#starkzee.static_profile.build_stark_matrix"><code class="docutils literal notranslate"><span class="pre">build_stark_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/static_profile.html#starkzee.static_profile.solve_starkzee"><code class="docutils literal notranslate"><span class="pre">solve_starkzee()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/static_profile.html#starkzee.static_profile.calculate_static_profile"><code class="docutils literal notranslate"><span class="pre">calculate_static_profile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/static_profile.html#starkzee.static_profile.discrete_transitions"><code class="docutils literal notranslate"><span class="pre">discrete_transitions()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/ffm.html">ffm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/ffm.html#starkzee.ffm.calculate_ion_fluctuation_rate"><code class="docutils literal notranslate"><span class="pre">calculate_ion_fluctuation_rate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/ffm.html#starkzee.ffm.calculate_ffm_profile"><code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/radiator.html">radiator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.index"><code class="docutils literal notranslate"><span class="pre">AtomicState.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.ml"><code class="docutils literal notranslate"><span class="pre">AtomicState.ml</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.s"><code class="docutils literal notranslate"><span class="pre">AtomicState.s</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/radiator.html#starkzee.radiator.AtomicState.ms"><code class="docutils literal notranslate"><span class="pre">AtomicState.ms</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.build_basis"><code class="docutils literal notranslate"><span class="pre">build_basis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.radial_wavefunction"><code class="docutils literal notranslate"><span class="pre">radial_wavefunction()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.radial_r2_element"><code class="docutils literal notranslate"><span class="pre">radial_r2_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.set_radial_dipole_method"><code class="docutils literal notranslate"><span class="pre">set_radial_dipole_method()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.radial_dipole"><code class="docutils literal notranslate"><span class="pre">radial_dipole()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.angular_dipole_element"><code class="docutils literal notranslate"><span class="pre">angular_dipole_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.build_hamiltonian"><code class="docutils literal notranslate"><span class="pre">build_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.diagonalize_hamiltonian"><code class="docutils literal notranslate"><span class="pre">diagonalize_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.dipole_matrix_elements"><code class="docutils literal notranslate"><span class="pre">dipole_matrix_elements()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.line_strength"><code class="docutils literal notranslate"><span class="pre">line_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.oscillator_strength"><code class="docutils literal notranslate"><span class="pre">oscillator_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/radiator.html#starkzee.radiator.einstein_a"><code class="docutils literal notranslate"><span class="pre">einstein_a()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/microfield.html">microfield</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.calculate_normal_field"><code class="docutils literal notranslate"><span class="pre">calculate_normal_field()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.calculate_multispecies_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_multispecies_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.calculate_coupling_parameter"><code class="docutils literal notranslate"><span class="pre">calculate_coupling_parameter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.holtsmark_distribution"><code class="docutils literal notranslate"><span class="pre">holtsmark_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.hooper_distribution"><code class="docutils literal notranslate"><span class="pre">hooper_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.potekhin_distribution"><code class="docutils literal notranslate"><span class="pre">potekhin_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/microfield.html#starkzee.microfield.microfield_quadrature"><code class="docutils literal notranslate"><span class="pre">microfield_quadrature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/broadening.html">broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_plasma_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_plasma_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_larmor_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_larmor_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_configuration_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_configuration_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_cutoff_kappa_m"><code class="docutils literal notranslate"><span class="pre">calculate_cutoff_kappa_m()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.calculate_electron_impact_prefactor"><code class="docutils literal notranslate"><span class="pre">calculate_electron_impact_prefactor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.gbk_model"><code class="docutils literal notranslate"><span class="pre">gbk_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.gbk_zest_model"><code class="docutils literal notranslate"><span class="pre">gbk_zest_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.lee_model"><code class="docutils literal notranslate"><span class="pre">lee_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.dufty_model"><code class="docutils literal notranslate"><span class="pre">dufty_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.electron_impact_width"><code class="docutils literal notranslate"><span class="pre">electron_impact_width()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.electron_impact_width_zest"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_zest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.electron_impact_width_model"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/broadening.html#starkzee.broadening.electron_impact_r2_scaling"><code class="docutils literal notranslate"><span class="pre">electron_impact_r2_scaling()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/convolutions.html">convolutions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/convolutions.html#starkzee.convolutions.calculate_doppler_width_ev"><code class="docutils literal notranslate"><span class="pre">calculate_doppler_width_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/convolutions.html#starkzee.convolutions.convolve_fft"><code class="docutils literal notranslate"><span class="pre">convolve_fft()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/convolutions.html#starkzee.convolutions.apply_doppler_broadening"><code class="docutils literal notranslate"><span class="pre">apply_doppler_broadening()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/convolutions.html#starkzee.convolutions.apply_instrument_broadening"><code class="docutils literal notranslate"><span class="pre">apply_instrument_broadening()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html">utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.species_to_ZA"><code class="docutils literal notranslate"><span class="pre">species_to_ZA()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.nuclear_mass_kg"><code class="docutils literal notranslate"><span class="pre">nuclear_mass_kg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.reduced_mass_rydberg_ev"><code class="docutils literal notranslate"><span class="pre">reduced_mass_rydberg_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.temp_ev_to_joules"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_joules()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.temp_ev_to_kelvin"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_kelvin()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.energy_ev_to_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.vacuum_to_air_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">vacuum_to_air_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.wavelength_nm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavelength_nm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.frequency_thz_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">frequency_thz_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.energy_ev_to_frequency_thz"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_frequency_thz()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.wavenumber_cm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavenumber_cm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#starkzee.utils.energy_ev_to_wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavenumber_cm()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/atomic_data.html">atomic_data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState.energy"><code class="docutils literal notranslate"><span class="pre">AtomicState.energy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState.j"><code class="docutils literal notranslate"><span class="pre">AtomicState.j</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.AtomicState.spin"><code class="docutils literal notranslate"><span class="pre">AtomicState.spin</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.get_data_path"><code class="docutils literal notranslate"><span class="pre">get_data_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.load_levels"><code class="docutils literal notranslate"><span class="pre">load_levels()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/atomic_data.html#starkzee.atomic_data.calculate_wavenumber"><code class="docutils literal notranslate"><span class="pre">calculate_wavenumber()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#module-overview">Module overview</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">StarkZee</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Physics and Numerical Formulation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/manual_formulation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="physics-and-numerical-formulation">
+<h1>Physics and Numerical Formulation<a class="headerlink" href="#physics-and-numerical-formulation" title="Link to this heading"></a></h1>
+<section id="liouville-space-representation">
+<h2>Liouville Space Representation<a class="headerlink" href="#liouville-space-representation" title="Link to this heading"></a></h2>
+<p>The spectral line-shape intensity <span class="math notranslate nohighlight">\(I(\omega)\)</span> of emitted radiation is related to the Fourier transform of the dipole autocorrelation function <span class="math notranslate nohighlight">\(C(t)\)</span> by <a class="reference internal" href="manual_references.html#baranger" id="id1"><span>[baranger]</span></a>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:Iomega}
+I(\omega) = \frac{1}{\pi} \operatorname{Re} \int_0^\infty C(t)\, e^{i\omega t}\, dt
+\end{equation}\]</div>
+<p>In Liouville space notation, the autocorrelation function is a trace over the quantum emitter states:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:Ct}
+C(t) = \langle\langle \vec{d}^{\,*} | U(t) | \vec{d}\,\rho_0 \rangle\rangle
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\vec{d}\)</span> is the electric transition dipole operator, <span class="math notranslate nohighlight">\(\rho_0\)</span> is the equilibrium density matrix of the initial manifold, and <span class="math notranslate nohighlight">\(U(t)\)</span> is the time-evolution propagator.</p>
+<p>In the anti-symmetric subspace (ground-to-excited manifold transitions in the no-quenching approximation), the Liouvillian operator <span class="math notranslate nohighlight">\(L\)</span> is constructed from the excited-state Hamiltonian <span class="math notranslate nohighlight">\(H_u\)</span> and ground-state Hamiltonian <span class="math notranslate nohighlight">\(H_l\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:liouvillian}
+L = \frac{1}{\hbar} \bigl(H_u \otimes \hat{I}^d - \hat{I} \otimes H_l^d\bigr)
+\end{equation}\]</div>
+<p>The diagonal elements of <span class="math notranslate nohighlight">\(L\)</span> give the field-free transition frequencies <span class="math notranslate nohighlight">\(\omega_{ij} = (E_i^u - E_j^l)/\hbar\)</span>; off-diagonal elements encode the Stark and Zeeman couplings between dressed states.</p>
+<section id="from-propagator-to-resolvent">
+<h3>From propagator to resolvent.<a class="headerlink" href="#from-propagator-to-resolvent" title="Link to this heading"></a></h3>
+<p>The time-evolution propagator is generated by <span class="math notranslate nohighlight">\(L\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:propagator}
+U(t) = e^{-iLt}
+\end{equation}\]</div>
+<p>Substituting into Eq. ([eq:Ct] ) gives the explicit correlation function</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:Ct_explicit}
+C(t) = \langle\langle \vec{d}^{\,*} | e^{-iLt} | \vec{d}\,\rho_0 \rangle\rangle
+\end{equation}\]</div>
+<p>Inserting this into Eq. ([eq:Iomega] ) and evaluating the one-sided Fourier transform converts the time-domain exponential into a frequency-domain resolvent:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:resolvent_bare}
+I(\omega) = \frac{1}{\pi}\operatorname{Re}\,
+  \langle\langle \vec{d}^{\,*} \big|\,(\omega\,\hat{I} - L)^{-1}\,\big| \vec{d}\,\rho_0 \rangle\rangle
+\end{equation}\]</div>
+<p>Fast electron collisions are encoded as an additional imaginary damping operator <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> in the same Liouville space (Section 3.8 ), shifting <span class="math notranslate nohighlight">\(L \to L + i\Phi(\omega)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:resolvent_broadened}
+I(\omega) = \frac{1}{\pi}\operatorname{Re}\,
+  \langle\langle \vec{d}^{\,*} \big|\,
+  \bigl(\omega\,\hat{I} - L - i\,\Phi(\omega)\bigr)^{-1}
+  \,\big| \vec{d}\,\rho_0 \rangle\rangle
+\end{equation}\]</div>
+</section>
+<section id="field-dependent-liouvillian-and-static-profile">
+<h3>Field-dependent Liouvillian and static profile.<a class="headerlink" href="#field-dependent-liouvillian-and-static-profile" title="Link to this heading"></a></h3>
+<p>Under the quasi-static ion approximation the radiator is exposed to a static ionic microfield <span class="math notranslate nohighlight">\(\vec{F}\)</span> at angle <span class="math notranslate nohighlight">\(\theta\)</span> to <span class="math notranslate nohighlight">\(\vec{B}\)</span>. Both manifold Hamiltonians <span class="math notranslate nohighlight">\(H_u\)</span> and <span class="math notranslate nohighlight">\(H_l\)</span> then depend on the field magnitude <span class="math notranslate nohighlight">\(F\)</span> and orientation <span class="math notranslate nohighlight">\(\mu = \cos\theta\)</span> through the Stark perturbation <span class="math notranslate nohighlight">\(V_E\)</span> (Section 3.4 ), making the Liouvillian parametrically field-dependent:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:liouvillian_field}
+L(F,\mu) = \frac{1}{\hbar}\Bigl[H_u(F,\mu)\otimes\hat{I}^d
+           - \hat{I}\otimes H_l^d(F,\mu)\Bigr],
+\qquad H(F,\mu) = H_A + V_E(F,\mu)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(H_A\)</span> is the field-free magnetic Hamiltonian (Section 3.2 ) and <span class="math notranslate nohighlight">\(V_E(F,\mu)\)</span> is the linear Stark interaction (Section 3.4 ). Equations ([eq:resolvent_broadened] ) and ([eq:liouvillian_field] ) together give the field-dependent <span class="math notranslate nohighlight">\(q\)</span>-polarized profile at a given configuration <span class="math notranslate nohighlight">\((F,\mu)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:field_profile}
+I_q(\omega,F,\mu) = \frac{1}{\pi}\operatorname{Re}\,
+  \langle\langle d_q^*\,\big|\,
+  \bigl(\omega\,\hat{I} - L(F,\mu) - i\,\Phi(\omega)\bigr)^{-1}
+  \,\big|\,d_q\,\rho_0\rangle\rangle
+\end{equation}\]</div>
+<p>The total <span class="math notranslate nohighlight">\(q\)</span>-polarized profile is then the average over the ionic microfield distribution <span class="math notranslate nohighlight">\(W(F)\)</span> and orientation:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:microfield_integral}
+I_q(\omega) = \frac{1}{2}\int_0^{\infty}\!\int_{-1}^{1}
+  W(F)\,I_q(\omega,F,\mu)\;d\mu\;dF
+\end{equation}\]</div>
+<p>Because <span class="math notranslate nohighlight">\(I_q(\omega,F,\mu) = I_q(\omega,F,-\mu)\)</span> (the Hamiltonian is even in <span class="math notranslate nohighlight">\(\mu\)</span> via <span class="math notranslate nohighlight">\(F_z = F\mu\)</span> and <span class="math notranslate nohighlight">\(F_x = F\sqrt{1-\mu^2}\)</span>), the integral over <span class="math notranslate nohighlight">\([-1,1]\)</span> reduces to twice the <span class="math notranslate nohighlight">\([0,1]\)</span> range, discretized by Gauss–Legendre quadrature. The observed intensity at angle <span class="math notranslate nohighlight">\(\alpha\)</span> between the line of sight and <span class="math notranslate nohighlight">\(\vec{B}\)</span> is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:stokes}
+I(\omega,\alpha) = I_\pi(\omega)\sin^2\!\alpha
+  + \tfrac{1}{2}\bigl(I_{\sigma^+}(\omega)+I_{\sigma^-}(\omega)\bigr)(1+\cos^2\!\alpha)
+\end{equation}\]</div>
+<p>Sections 3.2 –3.8  detail each ingredient of Eq. ([eq:field_profile] ); Section 3.10  extends this framework to include ion dynamics via the FFM.</p>
+</section>
+</section>
+<section id="radiator-hamiltonian-in-magnetic-fields">
+<span id="sec-radiator-h"></span><h2>Radiator Hamiltonian in Magnetic Fields<a class="headerlink" href="#radiator-hamiltonian-in-magnetic-fields" title="Link to this heading"></a></h2>
+<p>For each principal quantum number shell <span class="math notranslate nohighlight">\(n\)</span>, the atomic Hamiltonian <span class="math notranslate nohighlight">\(H_A\)</span> is constructed in the canonical uncoupled hydrogenic basis <span class="math notranslate nohighlight">\(|n, l, m_l, s{=}\tfrac{1}{2}, m_s\rangle\)</span> of dimension <span class="math notranslate nohighlight">\(2n^2\)</span>. Basis states are ordered by an outer loop over <span class="math notranslate nohighlight">\(l \in [0, n-1]\)</span>, an intermediate loop over <span class="math notranslate nohighlight">\(m_l \in [-l, l]\)</span>, and an inner loop over <span class="math notranslate nohighlight">\(m_s \in \{+\tfrac{1}{2}, -\tfrac{1}{2}\}\)</span>. Five physical contributions are assembled into a single matrix <a class="reference internal" href="manual_references.html#bethesalpeter" id="id2"><span>[bethesalpeter]</span></a>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+H_A = H_0 + H_{\rm SO} + H_{\rm FS} + H_Z^{(1)} + H_Z^{(2)}
+\end{equation}\]</div>
+<section id="unperturbed-hydrogenic-energy-h-0">
+<h3>Unperturbed Hydrogenic Energy (<span class="math notranslate nohighlight">\(H_0\)</span>)<a class="headerlink" href="#unperturbed-hydrogenic-energy-h-0" title="Link to this heading"></a></h3>
+<p>The diagonal unperturbed energy is corrected for the finite nuclear mass:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle n, l, m_l, m_s | H_0 | n, l, m_l, m_s \rangle = -\frac{Z^2\,\mathrm{Ry}_{\rm red}}{n^2},
+\qquad
+\mathrm{Ry}_{\rm red} = \mathrm{Ry}_{\infty}\,\frac{M_{\rm nuc}}{m_e + M_{\rm nuc}}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(M_{\rm nuc}\)</span> is the nuclear mass of the emitting isotope (fixed by its atomic mass number) and <span class="math notranslate nohighlight">\(\mathrm{Ry}_{\rm red}\)</span> the corresponding reduced-mass Rydberg constant. When <code class="docutils literal notranslate"><span class="pre">use_empirical_data=True</span></code> this analytic diagonal is replaced by NIST tabulated energies (Section 3.3 ).</p>
+</section>
+<section id="spin-orbit-coupling-h-rm-so">
+<h3>Spin-Orbit Coupling (<span class="math notranslate nohighlight">\(H_{\rm SO}\)</span>)<a class="headerlink" href="#spin-orbit-coupling-h-rm-so" title="Link to this heading"></a></h3>
+<p>The spin-orbit interaction <span class="math notranslate nohighlight">\(H_{\rm SO} = \xi_{nl}\,\vec{L}\cdot\vec{S}\)</span> couples orbital and spin angular momenta. The coupling constant for <span class="math notranslate nohighlight">\(l &gt; 0\)</span> is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\xi_{nl} = \frac{Z^4 \alpha^2\,\mathrm{Ry}_{\infty}}{n^3\,l\,(l + \tfrac{1}{2})\,(l + 1)}
+\end{equation}\]</div>
+<p>Using the ladder decomposition <span class="math notranslate nohighlight">\(\vec{L}\cdot\vec{S} = L_z S_z + \tfrac{1}{2}(L_+ S_- + L_- S_+)\)</span>, the matrix elements within a given <span class="math notranslate nohighlight">\(l\)</span>-subshell are:</p>
+<ul>
+<li><p><strong>Diagonal</strong> (<span class="math notranslate nohighlight">\(\Delta m_l = 0,\,\Delta m_s = 0\)</span>):</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    \langle l, m_l, m_s | H_{\rm SO} | l, m_l, m_s\rangle = \xi_{nl}\,m_l\,m_s\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+<li><p><strong>Off-diagonal</strong> (<span class="math notranslate nohighlight">\(\Delta m_l = \pm 1,\,\Delta m_s = \mp 1\)</span>): for <span class="math notranslate nohighlight">\(s = \tfrac{1}{2}\)</span> the spin ladder factor equals 1 for all allowed transitions:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    \langle l, m_l \pm 1, m_s \mp 1 | H_{\rm SO} | l, m_l, m_s\rangle
+    = \tfrac{1}{2}\,\xi_{nl}\sqrt{l(l+1) - m_l(m_l \pm 1)}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+</ul>
+</section>
+<section id="fine-structure-relativistic-corrections-h-rm-fs">
+<h3>Fine-Structure Relativistic Corrections (<span class="math notranslate nohighlight">\(H_{\rm FS}\)</span>)<a class="headerlink" href="#fine-structure-relativistic-corrections-h-rm-fs" title="Link to this heading"></a></h3>
+<p>To restore the Dirac degeneracy (e.g. <span class="math notranslate nohighlight">\(2s_{1/2}\)</span> and <span class="math notranslate nohighlight">\(2p_{1/2}\)</span>), the mass-velocity and Darwin terms are added <a class="reference internal" href="manual_references.html#bethesalpeter" id="id3"><span>[bethesalpeter]</span></a>. These are diagonal in <span class="math notranslate nohighlight">\(|n, l, m_l, m_s\rangle\)</span> and independent of <span class="math notranslate nohighlight">\(m_l\)</span> and <span class="math notranslate nohighlight">\(m_s\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+\langle l | H_{\rm FS} | l \rangle =
+\begin{cases}
+-A_{\rm FS}\!\left(n - \tfrac{3}{4}\right) &amp; l = 0 \\[6pt]
+-A_{\rm FS}\!\left(\dfrac{n}{l + \tfrac{1}{2}} - \tfrac{3}{4}\right) &amp; l &gt; 0
+\end{cases}
+\end{equation}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(A_{\rm FS} = Z^4\alpha^2\,\mathrm{Ry}_{\infty}/n^4\)</span>. The algebraic identity <span class="math notranslate nohighlight">\(H_{\rm SO} + H_{\rm FS}\)</span> reproduces the exact Dirac fine-structure eigenvalues for both <span class="math notranslate nohighlight">\(j = l \pm \tfrac{1}{2}\)</span>.</p>
+</section>
+<section id="linear-zeeman-effect-h-z-1">
+<h3>Linear Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(1)}\)</span>)<a class="headerlink" href="#linear-zeeman-effect-h-z-1" title="Link to this heading"></a></h3>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle m_l, m_s | H_Z^{(1)} | m_l, m_s \rangle = \mu_B B\,(m_l + g_s m_s)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mu_B \approx 5.788\times10^{-5}\)</span> eV/T and <span class="math notranslate nohighlight">\(g_s \approx 2.0023192\)</span>.</p>
+</section>
+<section id="quadratic-diamagnetic-zeeman-effect-h-z-2">
+<h3>Quadratic (Diamagnetic) Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(2)}\)</span>)<a class="headerlink" href="#quadratic-diamagnetic-zeeman-effect-h-z-2" title="Link to this heading"></a></h3>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+H_Z^{(2)} = \frac{e^2 B^2}{8 m_e}\,r^2\sin^2\theta
+\end{equation}\]</div>
+<p>This operator couples states with <span class="math notranslate nohighlight">\(\Delta l = 0\)</span> and <span class="math notranslate nohighlight">\(\Delta l = \pm 2\)</span>. The matrix elements factor into radial and angular parts:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle l_1, m_l | H_Z^{(2)} | l_2, m_l \rangle
+= \left(\frac{e^2 B^2 a_0^2}{8m_e}\right)
+  \langle n, l_1 | r^2 | n, l_2 \rangle\;
+  \langle l_1, m_l | \sin^2\theta | l_2, m_l \rangle
+\end{equation}\]</div>
+<ol class="arabic">
+<li><p><strong>Radial integrals</strong>:</p>
+<ul class="simple">
+<li><p>Diagonal (<span class="math notranslate nohighlight">\(l_1 = l_2 = l\)</span>): <span class="math notranslate nohighlight">\(\displaystyle\langle n, l | r^2 | n, l \rangle = \frac{n^2}{2Z^2}\bigl[5n^2+1-3l(l+1)\bigr]\;[a_0^2]\)</span></p></li>
+<li><p>Off-diagonal (<span class="math notranslate nohighlight">\(l_2 = l_1 \pm 2\)</span>): evaluated numerically via <span class="math notranslate nohighlight">\(\int_0^\infty R_{nl_1}\,r^4\,R_{nl_2}\,dr\)</span>, cached with <code class="docutils literal notranslate"><span class="pre">lru_cache</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Angular integrals</strong>:</p>
+<ul>
+<li><p>Diagonal: for <span class="math notranslate nohighlight">\(l=0\)</span>, <span class="math notranslate nohighlight">\(\langle\sin^2\theta\rangle = 2/3\)</span>; for <span class="math notranslate nohighlight">\(l&gt;0\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+        \langle l, m_l | \sin^2\theta | l, m_l \rangle
+        = 1 - \frac{2l^2 + 2l - 1 - 2m_l^2}{(2l-1)(2l+3)}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+<li><p>Off-diagonal (<span class="math notranslate nohighlight">\(l_2 = l_1 + 2\)</span>, <span class="math notranslate nohighlight">\(l_{\rm low} = \min(l_1,l_2)\)</span>): the constant term in <span class="math notranslate nohighlight">\(1 - \cos^2\theta\)</span> vanishes for orthogonal harmonics, leaving:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+        \langle l_1, m_l | \sin^2\theta | l_2, m_l \rangle
+        = -\sqrt{\frac{\bigl[(l_{\rm low}+1)^2 - m_l^2\bigr]
+                       \bigl[(l_{\rm low}+2)^2 - m_l^2\bigr]}
+                      {(2l_{\rm low}+1)(2l_{\rm low}+3)^2(2l_{\rm low}+5)}}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+</ul>
+</li>
+</ol>
+</section>
+</section>
+<section id="empirical-field-free-energies">
+<span id="sec-empirical"></span><h2>Empirical Field-Free Energies<a class="headerlink" href="#empirical-field-free-energies" title="Link to this heading"></a></h2>
+<p>The analytic diagonal <span class="math notranslate nohighlight">\(H_0 = -Z^2\,\mathrm{Ry}_{\mathrm{red}}/n^2\)</span>, together with the spin-orbit and fine-structure terms, reproduces the field-free level positions only to the accuracy of the hydrogenic Dirac formula. For quantitative line centers, <code class="docutils literal notranslate"><span class="pre">StarkZee</span></code> can instead inject <em>measured</em> field-free energies through the <code class="docutils literal notranslate"><span class="pre">use_empirical_data=True</span></code> flag (with the element symbol <code class="docutils literal notranslate"><span class="pre">atom</span></code>). The values are read from a tabulated database (<code class="docutils literal notranslate"><span class="pre">atomic_data.load_levels</span></code>) holding NIST level energies in wavenumbers [cm<span class="math notranslate nohighlight">\(^{-1}\)</span>], resolved by <span class="math notranslate nohighlight">\((n, l, j)\)</span>.  The database is stored in <code class="docutils literal notranslate"><span class="pre">starkzee/data/atomic_levels.json</span></code>; currently only hydrogen (<code class="docutils literal notranslate"><span class="pre">&quot;H&quot;</span></code>) is included.  Each top-level key is an atom symbol; the value is an object with two sections: <code class="docutils literal notranslate"><span class="pre">&quot;fine_structure_true&quot;</span></code> (entries with fields <code class="docutils literal notranslate"><span class="pre">n</span></code>, <code class="docutils literal notranslate"><span class="pre">l</span></code>, <code class="docutils literal notranslate"><span class="pre">j</span></code>, <code class="docutils literal notranslate"><span class="pre">energy</span></code>) and <code class="docutils literal notranslate"><span class="pre">&quot;fine_structure_false&quot;</span></code> (entries with fields <code class="docutils literal notranslate"><span class="pre">n</span></code>, <code class="docutils literal notranslate"><span class="pre">energy</span></code>).  All energies are in cm<span class="math notranslate nohighlight">\(^{-1}\)</span> above the ground state (NIST vacuum values).  Additional atoms can be supported by adding the corresponding entry to this file.  To refresh the bundled data from the NIST ASD levels query, run <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">scripts/update_nist_levels.py</span> <span class="pre">H</span> <span class="pre">--spectrum</span> <span class="pre">&quot;H</span> <span class="pre">I&quot;</span></code>.  The updater is a development tool: it writes the local JSON database and checks that each requested fine-structure shell contains all hydrogenic <code class="docutils literal notranslate"><span class="pre">(l,</span> <span class="pre">j)</span></code> states before replacing the data.  The empirical Hamiltonian is kept in cm<span class="math notranslate nohighlight">\(^{-1}\)</span> throughout this code path so that callers can work entirely in wavenumber units; all Zeeman contributions are also converted from eV to cm<span class="math notranslate nohighlight">\(^{-1}\)</span> before being added, keeping every term on the same scale.</p>
+<p>Because the field-free Hamiltonian is degenerate (the Dirac formula makes <span class="math notranslate nohighlight">\(2s_{1/2}\)</span> and <span class="math notranslate nohighlight">\(2p_{1/2}\)</span> coincide), the empirical energies cannot simply be written on the diagonal of the uncoupled <span class="math notranslate nohighlight">\(|n,l,m_l,m_s\rangle\)</span> basis: <code class="docutils literal notranslate"><span class="pre">numpy.linalg.eigh</span></code> is free to mix the degenerate <span class="math notranslate nohighlight">\(l\)</span> states arbitrarily. <code class="docutils literal notranslate"><span class="pre">StarkZee</span></code> therefore:</p>
+<ol class="arabic">
+<li><p>diagonalizes a degeneracy-broken field-free Hamiltonian (unperturbed energy <span class="math notranslate nohighlight">\(+\)</span> spin-orbit only, <em>omitting</em> the mass-velocity/Darwin term so that <span class="math notranslate nohighlight">\(l\)</span> remains a good label), yielding eigenvectors <span class="math notranslate nohighlight">\(V\)</span>;</p></li>
+<li><p>labels each coupled eigenstate <span class="math notranslate nohighlight">\(k\)</span> by its dominant orbital component <span class="math notranslate nohighlight">\(l\)</span> and its total angular momentum <span class="math notranslate nohighlight">\(j = l \pm \tfrac{1}{2}\)</span>, the branch being set by the sign of <span class="math notranslate nohighlight">\(\langle \vec{L}\cdot\vec{S}\rangle = (E_k - E_n)/\xi_{nl}\)</span>;</p></li>
+<li><p>assigns the tabulated energy <span class="math notranslate nohighlight">\(D_k = E^{\mathrm{emp}}(l, j)\)</span> [cm<span class="math notranslate nohighlight">\(^{-1}\)</span>] to each eigenstate and reconstructs the field-free Hamiltonian as</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    H_0^{\mathrm{emp}} = V\,\mathrm{diag}(D)\,V^\dagger \quad [\mathrm{cm}^{-1}].\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+</ol>
+<p>The Zeeman terms (<span class="math notranslate nohighlight">\(\mu_B B (m_l + g_s m_s)\)</span> and the diamagnetic correction) are converted from eV to cm<span class="math notranslate nohighlight">\(^{-1}\)</span> and added on top of <span class="math notranslate nohighlight">\(H_0^{\mathrm{emp}}\)</span>. Since the tabulated values are absolute level energies (ground state at <span class="math notranslate nohighlight">\(0\)</span>), transition wavenumbers follow directly as differences <span class="math notranslate nohighlight">\(E_u - E_l\)</span> and reproduce the observed NIST Lyman/Balmer line centers.</p>
+</section>
+<section id="full-electron-radiator-hamiltonian">
+<span id="sec-full-hamiltonian"></span><h2>Full Electron-Radiator Hamiltonian<a class="headerlink" href="#full-electron-radiator-hamiltonian" title="Link to this heading"></a></h2>
+<p>Under the quasi-static ion approximation, the radiator is subjected to a constant electric microfield <span class="math notranslate nohighlight">\(\vec{F}\)</span> at an angle <span class="math notranslate nohighlight">\(\theta\)</span> relative to the magnetic field <span class="math notranslate nohighlight">\(\vec{B}\)</span>. The microfield is decomposed into longitudinal (<span class="math notranslate nohighlight">\(F_z = F\cos\theta\)</span>) and transverse (<span class="math notranslate nohighlight">\(F_x = F\sin\theta\)</span>) components. The Stark interaction is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+V_E = -e\,\vec{r}\cdot\vec{F} = -e(z F_z + x F_x) = -\hat{\boldsymbol{d}}\cdot\vec{F}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\hat{\boldsymbol{d}} = e\vec{r}\)</span> is the electric dipole operator. The full electron-radiator Hamiltonian is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:full_hamiltonian}
+H = H_A + V_E = H_0 + V_\mathrm{SO} + H_Z^{(1)} + H_Z^{(2)} + V_E
+\end{equation}\]</div>
+<p><span class="math notranslate nohighlight">\(H_A\)</span> and <span class="math notranslate nohighlight">\(V_E\)</span> are assembled into a single matrix and diagonalized <em>as a whole</em> by <code class="docutils literal notranslate"><span class="pre">numpy.linalg.eigh</span></code> at every microfield quadrature point (<code class="docutils literal notranslate"><span class="pre">solve_starkzee</span></code>). The Stark interaction is <strong>not</strong> treated perturbatively: there is no expansion in powers of <span class="math notranslate nohighlight">\(V_E\)</span>. This exact treatment is essential when the Stark energy <span class="math notranslate nohighlight">\(eF\langle r\rangle_n\)</span> is comparable to the fine-structure or Zeeman splittings, yielding the Stark-dressed eigenstates <span class="math notranslate nohighlight">\(|k\rangle\)</span> and transition frequencies <span class="math notranslate nohighlight">\(\omega_k\)</span>.</p>
+<section id="stark-perturbation-matrix-elements">
+<h3>Stark Perturbation Matrix Elements<a class="headerlink" href="#stark-perturbation-matrix-elements" title="Link to this heading"></a></h3>
+<p>The selection rule for the within-shell Stark coupling is <span class="math notranslate nohighlight">\(\Delta n = 0\)</span>, <span class="math notranslate nohighlight">\(|l_i - l_j| = 1\)</span>, <span class="math notranslate nohighlight">\(\Delta m_s = 0\)</span>. In energy units [eV]:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle n, l_i, m_{l,i} | V_E | n, l_j, m_{l,j} \rangle
+= -\,\delta_{m_{s,i},m_{s,j}}\;
+  \langle n, l_i | r | n, l_j \rangle\;
+  \bigl\langle l_i, m_{l,i} \big| (z F_z + x F_x)/r \big| l_j, m_{l,j} \bigr\rangle
+\end{equation}\]</div>
+</section>
+<section id="radial-matrix-element">
+<h3>Radial matrix element.<a class="headerlink" href="#radial-matrix-element" title="Link to this heading"></a></h3>
+<p>For <span class="math notranslate nohighlight">\(l = \max(l_i, l_j)\)</span>, Gordon’s formula gives the within-shell radial dipole element exactly:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle n, l | r | n, l-1 \rangle = \frac{3n}{2Z}\sqrt{n^2 - l^2} \quad [a_0]
+\end{equation}\]</div>
+</section>
+<section id="angular-matrix-elements">
+<h3>Angular matrix elements.<a class="headerlink" href="#angular-matrix-elements" title="Link to this heading"></a></h3>
+<p>The angular factor is the spherical dipole tensor, written <span class="math notranslate nohighlight">\(z/r = T_0^{(1)}\)</span> and <span class="math notranslate nohighlight">\(x/r = (T_{-1}^{(1)} + T_{+1}^{(1)})/\sqrt{2}\)</span>. Its non-zero matrix elements (with <span class="math notranslate nohighlight">\(l = \max(l_1, l_2)\)</span>) are:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:Tq0}
+\langle l, m_l | T_0^{(1)} | l+1, m_l \rangle
+= \sqrt{\dfrac{(l+1)^2 - m_l^2}{(2l+1)(2l+3)}} \qquad (q=0,\ \Delta m_l = 0)
+\end{equation}\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+\label{eq:Tqp1}
+\langle l_1, m_{l,1} | T_{+1}^{(1)} | l_2, m_{l,2} \rangle =
+\begin{cases}
++\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} - 1)}{2(2l-1)(2l+1)}} &amp; l_1 = l_2 - 1 \\[8pt]
+-\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} + 1)}{2(2l-1)(2l+1)}} &amp; l_1 = l_2 + 1
+\end{cases}
+\qquad (q=+1,\ \Delta m_l = -1)
+\end{equation}\end{split}\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+\label{eq:Tqm1}
+\langle l_1, m_{l,1} | T_{-1}^{(1)} | l_2, m_{l,2} \rangle =
+\begin{cases}
+-\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} - 1)}{2(2l-1)(2l+1)}} &amp; l_1 = l_2 - 1 \\[8pt]
++\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} + 1)}{2(2l-1)(2l+1)}} &amp; l_1 = l_2 + 1
+\end{cases}
+\qquad (q=-1,\ \Delta m_l = +1)
+\end{equation}\end{split}\]</div>
+<p>These same three matrix elements reappear unchanged in the transition dipole operator (Section 3.5 ), since both the Stark coupling and the radiative dipole are built from the rank-1 tensor <span class="math notranslate nohighlight">\(T_q^{(1)}\)</span>. The Stark matrices <span class="math notranslate nohighlight">\(M_z\)</span> and <span class="math notranslate nohighlight">\(M_x\)</span> [eV/(V/m)] are precomputed once per <span class="math notranslate nohighlight">\((n, Z)\)</span> and cached (<code class="docutils literal notranslate"><span class="pre">_stark_templates</span></code>), so that <span class="math notranslate nohighlight">\(V_E = F_z M_z + F_x M_x\)</span> is formed at each quadrature point by a simple scalar multiplication.</p>
+</section>
+</section>
+<section id="transition-dipole-operator">
+<span id="sec-dipole-operator"></span><h2>Transition Dipole Operator<a class="headerlink" href="#transition-dipole-operator" title="Link to this heading"></a></h2>
+<p>The transition dipole matrices <span class="math notranslate nohighlight">\(D_q\)</span> (<span class="math notranslate nohighlight">\(q \in \{0,\pm1\}\)</span>) are built in the uncoupled basis <span class="math notranslate nohighlight">\(|n, l, m_l, s, m_s\rangle\)</span>. Selection rules require <span class="math notranslate nohighlight">\(\Delta l = \pm 1\)</span>, <span class="math notranslate nohighlight">\(\Delta m_l = q\)</span>, and <span class="math notranslate nohighlight">\(\Delta m_s = 0\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle n_l, l_l, m_{l,l}, m_{s,l} | D_q | n_u, l_u, m_{l,u}, m_{s,u} \rangle
+= \delta_{m_{s,l}, m_{s,u}}\;
+  \langle n_l, l_l | r | n_u, l_u \rangle\;
+  \langle l_l, m_{l,l} | T_q^{(1)} | l_u, m_{l,u} \rangle
+\end{equation}\]</div>
+<section id="angular-dipole-matrix-elements">
+<h3>Angular Dipole Matrix Elements<a class="headerlink" href="#angular-dipole-matrix-elements" title="Link to this heading"></a></h3>
+<p>The angular factors <span class="math notranslate nohighlight">\(\langle l_l, m_{l,l} | T_q^{(1)} | l_u, m_{l,u} \rangle\)</span> follow from the Wigner-Eckart theorem <a class="reference internal" href="manual_references.html#edmonds" id="id4"><span>[edmonds]</span></a>. They are exactly the rank-1 spherical-tensor matrix elements already written for the Stark coupling in Eqs. ([eq:Tq0] )–([eq:Tqm1] ), now evaluated between the lower and upper manifolds: <span class="math notranslate nohighlight">\(q=0\)</span> gives the <span class="math notranslate nohighlight">\(\pi\)</span> component (<span class="math notranslate nohighlight">\(\Delta m_l = 0\)</span>), <span class="math notranslate nohighlight">\(q=+1\)</span> the <span class="math notranslate nohighlight">\(\sigma^-\)</span> component (<span class="math notranslate nohighlight">\(\Delta m_l = -1\)</span>), and <span class="math notranslate nohighlight">\(q=-1\)</span> the <span class="math notranslate nohighlight">\(\sigma^+\)</span> component (<span class="math notranslate nohighlight">\(\Delta m_l = +1\)</span>).</p>
+</section>
+<section id="hydrogenic-radial-dipole-integrals-gordons-formula">
+<h3>Hydrogenic Radial Dipole Integrals (Gordon’s Formula)<a class="headerlink" href="#hydrogenic-radial-dipole-integrals-gordons-formula" title="Link to this heading"></a></h3>
+<p>For <span class="math notranslate nohighlight">\(n_u \neq n_l\)</span>, the inter-shell radial elements <span class="math notranslate nohighlight">\(\langle n_l, l_l | r | n_u, l_u \rangle\)</span> are evaluated exactly using Gordon’s (1929) analytical formula <a class="reference internal" href="manual_references.html#gordon" id="id5"><span>[gordon]</span></a>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{multline}
+\langle n_l, l_l | r | n_u, l_u \rangle
+= \frac{1}{Z}\,\frac{(-1)^{n_l - L}}{4(2L-1)!}
+  \sqrt{\frac{(n_u+L)!\,(n_l+L-1)!}{(n_u-L-1)!\,(n_l-L)!}} \\
+  \times\frac{(4 n_u n_l)^{L+1}(n_u-n_l)^{n_u+n_l-2L-2}}{(n_u+n_l)^{n_u+n_l}}
+  \left[F_1 - \left(\frac{n_u-n_l}{n_u+n_l}\right)^{\!2} F_2\right]
+\end{multline}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(L = \max(l_u, l_l)\)</span>, and <span class="math notranslate nohighlight">\(F_1\)</span>, <span class="math notranslate nohighlight">\(F_2\)</span> are terminating Gauss hypergeometric functions:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+F_1 &amp;= {}_2F_1\!\left(-n_u+L+1,\,-n_l+L,\,2L,\,-\frac{4 n_u n_l}{(n_u-n_l)^2}\right) \\
+F_2 &amp;= {}_2F_1\!\left(-n_u+L-1,\,-n_l+L,\,2L,\,-\frac{4 n_u n_l}{(n_u-n_l)^2}\right)
+\end{align}\end{split}\]</div>
+<p>Because the first argument in both hypergeometric functions is a non-positive integer, each series terminates as a finite sum:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+{}_2F_1(-m, b, c, x) = \sum_{k=0}^{m} \frac{(-m)_k\,(b)_k}{(c)_k\,k!}\,x^k
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\((-m)_k\)</span> is the Pochhammer symbol. This exact evaluation carries no integration cutoff error and is cached for reuse.</p>
+</section>
+</section>
+<section id="diagonalization-and-transition-dipole-basis-rotation">
+<span id="sec-diagonalization"></span><h2>Diagonalization and Transition Dipole Basis Rotation<a class="headerlink" href="#diagonalization-and-transition-dipole-basis-rotation" title="Link to this heading"></a></h2>
+<p>At each quadrature point <span class="math notranslate nohighlight">\((F, \mu)\)</span> the total Hamiltonians for both manifolds are:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+H_u(F,\mu) = H_{A,u} + V_{E,u}(F_z, F_x),
+\qquad
+H_l(F,\mu) = H_{A,l} + V_{E,l}(F_z, F_x)
+\end{equation}\]</div>
+<p>Diagonalization via <code class="docutils literal notranslate"><span class="pre">numpy.linalg.eigh</span></code> gives eigenvectors <span class="math notranslate nohighlight">\(V_u\)</span>, <span class="math notranslate nohighlight">\(V_l\)</span> and eigenvalues <span class="math notranslate nohighlight">\(E_u^p\)</span>, <span class="math notranslate nohighlight">\(E_l^k\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+V_u^\dagger H_u V_u = \mathrm{diag}(E_u^p),
+\qquad
+V_l^\dagger H_l V_l = \mathrm{diag}(E_l^k)
+\end{equation}\]</div>
+<p>The transition energy for each dressed-state pair <span class="math notranslate nohighlight">\((p \to k)\)</span> is <span class="math notranslate nohighlight">\(E_{pk} = E_u^p - E_l^k\)</span>. The uncoupled dipole matrices <span class="math notranslate nohighlight">\(D_q\)</span> are rotated into the mixed eigenstate bases:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+D'_q = V_l^\dagger\,D_q\,V_u,
+\qquad
+S_q(p,k) = |D'_q(k,p)|^2
+\end{equation}\]</div>
+<p>The weight <span class="math notranslate nohighlight">\(S_q(p,k)\)</span> and energy <span class="math notranslate nohighlight">\(E_{pk}\)</span> together define one Stark-Dressed Transition (SDT). The static profile at field configuration <span class="math notranslate nohighlight">\((F,\mu)\)</span> — Eq. ([eq:field_profile] ) — is then realized in practice as a sum over all SDTs weighted by the quadrature weight <span class="math notranslate nohighlight">\(W_{ij}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+I_q(\omega,F,\mu) = \sum_{p,k} W_{ij}\,S_q(p,k)\,\frac{\gamma_e/\pi}{(\omega - E_{pk})^2 + \gamma_e^2}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\gamma_e\)</span> is the electron-impact half-width of Section 3.8 .</p>
+</section>
+<section id="plasma-microfield-distributions">
+<span id="sec-microfield"></span><h2>Plasma Microfield Distributions<a class="headerlink" href="#plasma-microfield-distributions" title="Link to this heading"></a></h2>
+<p>The electric microfield is averaged over a probability distribution <span class="math notranslate nohighlight">\(W(F)\)</span>. The presence of <span class="math notranslate nohighlight">\(\vec{B}\)</span> breaks spherical symmetry, so the integration must be performed over both the field magnitude <span class="math notranslate nohighlight">\(F = |\vec{F}|\)</span> and the orientation <span class="math notranslate nohighlight">\(\mu = \cos\theta\)</span> between <span class="math notranslate nohighlight">\(\vec{F}\)</span> and <span class="math notranslate nohighlight">\(\vec{B}\)</span>.</p>
+<section id="the-hooper-screened-microfield-distribution">
+<h3>The Hooper Screened Microfield Distribution<a class="headerlink" href="#the-hooper-screened-microfield-distribution" title="Link to this heading"></a></h3>
+<p>To account for Debye screening of the ion Coulomb fields by surrounding plasma electrons, StarkZee implements the <strong>Hooper microfield distribution</strong> <a class="reference internal" href="manual_references.html#hooper" id="id6"><span>[hooper]</span></a>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+W(\beta, a) = \frac{2\beta}{\pi} \int_0^\infty y \sin(\beta y)\, T(y, a)\, dy
+\end{equation}\]</div>
+<p>where:</p>
+<ul>
+<li><p><span class="math notranslate nohighlight">\(\beta = F / F_0\)</span> is the reduced electric field strength.</p></li>
+<li><p><span class="math notranslate nohighlight">\(F_0\)</span> is the <strong>Holtsmark normal field strength</strong>, the Coulomb field of a single perturber at the mean inter-particle distance <span class="math notranslate nohighlight">\(r_e\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    F_0 = \frac{e}{4\pi\varepsilon_0 r_e^2}, \qquad r_e = \left(\frac{3}{4\pi N_e}\right)^{1/3}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+<li><p><span class="math notranslate nohighlight">\(a = r_e / \lambda_D\)</span> is the Debye screening parameter, where <span class="math notranslate nohighlight">\(\lambda_D\)</span> is the multi-species Debye length:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    \lambda_D = \sqrt{\frac{\varepsilon_0 k_B T_e}{N_e e^2 \bigl(1 + \sum_i X_i Z_i^2\bigr)}}\\\end{equation}\end{aligned}\end{align} \]</div>
+<p>with <span class="math notranslate nohighlight">\(X_i = N_i / N_e\)</span> the fractional ion concentration.</p>
+</li>
+<li><p><span class="math notranslate nohighlight">\(T(y, a) = \exp\!\bigl(-y^{3/2} S(y,a)\bigr)\)</span> is the screened characteristic function, with Debye screening factor:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    S(y, a) = \left(1 + \frac{1.5\,a^2}{y^2}\right)^{-3/4}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+</ul>
+<p>Setting <span class="math notranslate nohighlight">\(a = 0\)</span> yields <span class="math notranslate nohighlight">\(S = 1\)</span> and <span class="math notranslate nohighlight">\(T = \exp(-y^{3/2})\)</span>, recovering the unscreened <strong>Holtsmark distribution</strong> <span class="math notranslate nohighlight">\(W_H(\beta)\)</span>.</p>
+</section>
+<section id="the-potekhin-microfield-distribution">
+<h3>The Potekhin Microfield Distribution<a class="headerlink" href="#the-potekhin-microfield-distribution" title="Link to this heading"></a></h3>
+<p>The analytical fits of Potekhin et al. (2002) <a class="reference internal" href="manual_references.html#potekhin" id="id7"><span>[potekhin]</span></a> describe the cumulative distribution <span class="math notranslate nohighlight">\(Q(\beta)\)</span> and probability density <span class="math notranslate nohighlight">\(P(\beta)\)</span> for both screened (<span class="math notranslate nohighlight">\(s &gt; 0\)</span>) and unscreened (<span class="math notranslate nohighlight">\(s = 0\)</span>) potentials, for neutral and charged radiators, incorporating the ion-ion coupling parameter <span class="math notranslate nohighlight">\(\Gamma\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+Q(\beta) = \frac{q_0 \beta^3 - 1.33\,\beta^{9/2} + \beta^6}{q_1 + q_2 \beta^2 + q_3 \beta^3 - \tfrac{1}{3}\beta^{9/2} + \beta^6}
+\quad (s=0)
+\end{equation}\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+P(\beta) \approx \beta^2 S_N \!\left[ A\,e^{-a\beta^\alpha} + B\,e^{-b\beta^\gamma} + \frac{e^{-\Gamma\beta^{1/2}}}{1 + c\beta^{9/2}} \right]
+\quad (s&gt;0)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(q_n\)</span>, <span class="math notranslate nohighlight">\(A, a, \alpha, B, b, \gamma, c\)</span> are tabulated functions of <span class="math notranslate nohighlight">\(\Gamma\)</span> and <span class="math notranslate nohighlight">\(s\)</span>, and <span class="math notranslate nohighlight">\(S_N\)</span> is the normalization constant.</p>
+</section>
+<section id="quadrature-discretization">
+<h3>Quadrature Discretization<a class="headerlink" href="#quadrature-discretization" title="Link to this heading"></a></h3>
+<p>The double integral <span class="math notranslate nohighlight">\(\iint W(F,\mu)\,dF\,d\mu\)</span> (Eq. [eq:microfield_integral] ) is discretized as follows:</p>
+<ol class="arabic">
+<li><p><strong>Field magnitude :math:`F`</strong>: A uniform grid of <span class="math notranslate nohighlight">\(N_F\)</span> points in reduced field space <span class="math notranslate nohighlight">\(\beta_i \in [0, \beta_{\max}]\)</span> (default <span class="math notranslate nohighlight">\(\beta_{\max} = 10\)</span>):</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    F_i = \beta_i F_0, \qquad W_{F,i} = W(\beta_i, a)\,\Delta\beta,
+    \qquad \sum_i W_{F,i} = 1\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+<li><p><strong>Field orientation :math:`mu`</strong>: <span class="math notranslate nohighlight">\(N_\mu\)</span>-point <strong>Gauss-Legendre quadrature</strong> over <span class="math notranslate nohighlight">\([0, 1]\)</span>. Legendre roots <span class="math notranslate nohighlight">\(x_j \in [-1,1]\)</span> and weights <span class="math notranslate nohighlight">\(w_j\)</span> are mapped as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\begin{equation}
+    \mu_j = \frac{x_j + 1}{2}, \qquad W_{\mu,j} = \frac{w_j}{2}\\\end{equation}\end{aligned}\end{align} \]</div>
+</li>
+<li><p><strong>Combined weight</strong>: <span class="math notranslate nohighlight">\(W_{ij} = W_{F,i}\,W_{\mu,j}\)</span>. Points with <span class="math notranslate nohighlight">\(W_{ij} &lt; 10^{-15}\)</span> are skipped.</p></li>
+</ol>
+<p>so that at each active point the field decomposes into the longitudinal and transverse components seen by the radiator,</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+F_{z,ij} = F_i\,\mu_j, \qquad F_{x,ij} = F_i\sqrt{1 - \mu_j^2},
+\end{equation}\]</div>
+<p>which are passed directly to the Stark template (Section 3.4 ). The weight <span class="math notranslate nohighlight">\(W(\beta_i, a)\)</span> is drawn from whichever distribution the user selects — Holtsmark, Hooper, or Potekhin (above) — while the orientation quadrature is identical in every case.</p>
+</section>
+</section>
+<section id="electron-impact-broadening">
+<span id="sec-electron-impact"></span><h2>Electron Impact Broadening<a class="headerlink" href="#electron-impact-broadening" title="Link to this heading"></a></h2>
+<p>Fast-moving electrons are treated in the <em>impact</em> (completed-collision) approximation: each collision is completed in a time short compared to both the inverse linewidth and the mean inter-collision time. In this limit, successive collisions are statistically independent and their net effect on the line shape enters through a damping operator <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> in the Liouville-space resolvent (Eq. [eq:resolvent_broadened] ).</p>
+<section id="liouville-space-structure-of-phi-omega-and-connection-to-langle-r-2-rangle">
+<h3>Liouville-space structure of <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> and connection to <span class="math notranslate nohighlight">\(\langle r^2\rangle\)</span><a class="headerlink" href="#liouville-space-structure-of-phi-omega-and-connection-to-langle-r-2-rangle" title="Link to this heading"></a></h3>
+<p>In the no-quenching approximation (electron collisions do not mix the upper and lower radiating manifolds), the operator <span class="math notranslate nohighlight">\(\Phi\)</span> in Liouville space factorizes as a sum of independent contributions from each manifold:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:phi_liouville}
+\Phi(\omega) = \tfrac{1}{2}\bigl(\Phi_u(\omega)\otimes\hat{I}^d + \hat{I}\otimes\Phi_l^d(\omega)\bigr)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\Phi_u\)</span> and <span class="math notranslate nohighlight">\(\Phi_l\)</span> are self-energy operators acting within the upper (<span class="math notranslate nohighlight">\(n_u\)</span>) and lower (<span class="math notranslate nohighlight">\(n_l\)</span>) manifolds respectively.</p>
+<p>The GBK semi-classical model evaluates <span class="math notranslate nohighlight">\(\Phi_n\)</span> from the leading long-range term of the electron–radiator interaction, which is the dipole–dipole coupling <span class="math notranslate nohighlight">\(V_{ee} \propto r_{\rm atom}^2 / r_e^3\)</span>. Averaging over the Maxwell–Boltzmann distribution of electron impact parameters and velocities, this yields a self-energy proportional to the <em>operator</em> <span class="math notranslate nohighlight">\(r_n^2\)</span> within shell <span class="math notranslate nohighlight">\(n\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:phi_r2}
+\Phi_n(\omega) = W_0(\omega)\,r_n^2\,\bigl[C_n + G(\omega)\bigr]
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(r_n^2\)</span> is the mean-square-displacement operator within shell <span class="math notranslate nohighlight">\(n\)</span>, <span class="math notranslate nohighlight">\(W_0\)</span> is the density-temperature prefactor (below), and <span class="math notranslate nohighlight">\(G(\omega)\)</span> is the frequency-dependent GBK factor (below). The <span class="math notranslate nohighlight">\(r^2\)</span> dependence is the direct quantum-mechanical trace of the dipole-coupling cross-section: a state with larger electronic extent couples more strongly to a passing electron.</p>
+<p>Rotating to the SDT basis via the eigenvectors of <span class="math notranslate nohighlight">\(H_n(F,\mu)\)</span> (Section 3.6 ) makes <span class="math notranslate nohighlight">\(\Phi_n\)</span> approximately diagonal, since the dressed-state splitting <span class="math notranslate nohighlight">\(\omega_{kk'}\)</span> is generally large compared to the collision rate. The diagonal element for upper dressed state <span class="math notranslate nohighlight">\(|k\rangle\)</span> is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:gamma_k}
+\gamma_k^{(u)} = W_0\,\langle k\,|\,r_u^2\,|\,k\rangle\,\bigl[C_{n_u} + G(\Delta E_k)\bigr]
+\end{equation}\]</div>
+<p>The resolvent <span class="math notranslate nohighlight">\((\omega\hat{I} - L(F,\mu) - i\Phi(\omega))^{-1}\)</span> then has eigenvalues <span class="math notranslate nohighlight">\((\omega - \omega_k - i\gamma_k)^{-1}\)</span> in the SDT basis, and Eq. ([eq:field_profile] ) reduces directly to the Lorentzian sum of Eq. ([eq:profile_sum] ).</p>
+</section>
+<section id="shell-average-approximation">
+<h3>Shell-average approximation.<a class="headerlink" href="#shell-average-approximation" title="Link to this heading"></a></h3>
+<p>Computing the per-SDT matrix element <span class="math notranslate nohighlight">\(\langle k | r_u^2 | k \rangle\)</span> exactly requires rotating the <span class="math notranslate nohighlight">\(r^2\)</span> operator to each dressed-state basis at every quadrature point (<code class="docutils literal notranslate"><span class="pre">electron_operator=True</span></code>). The default approximation replaces <span class="math notranslate nohighlight">\(\langle k | r_u^2 | k \rangle\)</span> by the shell average <span class="math notranslate nohighlight">\(\langle r^2 \rangle_{n_u}\)</span>, giving a single homogeneous half-width:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\gamma_e(\Delta E) = W_0\,\langle r^2 \rangle_{n_u} \bigl[ C_{n_u} + G(\Delta E) \bigr]
+\end{equation}\]</div>
+<p>The lower-manifold contribution <span class="math notranslate nohighlight">\(\gamma_k^{(l)}\)</span> is retained in principle through Eq. ([eq:phi_liouville] ); in practice, for Balmer lines (<span class="math notranslate nohighlight">\(n_l=2\)</span>, <span class="math notranslate nohighlight">\(\langle r^2\rangle_2 = 12\,a_0^2\)</span>) it is a factor <span class="math notranslate nohighlight">\({\sim}3\)</span> smaller than the <span class="math notranslate nohighlight">\(n_u=3\)</span> upper term and is dominated by the latter.</p>
+</section>
+<section id="density-temperature-prefactor">
+<h3>Density-Temperature Prefactor<a class="headerlink" href="#density-temperature-prefactor" title="Link to this heading"></a></h3>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+W_0 = \frac{4\pi}{3}\,N_e\sqrt{\frac{2m_e}{\pi k_B T_e}}
+      \left(\frac{\hbar}{m_e}\right)^{\!2}\frac{\hbar}{e}
+\quad [\mathrm{eV}\,a_0^{-2}]
+\end{equation}\]</div>
+<p>The <span class="math notranslate nohighlight">\(\hbar/e\)</span> factor converts rad s<span class="math notranslate nohighlight">\(^{-1}\)</span> to eV.</p>
+</section>
+<section id="shell-averaged-mean-square-radius">
+<h3>Shell-Averaged Mean-Square Radius<a class="headerlink" href="#shell-averaged-mean-square-radius" title="Link to this heading"></a></h3>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle r^2 \rangle_n = \frac{1}{n^2}\sum_{l=0}^{n-1}(2l+1)\,\frac{n^2}{2Z^2}\bigl[5n^2+1-3l(l+1)\bigr]\,a_0^2
+\end{equation}\]</div>
+<p>This expression scales as <span class="math notranslate nohighlight">\(n^4/Z^2\)</span> and is <em>not</em> replaced by an approximate constant.</p>
+</section>
+<section id="strong-collision-constant">
+<h3>Strong-Collision Constant<a class="headerlink" href="#strong-collision-constant" title="Link to this heading"></a></h3>
+<p>Values from Ferri, Peyrusse &amp; Calisti <a class="reference internal" href="manual_references.html#ferri" id="id8"><span>[ferri]</span></a>, Table 1:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+C_n =
+\begin{cases}
+1.50 &amp; n \le 2 \\
+1.00 &amp; n = 3 \\
+0.75 &amp; n = 4 \\
+0.50 &amp; n = 5 \\
+0.40 &amp; n \ge 6
+\end{cases}
+\end{equation}\end{split}\]</div>
+</section>
+<section id="dynamical-gbk-factor">
+<h3>Dynamical GBK Factor<a class="headerlink" href="#dynamical-gbk-factor" title="Link to this heading"></a></h3>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+G(\Delta E) = \frac{1}{2}\,E_1\!\left(y(\Delta E)\right),
+\qquad
+y(\Delta E) = \left(\frac{n^2}{2Z}\right)^{\!2}
+              \frac{\Delta E^2 + E_c^2}{\mathrm{Ry}_\infty\,T_e}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\Delta E = E - E_{pk}\)</span> [eV] is the detuning from the transition center, <span class="math notranslate nohighlight">\(E_c = \hbar\omega_c\)</span> [eV] is the cutoff energy, <span class="math notranslate nohighlight">\(\mathrm{Ry}_\infty \approx 13.606\)</span> eV is the Rydberg energy (<span class="math notranslate nohighlight">\(e^2/2a_0\)</span>, the ionization energy of hydrogen), and <span class="math notranslate nohighlight">\(E_1(x)\)</span> is the first-order exponential integral function defined for <span class="math notranslate nohighlight">\(x &gt; 0\)</span> by:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+E_1(x) = \int_x^\infty \frac{e^{-t}}{t}\, dt
+\end{equation}\]</div>
+</section>
+<section id="cutoff-frequency">
+<h3>Cutoff frequency.<a class="headerlink" href="#cutoff-frequency" title="Link to this heading"></a></h3>
+<p>The collision integral diverges logarithmically at large impact parameters unless truncated at a maximum <span class="math notranslate nohighlight">\(\rho_{\max}\)</span>, or equivalently at a lower cutoff <span class="math notranslate nohighlight">\(\omega_c = v_{\rm th}/\rho_{\max}\)</span> <a class="reference internal" href="manual_references.html#griem1959" id="id9"><span>[griem1959]</span></a>. StarkZee follows the formulation of Ferri, Peyrusse &amp; Calisti <a class="reference internal" href="manual_references.html#ferri" id="id10"><span>[ferri]</span></a>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\omega_c = \max\!\left(\omega_p,\;\omega_e,\;\omega_L,\;\omega_{\alpha\alpha'}\right)
+\end{equation}\]</div>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\omega_p = \sqrt{N_e e^2/(\varepsilon_0 m_e)}\)</span> — <strong>electron plasma frequency</strong>: Debye screening suppresses interactions at <span class="math notranslate nohighlight">\(\rho &gt; \lambda_D = v_{\rm th}/\omega_p\)</span>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\omega_e = v_{\rm th}/r_e\)</span> — <strong>configuration-change frequency</strong>: the impact approximation requires each collision to be completed before the surrounding electron configuration changes appreciably. At high density or low <span class="math notranslate nohighlight">\(T_e\)</span> this can be shorter than the Debye timescale (see Section 3.8.6 ).</p></li>
+<li><p><span class="math notranslate nohighlight">\(\omega_L = eB/m_e\)</span> — <strong>electron Larmor frequency</strong>: in <span class="math notranslate nohighlight">\(\vec{B}\)</span>, electrons follow helical trajectories, reducing the effective interaction duration.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\omega_{\alpha\alpha'}\)</span> — <strong>emitter level-splitting frequency</strong>: zero for hydrogen (degenerate <span class="math notranslate nohighlight">\(l\)</span>-subshells).</p></li>
+</ul>
+<p>The largest frequency dominates, imposing the tightest bound on <span class="math notranslate nohighlight">\(\rho_{\max}\)</span>.</p>
+</section>
+<section id="frequency-dependent-vs-resonance-center-width">
+<h3>Frequency-dependent vs. resonance-center width.<a class="headerlink" href="#frequency-dependent-vs-resonance-center-width" title="Link to this heading"></a></h3>
+<p>When <code class="docutils literal notranslate"><span class="pre">frequency_dependent_width=True</span></code> (default), <span class="math notranslate nohighlight">\(\gamma_e(\Delta E)\)</span> is evaluated at the actual detuning of each transition component using the full <span class="math notranslate nohighlight">\(E_1(y(\Delta E))\)</span> function. Setting this flag to <code class="docutils literal notranslate"><span class="pre">False</span></code> fixes the width at the line-center value <span class="math notranslate nohighlight">\(\gamma_e(0)\)</span>, which reduces computation time at the cost of accuracy in the far wings.</p>
+<p>This single half-width <span class="math notranslate nohighlight">\(\gamma_e(\Delta E)\)</span> is the only quantity the electron model hands to the profile builder; how it is applied to each Stark-dressed transition is described in Section 3.9 .</p>
+</section>
+<section id="zest-electron-broadening-variant-electron-model-zest">
+<span id="sec-zest-electron"></span><h3>ZEST electron broadening variant (<code class="docutils literal notranslate"><span class="pre">electron_model=’zest’</span></code>)<a class="headerlink" href="#zest-electron-broadening-variant-electron-model-zest" title="Link to this heading"></a></h3>
+<p>Activating <code class="docutils literal notranslate"><span class="pre">electron_model=’zest’</span></code> in <code class="docutils literal notranslate"><span class="pre">LineProfile.compute_profile</span></code> switches to the electron broadening model of the ZEST code <a class="reference internal" href="manual_references.html#gilleron2018" id="id11"><span>[Gilleron2018]</span></a>. The formula has the same structure as the default GBK expression but replaces the full shell-averaged <span class="math notranslate nohighlight">\(\langle r^2 \rangle_n\)</span> with the <em>intra-shell</em> mean-square radius:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\gamma_e^\text{ZEST}(\Delta E) = W_\mathrm{pref}\,\langle r^2_\mathrm{intra} \rangle_n
+\left[ G_n + G_\mathrm{ZEST}(\Delta E) \right]
+\end{equation}\]</div>
+</section>
+<section id="physical-justification-delta-n-0-interaction-channels">
+<h3>Physical justification — <span class="math notranslate nohighlight">\(\Delta n = 0\)</span> interaction channels.<a class="headerlink" href="#physical-justification-delta-n-0-interaction-channels" title="Link to this heading"></a></h3>
+<p>The ZEST paper (Section 2.1 of <a class="reference internal" href="manual_references.html#gilleron2018" id="id12"><span>[Gilleron2018]</span></a>) adopts two approximations that together restrict the electron broadening operator to within-shell matrix elements:</p>
+<ol class="arabic simple">
+<li><p><strong>No-quenching approximation</strong>: perturbers may not induce transitions between the lower and upper manifolds participating in the radiator emission process.</p></li>
+<li><p><strong>:math:`Delta n = 0` interaction channels</strong>: “only states belonging to the same Layzer complex [same principal quantum number <span class="math notranslate nohighlight">\(n\)</span>] may be mixed by Stark and/or Zeeman effects.”</p></li>
+</ol>
+<p>A Layzer complex is the set of all <span class="math notranslate nohighlight">\(n^2\)</span> states sharing principal quantum number <span class="math notranslate nohighlight">\(n\)</span>. These two restrictions reduce the formal sum over all intermediate states in the broadening operator to within-shell dipole matrix elements only, directly yielding <span class="math notranslate nohighlight">\(\langle r^2_\mathrm{intra}\rangle_n\)</span> in place of the full <span class="math notranslate nohighlight">\(\langle r^2\rangle_n\)</span>. The restriction is also automatic from the GBK dynamical factor: an inter-shell detuning (e.g. the <span class="math notranslate nohighlight">\(n=3 \to n=2\)</span> gap of <span class="math notranslate nohighlight">\(\approx 1.89\)</span> eV at the conditions of Fig. 2) drives <span class="math notranslate nohighlight">\(G(\Delta\omega_\mathrm{inter}) \to 0\)</span> exponentially, so inter-shell contributions vanish regardless of the explicit approximation.</p>
+</section>
+<section id="intra-shell-squared-radius">
+<h3>Intra-shell squared radius.<a class="headerlink" href="#intra-shell-squared-radius" title="Link to this heading"></a></h3>
+<p>Starting from the intra-shell radial element <span class="math notranslate nohighlight">\(\langle n,l|r|n,l{\pm}1\rangle = \tfrac{3n}{2Z}\sqrt{n^2-(l\pm1)^2}\)</span> and angular weight factors <span class="math notranslate nohighlight">\(C(l,l+1)=(l+1)/(2l+1)\)</span>, <span class="math notranslate nohighlight">\(C(l,l-1)=l/(2l+1)\)</span>, the per-<span class="math notranslate nohighlight">\(l\)</span> intra-shell sum is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+r^2_{\mathrm{intra},l} = \frac{9n^2}{4Z^2}\bigl(n^2 - l(l+1) - 1\bigr)
+\quad [a_0^2]
+\end{equation}\]</div>
+<p>This formula holds for all <span class="math notranslate nohighlight">\(l \in [0, n-1]\)</span>, including the boundary cases <span class="math notranslate nohighlight">\(l=0\)</span> (no <span class="math notranslate nohighlight">\(l-1\)</span> neighbor) and <span class="math notranslate nohighlight">\(l=n-1\)</span> (no <span class="math notranslate nohighlight">\(l+1\)</span> neighbor). Averaging over the <span class="math notranslate nohighlight">\(n^2\)</span> spatial states with <span class="math notranslate nohighlight">\((2l+1)\)</span> weight yields the exact closed form:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\langle r^2_\mathrm{intra}\rangle_n = \frac{9n^2(n^2-1)}{8Z^2}
+\quad [a_0^2]
+\end{equation}\]</div>
+<p>Numerical values for H (<span class="math notranslate nohighlight">\(Z=1\)</span>): <span class="math notranslate nohighlight">\(n=2\)</span>: 13.5 <span class="math notranslate nohighlight">\(a_0^2\)</span>; <span class="math notranslate nohighlight">\(n=3\)</span>: 81 <span class="math notranslate nohighlight">\(a_0^2\)</span>; <span class="math notranslate nohighlight">\(n=4\)</span>: 270 <span class="math notranslate nohighlight">\(a_0^2\)</span>. These are smaller than the full shell averages (33, 153, 468 <span class="math notranslate nohighlight">\(a_0^2\)</span>) by factors of 0.41, 0.53, and 0.58, respectively.</p>
+</section>
+<section id="maximum-wave-number-cutoff-kappa-m">
+<h3>Maximum wave-number cutoff <span class="math notranslate nohighlight">\(\kappa_m\)</span>.<a class="headerlink" href="#maximum-wave-number-cutoff-kappa-m" title="Link to this heading"></a></h3>
+<p>The PPPB model fixes the minimum impact parameter as <span class="math notranslate nohighlight">\(\rho_\mathrm{min} = n^2 a_0/(2Z)\)</span> (Bohr orbit) and uses a combined cutoff <span class="math notranslate nohighlight">\(\omega_c = \max(\omega_p, \omega_e, \omega_L)\)</span>. The ZEST convention instead defines a temperature-dependent wave-number upper limit</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:kappa_m}
+\kappa_m = \min\!\left(\frac{Z}{n^2 a_0},\;\frac{Z\sqrt{2m_e k_B T_e}}{\hbar n^2}\right)
+\end{equation}\]</div>
+<p>The geometric branch <span class="math notranslate nohighlight">\(Z/(n^2 a_0)\)</span> dominates above <span class="math notranslate nohighlight">\(T_e \approx \mathrm{Ry}_\infty \approx 13.6\)</span> eV; below that the thermal de Broglie branch takes over. The only cutoff frequency retained in all ZEST G-functions is the electron plasma frequency <span class="math notranslate nohighlight">\(\omega_p\)</span> (no <span class="math notranslate nohighlight">\(\omega_e\)</span> or <span class="math notranslate nohighlight">\(\omega_L\)</span> terms), so <span class="math notranslate nohighlight">\(B\)</span> does not enter the ZEST broadening directly.</p>
+</section>
+<section id="g-function-choices-electron-model-selector">
+<h3>G-function choices (<code class="docutils literal notranslate"><span class="pre">electron_model</span></code> selector).<a class="headerlink" href="#g-function-choices-electron-model-selector" title="Link to this heading"></a></h3>
+<p>Three alternatives are available for the dynamical factor <span class="math notranslate nohighlight">\(G(\Delta\omega)\)</span> in Eq. ([eq:gamma_k] ), all sharing <span class="math notranslate nohighlight">\(\langle r^2_\mathrm{intra}\rangle_n\)</span>, the same <span class="math notranslate nohighlight">\(G_n = C_n\)</span> strong-collision constants, and <span class="math notranslate nohighlight">\(\kappa_m\)</span> as defined above.</p>
+<p><em>``zest`` / ``zest-gbk`` (default ZEST).</em> Closed-form exponential integral with a <span class="math notranslate nohighlight">\(\kappa_m\)</span>-derived argument:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:G_zest_gbk}
+G_\mathrm{GBK}(\Delta\omega) = \tfrac{1}{2}\,E_1\!\left(\frac{\Delta\omega^2 + \omega_p^2}{2\,x^2\,\omega_p^2}\right),
+\qquad x = \kappa_m \lambda_D
+\end{equation}\]</div>
+<p>This has the same <span class="math notranslate nohighlight">\(E_1\)</span> structure as the PPPB formula but with <span class="math notranslate nohighlight">\(x = \kappa_m\lambda_D\)</span> playing the role of <span class="math notranslate nohighlight">\(\rho_\mathrm{min}/\lambda_D\)</span>, and only <span class="math notranslate nohighlight">\(\omega_p\)</span> in the additive term.</p>
+<p><em>``zest-lee``.</em> Analytical <em>min</em>-blend of the impact (<span class="math notranslate nohighlight">\(\Delta\omega \to 0\)</span>) and wing (<span class="math notranslate nohighlight">\(\Delta\omega \to \infty\)</span>) limits:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align}
+G_0 &amp;= \tfrac{1}{2}\!\left[\ln(1+x^2) - \frac{x^2}{1+x^2}\right], \notag\\
+G_\infty(\Delta\omega) &amp;= \tfrac{1}{2}\,E_1\!\left(\frac{\Delta\omega^2}{2\,x^2\,\omega_p^2}\right), \notag\\
+G_\mathrm{Lee}(\Delta\omega) &amp;= \min\bigl(G_0,\,G_\infty(\Delta\omega)\bigr)
+\label{eq:G_lee}
+\end{align}\end{split}\]</div>
+<p><span class="math notranslate nohighlight">\(G_0\)</span> (the line-center plateau) provides the plasma-cutoff floor; the <span class="math notranslate nohighlight">\(E_1\)</span> wing term contains only <span class="math notranslate nohighlight">\(\Delta\omega^2\)</span> (no <span class="math notranslate nohighlight">\(+\omega_p^2\)</span>) because the regularization is already captured by <span class="math notranslate nohighlight">\(G_0\)</span>. At large detuning the two forms agree.</p>
+<p><em>``zest-dufty``.</em> Full random-phase-approximation (RPA) numerical integration accounting for Landau damping:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:G_dufty}
+G_\mathrm{Dufty}(\Delta\omega) = \int_{\kappa_\mathrm{min}}^{\kappa_m}
+  \frac{e^{-x^2}}{\kappa\,|\varepsilon(\kappa,\Delta\omega)|^2}\,d\kappa,
+\qquad x = \frac{|\Delta\omega|}{\kappa\,v_\mathrm{th}},
+\quad v_\mathrm{th} = \sqrt{\frac{2k_BT_e}{m_e}}
+\end{equation}\]</div>
+<p>where the longitudinal RPA dielectric function is</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\varepsilon(\kappa,\Delta\omega)
+  = 1 + \frac{1}{(\kappa\lambda_D)^2}
+    \Bigl[1 - 2x\,\mathcal{D}(x) + i\sqrt{\pi}\,x\,e^{-x^2}\Bigr]
+\end{equation}\]</div>
+<p>and <span class="math notranslate nohighlight">\(\mathcal{D}(x) = e^{-x^2}\!\int_0^x e^{t^2}\,dt\)</span> is the Dawson function. The lower limit <span class="math notranslate nohighlight">\(\kappa_\mathrm{min} = |\Delta\omega|/(10\,v_\mathrm{th})\)</span> removes the static (<span class="math notranslate nohighlight">\(\kappa \to 0\)</span>) divergence. This is the most accurate of the three models but evaluates one numerical quadrature per frequency point.</p>
+<p>In practice the three G-functions give nearly identical line cores; differences appear in the far wings where Landau damping becomes significant.</p>
+</section>
+</section>
+<section id="profile-accumulation">
+<span id="sec-profile-accumulation"></span><h2>Profile Accumulation<a class="headerlink" href="#profile-accumulation" title="Link to this heading"></a></h2>
+<p>Each Stark-dressed transition <span class="math notranslate nohighlight">\((p \to k, q)\)</span> is broadened by a Lorentzian of HWHM <span class="math notranslate nohighlight">\(\gamma_e(\Delta E)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+L_{pk}(\Delta E) = \frac{1}{\pi}\,\frac{\gamma_e(\Delta E)}{\Delta E^2 + \gamma_e(\Delta E)^2}
+\end{equation}\]</div>
+<p>The three polarization profiles are accumulated by vectorized summation over all microfield quadrature points and all SDTs:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\label{eq:profile_sum}
+P_q(E) = \sum_i W_{F,i} \sum_j W_{\mu,j} \sum_{p,k} S_q(p,k)\,L_{pk}\!\left(E - E_{pk}\right)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(q{=}0 \to P_\pi\)</span>, <span class="math notranslate nohighlight">\(q{=}{-1} \to P_{\sigma^+}\)</span> (blue), <span class="math notranslate nohighlight">\(q{=}{+1} \to P_{\sigma^-}\)</span> (red). This direct summation realizes Eq. ([eq:microfield_integral] ) in practice, with the frequency-dependent half-width <span class="math notranslate nohighlight">\(\gamma_e(\Delta E)\)</span> of Section 3.8  evaluated at the detuning of each <span class="math notranslate nohighlight">\((E, E_{pk})\)</span> pair. The three accumulated channels are the polarization profiles <span class="math notranslate nohighlight">\(I_\pi, I_{\sigma^+}, I_{\sigma^-}\)</span> entering the observed intensity of Eq. ([eq:stokes] ); for a line of sight at angle <span class="math notranslate nohighlight">\(\alpha\)</span> to <span class="math notranslate nohighlight">\(\vec{B}\)</span> they combine as <span class="math notranslate nohighlight">\(P_\pi\sin^2\!\alpha + \tfrac{1}{2}(P_{\sigma^+}+P_{\sigma^-})(1+\cos^2\!\alpha)\)</span>.</p>
+</section>
+<section id="frequency-fluctuation-model-ffm">
+<span id="sec-ffm"></span><h2>Frequency Fluctuation Model (FFM)<a class="headerlink" href="#frequency-fluctuation-model-ffm" title="Link to this heading"></a></h2>
+<p>The profile assembled in Section 3.9  treats the ionic microfield as frozen during emission. When the ions move appreciably on the emission timescale, that quasi-static average must be replaced by a dynamic one, and the FFM provides this without rebuilding the atomic calculation. Dynamic ion motion causes the static microfield to fluctuate over time; in the FFM <a class="reference internal" href="manual_references.html#talin" id="id13"><span>[talin]</span></a> this is modeled as a stationary Markovian process that mixes the Stark-dressed transition components at rate <span class="math notranslate nohighlight">\(\nu_i\)</span>.</p>
+<p>The Stark-Zeeman Hamiltonian <span class="math notranslate nohighlight">\(H = H_A + V_E\)</span> is still diagonalized at each field configuration <span class="math notranslate nohighlight">\((F,\mu)\)</span>, producing dressed-state frequencies <span class="math notranslate nohighlight">\(\omega_k\)</span> and dipole weights <span class="math notranslate nohighlight">\(|d_k|^2\)</span> — the Stark-Dressed Transitions (SDTs). This step is purely static: <span class="math notranslate nohighlight">\(\omega_k\)</span> and <span class="math notranslate nohighlight">\(|d_k|^2\)</span> depend only on the instantaneous ion field. Fast electron collisions add a homogeneous Lorentzian half-width <span class="math notranslate nohighlight">\(\gamma_k\)</span> to each SDT (the GBK width from Section 3.8 ), acting on a timescale short enough that the ion configuration does not change during a single collision. Ion dynamics enter exclusively through <span class="math notranslate nohighlight">\(\nu_i\)</span>, estimated as the inverse time for an ion to cross the mean ion spacing at its thermal speed:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\nu_i = \frac{v_{th}}{r_i}, \qquad v_{th} = \sqrt{\frac{2 k_B T_i}{m_i}}, \qquad r_i = \left(\frac{3}{4\pi N_i}\right)^{1/3}
+\end{equation}\]</div>
+<p>The dynamic line profile is then given by the Sherman-Morrison form:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+I(\omega) = \frac{r^2}{\pi} \text{Re} \frac{S(\omega)}{1 - \nu_i S(\omega)}
+\end{equation}\]</div>
+<p>with the static propagator sum:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+S(\omega) = \sum_k \frac{p_k}{\nu_i + \gamma_k + i(\omega - \omega_k)}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(p_k = |d_k|^2 / r^2\)</span> are the normalized SDT weights and <span class="math notranslate nohighlight">\(r^2 = \sum_k |d_k|^2\)</span>. The limit <span class="math notranslate nohighlight">\(\nu_i \to 0\)</span> recovers the static profile; <span class="math notranslate nohighlight">\(\nu_i \to \infty\)</span> gives a single Lorentzian (motional narrowing).</p>
+</section>
+<section id="thermal-doppler-broadening">
+<span id="sec-doppler"></span><h2>Thermal Doppler Broadening<a class="headerlink" href="#thermal-doppler-broadening" title="Link to this heading"></a></h2>
+<p>Thermal motion of the radiating ions causes each photon frequency to be Doppler-shifted by <span class="math notranslate nohighlight">\(\delta\omega = \omega_0\, v_z/c\)</span>. Averaging over a Maxwell–Boltzmann velocity distribution yields a Gaussian line shape with <span class="math notranslate nohighlight">\(1/e\)</span> half-width</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\Delta\omega_D = \omega_0 \sqrt{\frac{2 k_B T_i}{m_\mathrm{ion} c^2}}
+\qquad\Longleftrightarrow\qquad
+\Delta E_D = E_0 \sqrt{\frac{2 T_i}{m_\mathrm{ion} c^2 / e}}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(T_i\)</span> is the ion temperature, <span class="math notranslate nohighlight">\(m_\mathrm{ion}\)</span> the emitter mass, and <span class="math notranslate nohighlight">\(E_0\)</span> the transition energy in eV. For H Balmer-<span class="math notranslate nohighlight">\(\alpha\)</span> at <span class="math notranslate nohighlight">\(T_i = 5\)</span> eV, this gives <span class="math notranslate nohighlight">\(\Delta E_D \approx 0.062\)</span> meV — comparable to the Zeeman splitting at 1 T and negligible relative to the Stark width at <span class="math notranslate nohighlight">\(N_e \sim 10^{23}\)</span> m<span class="math notranslate nohighlight">\(^{-3}\)</span>.</p>
+<p>The two calculation paths apply Doppler broadening at different stages.</p>
+<section id="ffm-path-calculate-ffm-profile">
+<h3>FFM path (<code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile</span></code>)<a class="headerlink" href="#ffm-path-calculate-ffm-profile" title="Link to this heading"></a></h3>
+<p>When <code class="docutils literal notranslate"><span class="pre">apply_doppler=True</span></code> (the default), Doppler broadening is applied <em>inside</em>
+<code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile</span></code> on the energy grid, immediately after the Sherman-Morrison
+step.  The convolution is a zero-padded FFT filter of length <span class="math notranslate nohighlight">\(2N\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\tilde{P}_q(k) \;\longrightarrow\; \tilde{P}_q(k)\,
+\exp\!\Bigl(-2\pi^2\,\sigma_D^2\,k^2\Bigr),
+\qquad \sigma_D = E_0\sqrt{\frac{T_i}{m_\mathrm{ion}\,c^2/e}}
+                = \frac{\Delta E_D}{\sqrt{2}}
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(k\)</span> is the discrete-frequency variable (cycles per eV) of the padded rfft
+and zero-padding to <span class="math notranslate nohighlight">\(2N\)</span> avoids circular-wrap artifacts.  Set
+<code class="docutils literal notranslate"><span class="pre">apply_doppler=False</span></code> to obtain the purely Stark-Zeeman FFM profile.</p>
+</section>
+<section id="static-profile-path-calculate-static-profile">
+<h3>Static profile path (<code class="docutils literal notranslate"><span class="pre">calculate_static_profile</span></code>)<a class="headerlink" href="#static-profile-path-calculate-static-profile" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">calculate_static_profile</span></code> returns the purely Stark-Zeeman-broadened profile
+(quasi-static ion + electron impact only); Doppler is not included.  It must be
+added afterward as a post-processing step via <code class="docutils literal notranslate"><span class="pre">convolutions.py</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">apply_doppler_broadening(wavelengths_nm,</span> <span class="pre">profile,</span> <span class="pre">Ti_ev,</span> <span class="pre">species='H')</span></code>
+— convolves with a Gaussian kernel of width <span class="math notranslate nohighlight">\(\Delta\lambda_D\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apply_instrument_broadening(wavelengths_nm,</span> <span class="pre">profile,</span> <span class="pre">fwhm_nm)</span></code>
+— convolves with a Gaussian instrumental slit function.</p></li>
+</ul>
+<p>Both operate on a <em>uniform wavelength grid</em> (convert energy grids to wavelength
+before calling) and use FFT convolution for efficiency.  The Gaussian kernel is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+K_D(\lambda) = \exp\!\left(-\frac{(\lambda - \lambda_0)^2}{\Delta\lambda_D^2}\right)
+\end{equation}\]</div>
+<p>The complete broadening pipeline for the static path is therefore:</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+I_\mathrm{obs}(\lambda) = \Bigl[I_\mathrm{SZ}(\lambda) * G_D(\lambda)\Bigr] * G_\mathrm{inst}(\lambda)
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(I_\mathrm{SZ}\)</span> is the Stark-Zeeman profile, <span class="math notranslate nohighlight">\(G_D\)</span> is the
+Doppler Gaussian, and <span class="math notranslate nohighlight">\(G_\mathrm{inst}\)</span> the instrumental Gaussian.</p>
+<span class="target" id="sec-approximations"></span></section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="manual_workflow.html" class="btn btn-neutral float-left" title="Calculation Workflow and Package Map" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="manual_approximations.html" class="btn btn-neutral float-right" title="Approximations and Numerical Choices" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, G. Ronchi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

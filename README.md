@@ -190,6 +190,7 @@ plt.show()
 | `microfield.py` | Hooper and Holtsmark microfield distributions |
 | `broadening.py` | GBK electron impact width with Larmor-frequency cutoff |
 | `convolutions.py` | FFT Doppler and instrumental broadening (post-processing) |
+| `atomic_data.py` | NIST atomic energy-level database loader (`starkzee/data/atomic_levels.json`) |
 | `utils.py` | Physical constants (CODATA via scipy) and unit conversions |
 | `cli.py` | Command-line interface |
 
@@ -214,7 +215,7 @@ The FFM treats the ion microfield as a Markovian jump process:
 
 $$I(\omega) = \frac{r^2}{\pi}\,\mathrm{Re}\,\frac{S(\omega)}{1 - \nu_i S(\omega)}, \qquad S(\omega) = \sum_k \frac{p_k}{\nu_i + \gamma_k + i(\omega - \omega_k)}$$
 
-Full derivations are in [`docs/source/theory.rst`](docs/source/theory.rst) and [`docs/manual.tex`](docs/manual.tex).
+Full derivations are in [`docs/manual.tex`](docs/manual.tex) and the [Sphinx documentation](docs/source/).
 
 ---
 
@@ -241,7 +242,7 @@ A comprehensive PDF manual detailing the physics and implementation is available
 
 - Radiators are treated as **hydrogen-like** (one outer electron, nuclear charge Z). Multi-electron ions such as C IV require quantum-defect corrections — see `TODO.md`.
 - The static solver uses **exact analytical** hydrogenic radial matrix elements within the $n$-shell; coupling to adjacent shells (quadratic Stark) is neglected.
-- **Doppler and instrumental broadening** are not automatic — apply them explicitly via `convolutions.py` after computing the Stark-Zeeman profile.
+- **Doppler broadening**: the FFM applies it internally by default (`apply_doppler=True`); for the static solver it must be added as a post-processing step via `convolutions.py`.
 
 ---
 

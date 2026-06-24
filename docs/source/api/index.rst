@@ -12,6 +12,7 @@ API reference
    broadening
    convolutions
    utils
+   atomic_data
 
 Module overview
 ---------------
@@ -39,3 +40,5 @@ Module overview
      - FFT-based Doppler and instrumental broadening (post-processing)
    * - :mod:`starkzee.utils`
      - Physical constants (via scipy.constants) and unit conversions
+   * - :mod:`starkzee.atomic_data`
+     - NIST atomic energy-level database loader; :class:`AtomicState` dataclass
