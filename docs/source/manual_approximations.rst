@@ -7,10 +7,8 @@ StarkZee is designed to be self-contained and fast enough for exploratory spectr
 
    .. math::
 
-      \begin{equation}
           R_{nl}(r) = \sqrt{\left(\frac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n(n+l)!}} e^{-Zr/n} \left(\frac{2Zr}{n}\right)^l L_{n-l-1}^{2l+1}\left(\frac{2Zr}{n}\right),
-          
-      \end{equation}
+
 
    giving self-contained :math:`r` and :math:`r^2` matrix elements without requiring Cowan, FAC, or another external structure code. Empirical NIST energies can still be injected for field-free level positions when accurate line centers matter.
 

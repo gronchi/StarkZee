@@ -1,6 +1,9 @@
 # Reference PDFs (not tracked)
 references/
 
+# Sphinx build output (generated, not tracked)
+docs/_build/
+
 # Python
 __pycache__/
 *.py[cod]
