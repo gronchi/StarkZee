@@ -3,6 +3,7 @@ references/
 
 # Sphinx build output (generated, not tracked)
 docs/_build/
+docs/_build/html/
 
 # Python
 __pycache__/

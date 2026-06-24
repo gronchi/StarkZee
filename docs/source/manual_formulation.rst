@@ -368,22 +368,22 @@ For :math:`n_u \neq n_l`, the inter-shell radial elements :math:`\langle n_l, l_
 
 .. math::
 
-   \begin{multline}
+   \begin{split}
    \langle n_l, l_l | r | n_u, l_u \rangle
    = \frac{1}{Z}\,\frac{(-1)^{n_l - L}}{4(2L-1)!}
      \sqrt{\frac{(n_u+L)!\,(n_l+L-1)!}{(n_u-L-1)!\,(n_l-L)!}} \\
      \times\frac{(4 n_u n_l)^{L+1}(n_u-n_l)^{n_u+n_l-2L-2}}{(n_u+n_l)^{n_u+n_l}}
      \left[F_1 - \left(\frac{n_u-n_l}{n_u+n_l}\right)^{\!2} F_2\right]
-   \end{multline}
+   \end{split}
 
 where :math:`L = \max(l_u, l_l)`, and :math:`F_1`, :math:`F_2` are terminating Gauss hypergeometric functions:
 
 .. math::
 
-   \begin{align}
+   \begin{aligned}
    F_1 &= {}_2F_1\!\left(-n_u+L+1,\,-n_l+L,\,2L,\,-\frac{4 n_u n_l}{(n_u-n_l)^2}\right) \\
    F_2 &= {}_2F_1\!\left(-n_u+L-1,\,-n_l+L,\,2L,\,-\frac{4 n_u n_l}{(n_u-n_l)^2}\right)
-   \end{align}
+   \end{aligned}
 
 Because the first argument in both hypergeometric functions is a non-positive integer, each series terminates as a finite sum:
 
@@ -745,12 +745,11 @@ This has the same :math:`E_1` structure as the PPPB formula but with :math:`x = 
 
 .. math::
 
-   \begin{align}
-   G_0 &= \tfrac{1}{2}\!\left[\ln(1+x^2) - \frac{x^2}{1+x^2}\right], \notag\\
-   G_\infty(\Delta\omega) &= \tfrac{1}{2}\,E_1\!\left(\frac{\Delta\omega^2}{2\,x^2\,\omega_p^2}\right), \notag\\
+   \begin{aligned}
+   G_0 &= \tfrac{1}{2}\!\left[\ln(1+x^2) - \frac{x^2}{1+x^2}\right], \\
+   G_\infty(\Delta\omega) &= \tfrac{1}{2}\,E_1\!\left(\frac{\Delta\omega^2}{2\,x^2\,\omega_p^2}\right), \\
    G_\mathrm{Lee}(\Delta\omega) &= \min\bigl(G_0,\,G_\infty(\Delta\omega)\bigr)
-   \label{eq:G_lee}
-   \end{align}
+   \end{aligned}
 
 :math:`G_0` (the line-center plateau) provides the plasma-cutoff floor; the :math:`E_1` wing term contains only :math:`\Delta\omega^2` (no :math:`+\omega_p^2`) because the regularization is already captured by :math:`G_0`. At large detuning the two forms agree.
 
