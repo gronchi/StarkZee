@@ -294,7 +294,7 @@ to the accuracy of the hydrogenic Dirac formula. For quantitative line centers,
 \texttt{StarkZee} can instead inject \emph{measured} field-free energies through the
 \texttt{use\_empirical\_data=True} flag (with the element symbol \texttt{atom}). The
 values are read from a tabulated database (\texttt{atomic\_data.load\_levels}) holding
-NIST level energies in wavenumbers [cm$^{-1}$], resolved by $(n, l, j)$.  The database
+NIST level energies \cite{nist} in wavenumbers [cm$^{-1}$], resolved by $(n, l, j)$.  The database
 is stored in \texttt{starkzee/data/atomic\_levels.json}; currently only hydrogen (\texttt{"H"})
 is included.  Each top-level key is an atom symbol; the value is an object with two
 sections: \texttt{"fine\_structure\_true"} (entries with fields \texttt{n}, \texttt{l},
@@ -473,7 +473,7 @@ where:
     S(y, a) = \left(1 + \frac{1.5\,a^2}{y^2}\right)^{-3/4}
     \end{equation}
 \end{itemize}
-Setting $a = 0$ yields $S = 1$ and $T = \exp(-y^{3/2})$, recovering the unscreened \textbf{Holtsmark distribution} $W_H(\beta)$.
+Setting $a = 0$ yields $S = 1$ and $T = \exp(-y^{3/2})$, recovering the unscreened \textbf{Holtsmark distribution} $W_H(\beta)$ \cite{holtsmark}.
 
 \subsubsection{The Potekhin Microfield Distribution}
 The analytical fits of Potekhin et al.\ (2002) \cite{potekhin} describe the cumulative distribution $Q(\beta)$ and probability density $P(\beta)$ for both screened ($s > 0$) and unscreened ($s = 0$) potentials, for neutral and charged radiators, incorporating the ion-ion coupling parameter $\Gamma$:
@@ -519,7 +519,7 @@ In the no-quenching approximation (electron collisions do not mix the upper and 
 \end{equation}
 where $\Phi_u$ and $\Phi_l$ are self-energy operators acting within the upper ($n_u$) and lower ($n_l$) manifolds respectively.
 
-The GBK semi-classical model evaluates $\Phi_n$ from the leading long-range term of the electron--radiator interaction, which is the dipole--dipole coupling $V_{ee} \propto r_{\rm atom}^2 / r_e^3$.  Averaging over the Maxwell--Boltzmann distribution of electron impact parameters and velocities, this yields a self-energy proportional to the \emph{operator} $r_n^2$ within shell $n$:
+The GBK semi-classical model \cite{griembaranger,griem1959} evaluates $\Phi_n$ from the leading long-range term of the electron--radiator interaction, which is the dipole--dipole coupling $V_{ee} \propto r_{\rm atom}^2 / r_e^3$.  Averaging over the Maxwell--Boltzmann distribution of electron impact parameters and velocities, this yields a self-energy proportional to the \emph{operator} $r_n^2$ within shell $n$:
 \begin{equation}
 \label{eq:phi_r2}
 \Phi_n(\omega) = W_0(\omega)\,r_n^2\,\bigl[C_n + G(\omega)\bigr]
