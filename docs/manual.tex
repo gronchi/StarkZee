@@ -82,13 +82,32 @@
 \newpage
 
 \section{Introduction}
-Modeling the spectral line shapes of multi-electron ions in hot, dense plasmas is a challenging problem in plasma physics, astrophysics, and laboratory nuclear fusion diagnostics. The presence of strong external magnetic fields ($\vec{B}$) coupled with the stochastic electric microfields ($\vec{F}$) produced by moving ions and electrons in the plasma leads to a complex, simultaneous splitting and broadening known as the Stark-Zeeman (SZ) effect.
+StarkZee computes hydrogenic plasma line shapes when electric microfields and magnetic fields must be treated together rather than as independent corrections.  The target problem is common in fusion spectroscopy, dense laboratory plasmas, and compact-object atmospheres: ionic microfields broaden and mix the emitter states through the Stark effect, while an imposed magnetic field splits and further mixes the same states through the Zeeman effect.  When the two energy scales are comparable, a post-processed Stark profile with a Zeeman triplet added afterward is no longer sufficient.
 
-The \textbf{Stark Zeeman Line-Shape} (\textbf{StarkZee}) code is an open-source Python implementation that couples atomic physics calculations in arbitrary magnetic fields with plasma line-broadening theories under quasi-static electric microfields and electron impact. The library incorporates ion dynamics and electric field fluctuations via the Frequency Fluctuation Model (FFM).
+The code therefore diagonalizes the Stark-Zeeman Hamiltonian directly at each sampled ionic microfield.  It then averages the resulting polarized profiles over the microfield distribution and adds electron-impact broadening, optional ion dynamics through the Frequency Fluctuation Model (FFM), and post-processing convolutions such as thermal Doppler or instrumental broadening.
 
-This manual details the theoretical background, governing equations, code structure, physical simplifications, and high-performance NumPy vectorization optimizations implemented in the package.
+This manual is organized from use to derivation.  Section~\ref{sec:workflow} gives the computational workflow and package map.  Section~\ref{sec:formulation} derives the line-shape equations and the atomic, plasma, and numerical ingredients.  Later sections summarize validation features, built-in comparison models, and the physical limits of the approximations.
 
-\section{Theoretical Background and Governing Equations}
+\section{Calculation Workflow and Package Map}
+\label{sec:workflow}
+
+The public entry point is the \texttt{LineProfile} class.  A typical calculation builds a wavelength, frequency, or energy grid, calls \texttt{LineProfile.compute\_profile(grid, grid\_type)}, and then reads the total and polarization-resolved profiles from the resulting object.  Internally, that high-level call delegates the work through a small number of focused modules:
+
+\begin{enumerate}
+    \item \textbf{\texttt{line\_profile.py}} manages spectral grids, unit conversions, profile normalization, optional Doppler/slit convolutions, and user-facing result attributes.
+    \item \textbf{\texttt{static\_profile.py}} performs the quasi-static microfield average.  It creates the field-strength grid, the Gauss-Legendre orientation grid, and accumulates $P_\pi$, $P_{\sigma^+}$, and $P_{\sigma^-}$.
+    \item \textbf{\texttt{radiator.py}} constructs the field-free plus magnetic radiator Hamiltonian $H_A$ and the transition dipole matrices in the uncoupled $|n,l,m_l,s,m_s\rangle$ basis.
+    \item \textbf{\texttt{solve\_starkzee()}} forms the complete Hamiltonian $H = H_A + V_E$ at each microfield point and diagonalizes it as one matrix.  The Stark term is not added perturbatively.
+    \item \textbf{\texttt{broadening.py}} evaluates electron-impact widths, including the frequency-dependent Griem-Baranger-Kolb (GBK) model and the ZEST-inspired variant.
+    \item \textbf{\texttt{ffm.py}} optionally replaces the static profile by a dynamic-ion profile using the Frequency Fluctuation Model.
+    \item \textbf{\texttt{microfield.py}} supplies Hooper, Holtsmark, Potekhin, and custom tabulated microfield distributions.
+    \item \textbf{\texttt{models/}} contains comparison models: \texttt{voigt}, \texttt{lomanowski}, \texttt{stehle\_param}, \texttt{stehle}, and \texttt{rosato}.
+\end{enumerate}
+
+The numerical calculation has one central loop: for each sampled microfield magnitude $F$ and orientation $\mu=\cos\theta$, StarkZee builds $V_E(F,\mu)$, diagonalizes upper and lower manifolds, rotates the transition dipoles into the dressed-state bases, evaluates electron-broadened component profiles, and adds the weighted contribution to the three polarization channels.  This is the organizing idea behind the equations that follow.
+
+\section{Physics and Numerical Formulation}
+\label{sec:formulation}
 
 \subsection{Liouville Space Representation}
 The spectral line-shape intensity $I(\omega)$ of emitted radiation is related to the Fourier transform of the dipole autocorrelation function $C(t)$ by \cite{baranger}:
@@ -195,7 +214,7 @@ The diagonal unperturbed energy is corrected for the finite nuclear mass:
 \qquad
 \mathrm{Ry}_{\rm red} = \mathrm{Ry}_{\infty}\,\frac{M_{\rm nuc}}{m_e + M_{\rm nuc}}
 \end{equation}
-with $A_{\rm emitter}$ the atomic mass number of the emitting isotope. When \texttt{use\_empirical\_\allowbreak{}data=True} this analytic diagonal is replaced by NIST tabulated energies (Section~\ref{sec:empirical}).
+where $M_{\rm nuc}$ is the nuclear mass of the emitting isotope (fixed by its atomic mass number) and $\mathrm{Ry}_{\rm red}$ the corresponding reduced-mass Rydberg constant. When \texttt{use\_empirical\_\allowbreak{}data=True} this analytic diagonal is replaced by NIST tabulated energies (Section~\ref{sec:empirical}).
 
 \subsubsection{Spin-Orbit Coupling ($H_{\rm SO}$)}
 The spin-orbit interaction $H_{\rm SO} = \xi_{nl}\,\vec{L}\cdot\vec{S}$ couples orbital and spin angular momenta. The coupling constant for $l > 0$ is:
@@ -275,7 +294,17 @@ to the accuracy of the hydrogenic Dirac formula. For quantitative line centers,
 \texttt{StarkZee} can instead inject \emph{measured} field-free energies through the
 \texttt{use\_empirical\_data=True} flag (with the element symbol \texttt{atom}). The
 values are read from a tabulated database (\texttt{atomic\_data.load\_levels}) holding
-NIST level energies in wavenumbers [cm$^{-1}$], resolved by $(n, l, j)$.
+NIST level energies in wavenumbers [cm$^{-1}$], resolved by $(n, l, j)$.  The database
+is stored in \texttt{starkzee/data/atomic\_levels.json}; currently only hydrogen (\texttt{"H"})
+is included.  Each top-level key is an atom symbol; the value is an object with two
+sections: \texttt{"fine\_structure\_true"} (entries with fields \texttt{n}, \texttt{l},
+\texttt{j}, \texttt{energy}) and \texttt{"fine\_structure\_false"} (entries with fields
+\texttt{n}, \texttt{energy}).  All energies are in cm$^{-1}$ above the ground state
+(NIST vacuum values).  Additional atoms can be supported by adding the corresponding
+entry to this file.  To refresh the bundled data from the NIST ASD levels query, run
+\texttt{python scripts/update\_nist\_levels.py H --spectrum "H I"}.  The updater is a
+development tool: it writes the local JSON database and checks that each requested
+fine-structure shell contains all hydrogenic $(l,j)$ states before replacing the data.
 The empirical Hamiltonian is kept in cm$^{-1}$ throughout this code path so that
 callers can work entirely in wavenumber units; all Zeeman contributions are
 also converted from eV to cm$^{-1}$ before being added, keeping every term on
@@ -333,30 +362,31 @@ For $l = \max(l_i, l_j)$, Gordon's formula gives the within-shell radial dipole 
 \end{equation}
 
 \paragraph{Angular matrix elements.}
-Writing $z/r = T_0^{(1)}$ and $x/r = (T_{-1}^{(1)} + T_{+1}^{(1)})/\sqrt{2}$:
-\begin{itemize}
-    \item \textbf{$q=0$} ($\Delta m_l = 0$):
-    $\displaystyle
-    \langle l, m_l | \cos\theta | l+1, m_l \rangle
-    = \sqrt{\dfrac{(l+1)^2 - m_l^2}{(2l+1)(2l+3)}}$
-    \item \textbf{$q=+1$} ($\Delta m_l = -1$):
-    \begin{equation}
-    \langle l_1, m_{l,1} | T_{+1}^{(1)} | l_2, m_{l,2} \rangle =
-    \begin{cases}
-    +\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
-    -\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
-    \end{cases}
-    \end{equation}
-    \item \textbf{$q=-1$} ($\Delta m_l = +1$):
-    \begin{equation}
-    \langle l_1, m_{l,1} | T_{-1}^{(1)} | l_2, m_{l,2} \rangle =
-    \begin{cases}
-    -\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
-    +\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
-    \end{cases}
-    \end{equation}
-\end{itemize}
-where $l = \max(l_1, l_2)$ in all cases. The Stark matrices $M_z$ and $M_x$ [eV/(V/m)] are precomputed once per $(n, Z)$ and cached (\texttt{\_stark\_templates}), so that $V_E = F_z M_z + F_x M_x$ is formed at each quadrature point by a simple scalar multiplication.
+The angular factor is the spherical dipole tensor, written $z/r = T_0^{(1)}$ and $x/r = (T_{-1}^{(1)} + T_{+1}^{(1)})/\sqrt{2}$. Its non-zero matrix elements (with $l = \max(l_1, l_2)$) are:
+\begin{equation}
+\label{eq:Tq0}
+\langle l, m_l | T_0^{(1)} | l+1, m_l \rangle
+= \sqrt{\dfrac{(l+1)^2 - m_l^2}{(2l+1)(2l+3)}} \qquad (q=0,\ \Delta m_l = 0)
+\end{equation}
+\begin{equation}
+\label{eq:Tqp1}
+\langle l_1, m_{l,1} | T_{+1}^{(1)} | l_2, m_{l,2} \rangle =
+\begin{cases}
++\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
+-\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
+\end{cases}
+\qquad (q=+1,\ \Delta m_l = -1)
+\end{equation}
+\begin{equation}
+\label{eq:Tqm1}
+\langle l_1, m_{l,1} | T_{-1}^{(1)} | l_2, m_{l,2} \rangle =
+\begin{cases}
+-\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
++\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
+\end{cases}
+\qquad (q=-1,\ \Delta m_l = +1)
+\end{equation}
+These same three matrix elements reappear unchanged in the transition dipole operator (Section~\ref{sec:dipole_operator}), since both the Stark coupling and the radiative dipole are built from the rank-1 tensor $T_q^{(1)}$. The Stark matrices $M_z$ and $M_x$ [eV/(V/m)] are precomputed once per $(n, Z)$ and cached (\texttt{\_stark\_templates}), so that $V_E = F_z M_z + F_x M_x$ is formed at each quadrature point by a simple scalar multiplication.
 
 \subsection{Transition Dipole Operator}
 \label{sec:dipole_operator}
@@ -369,31 +399,7 @@ The transition dipole matrices $D_q$ ($q \in \{0,\pm1\}$) are built in the uncou
 \end{equation}
 
 \subsubsection{Angular Dipole Matrix Elements}
-The angular factors $\langle l_l, m_{l,l} | T_q^{(1)} | l_u, m_{l,u} \rangle$ follow from the Wigner-Eckart theorem \cite{edmonds}:
-\begin{itemize}
-    \item For $q=0$ ($\Delta m_l = 0$):
-    \begin{equation}
-    \langle l, m_l | T_0^{(1)} | l+1, m_l \rangle
-    = \sqrt{\frac{(l+1)^2 - m_l^2}{(2l+1)(2l+3)}}
-    \end{equation}
-    \item For $q=+1$ ($\Delta m_l = -1$):
-    \begin{equation}
-    \langle l_1, m_{l,1} | T_{+1}^{(1)} | l_2, m_{l,2} \rangle =
-    \begin{cases}
-    +\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
-    -\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
-    \end{cases}
-    \end{equation}
-    \item For $q=-1$ ($\Delta m_l = +1$):
-    \begin{equation}
-    \langle l_1, m_{l,1} | T_{-1}^{(1)} | l_2, m_{l,2} \rangle =
-    \begin{cases}
-    -\sqrt{\dfrac{(l + m_{l,2})(l + m_{l,2} - 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 - 1 \\[8pt]
-    +\sqrt{\dfrac{(l - m_{l,2})(l - m_{l,2} + 1)}{2(2l-1)(2l+1)}} & l_1 = l_2 + 1
-    \end{cases}
-    \end{equation}
-\end{itemize}
-where $l = \max(l_1, l_2)$.
+The angular factors $\langle l_l, m_{l,l} | T_q^{(1)} | l_u, m_{l,u} \rangle$ follow from the Wigner-Eckart theorem \cite{edmonds}. They are exactly the rank-1 spherical-tensor matrix elements already written for the Stark coupling in Eqs.~(\ref{eq:Tq0})--(\ref{eq:Tqm1}), now evaluated between the lower and upper manifolds: $q=0$ gives the $\pi$ component ($\Delta m_l = 0$), $q=+1$ the $\sigma^-$ component ($\Delta m_l = -1$), and $q=-1$ the $\sigma^+$ component ($\Delta m_l = +1$).
 
 \subsubsection{Hydrogenic Radial Dipole Integrals (Gordon's Formula)}
 For $n_u \neq n_l$, the inter-shell radial elements $\langle n_l, l_l | r | n_u, l_u \rangle$ are evaluated exactly using Gordon's (1929) analytical formula \cite{gordon}:
@@ -495,25 +501,11 @@ The double integral $\iint W(F,\mu)\,dF\,d\mu$ (Eq.~\ref{eq:microfield_integral}
     \end{equation}
     \item \textbf{Combined weight}: $W_{ij} = W_{F,i}\,W_{\mu,j}$. Points with $W_{ij} < 10^{-15}$ are skipped.
 \end{enumerate}
-At each active point the field decomposes as:
+so that at each active point the field decomposes into the longitudinal and transverse components seen by the radiator,
 \begin{equation}
-F_{z,ij} = F_i\,\mu_j, \qquad F_{x,ij} = F_i\sqrt{1 - \mu_j^2}
+F_{z,ij} = F_i\,\mu_j, \qquad F_{x,ij} = F_i\sqrt{1 - \mu_j^2},
 \end{equation}
-\begin{enumerate}
-    \item \textbf{Holtsmark Distribution}: Standard unscreened microfield for weakly coupled plasmas \cite{holtsmark}:
-    \begin{equation}
-    W_H(\beta) = \frac{2\beta}{\pi} \int_0^\infty y \sin(\beta y) e^{-y^{1.5}} dy
-    \end{equation}
-    where $\beta = F/F_0$ is the normalized field strength.
-
-    \item \textbf{Hooper Distribution}: Debye-screened microfield distribution \cite{hooper}:
-    \begin{equation}
-    W_{Hooper}(\beta, a) = \frac{2\beta}{\pi} \int_0^\infty y \sin(\beta y) e^{-y^{1.5} \chi(y, a)} dy
-    \end{equation}
-    where $\chi(y, a) = (1 + 1.5 a^2 / y^2)^{-0.75}$ is the screening correction fit, and $a = r_e / \lambda_D$ is the ratio of the ion-sphere radius to the Debye length.
-
-    \item \textbf{Potekhin Distribution}: Analytical fits for electric microfield distributions $P(\beta)$ in plasmas \cite{potekhin}, which support both screened and unscreened cases as well as neutral and charged radiator points, incorporating the ion-ion coupling parameter $\Gamma$.
-\end{enumerate}
+which are passed directly to the Stark template (Section~\ref{sec:full_hamiltonian}). The weight $W(\beta_i, a)$ is drawn from whichever distribution the user selects — Holtsmark, Hooper, or Potekhin (above) — while the orientation quadrature is identical in every case.
 
 \subsection{Electron Impact Broadening}
 \label{sec:electron_impact}
@@ -606,18 +598,13 @@ detuning of each transition component using the full $E_1(y(\Delta E))$ function
 Setting this flag to \texttt{False} fixes the width at the line-center value $\gamma_e(0)$,
 which reduces computation time at the cost of accuracy in the far wings.
 
-\paragraph{Application in the profile.}
-Each Stark-dressed transition component $(i \to j, q)$ is broadened by a Lorentzian of half-width $\gamma_e$:
-\begin{equation}
-L_{ij}(E) = \frac{\gamma_e/\pi}{(E - E_{ij})^2 + \gamma_e^2}
-\end{equation}
-and the contribution is weighted by the component intensity $|d_q(i,j)|^2$ and the microfield quadrature weight.
+This single half-width $\gamma_e(\Delta E)$ is the only quantity the electron model hands to the profile builder; how it is applied to each Stark-dressed transition is described in Section~\ref{sec:profile_accumulation}.
 
 \subsubsection{ZEST electron broadening variant (\texttt{electron\_model='zest'})}
 \label{sec:zest_electron}
 
 Activating \texttt{electron\_model='zest'} in \texttt{LineProfile.compute\_profile}
-switches to the electron broadening model of the ZEST code \cite{calisti2014}.
+switches to the electron broadening model of the ZEST code \cite{Gilleron2018}.
 The formula has the same structure as the default GBK expression but replaces the
 full shell-averaged $\langle r^2 \rangle_n$ with the \emph{intra-shell} mean-square
 radius:
@@ -627,7 +614,7 @@ radius:
 \end{equation}
 
 \paragraph{Physical justification — $\Delta n = 0$ interaction channels.}
-The ZEST paper (Section 2.1 of \cite{calisti2014}) adopts two approximations that
+The ZEST paper (Section 2.1 of \cite{Gilleron2018}) adopts two approximations that
 together restrict the electron broadening operator to within-shell matrix elements:
 
 \begin{enumerate}
@@ -748,58 +735,11 @@ The three polarization profiles are accumulated by vectorized summation over all
 P_q(E) = \sum_i W_{F,i} \sum_j W_{\mu,j} \sum_{p,k} S_q(p,k)\,L_{pk}\!\left(E - E_{pk}\right)
 \end{equation}
 where $q{=}0 \to P_\pi$, $q{=}{-1} \to P_{\sigma^+}$ (blue), $q{=}{+1} \to P_{\sigma^-}$ (red).
-This direct summation realizes Eq.~(\ref{eq:microfield_integral}) in practice.
-
-\paragraph{Frequency-dependent vs.\ resonance-center width.}
-When \texttt{frequency\_dependent\_\allowbreak{}width=True} (default), $\gamma_e(\Delta E)$ is evaluated at the actual detuning of each $(E, E_{pk})$ pair using the full $E_1(y(\Delta E))$ function. Setting this flag to \texttt{False} fixes the width at the line-center value $\gamma_e(0)$, reducing computation time at the cost of accuracy in the far wings.
-
-\paragraph{Application in the profile.}
-Each component is weighted by its SDT intensity $S_q(p,k)$ and the microfield quadrature weight. The observed intensity at angle $\alpha$ to $\vec{B}$ is then:
-\begin{equation}
-I(\omega,\alpha) = P_\pi(\omega)\sin^2\!\alpha
-  + \tfrac{1}{2}\bigl(P_{\sigma^+}(\omega)+P_{\sigma^-}(\omega)\bigr)(1+\cos^2\!\alpha)
-\end{equation}
-
-\subsection{Thermal Doppler Broadening}
-\label{sec:doppler}
-
-Thermal motion of the radiating ions causes each photon frequency to be Doppler-shifted by $\delta\omega = \omega_0\, v_z/c$. Averaging over a Maxwell--Boltzmann velocity distribution yields a Gaussian line shape with $1/e$ half-width
-\begin{equation}
-\Delta\omega_D = \omega_0 \sqrt{\frac{2 k_B T_i}{m_\mathrm{ion} c^2}}
-\qquad\Longleftrightarrow\qquad
-\Delta E_D = E_0 \sqrt{\frac{2 T_i}{m_\mathrm{ion} c^2 / e}}
-\end{equation}
-where $T_i$ is the ion temperature, $m_\mathrm{ion}$ the emitter mass, and $E_0$ the transition energy in eV. For H Balmer-$\alpha$ at $T_i = 5$\,eV, this gives $\Delta E_D \approx 0.062$\,meV — comparable to the Zeeman splitting at 1\,T and negligible relative to the Stark width at $N_e \sim 10^{23}$\,m$^{-3}$.
-
-\paragraph{Important: Doppler broadening is \emph{not} applied automatically.}
-\texttt{calculate\_static\_\allowbreak{}profile()} returns the purely Stark-Zeeman-broadened profile (ion quasi-static + electron impact only). Doppler broadening must be applied \emph{after} as a post-processing step via \texttt{convolutions.py}:
-\begin{itemize}
-    \item \texttt{apply\_doppler\_broadening(wavelengths\_nm, profile, Ti\_ev, species='H')} — convolves the profile with a Gaussian kernel of the thermal Doppler width.
-    \item \texttt{apply\_instrument\_broadening(wavelengths\_nm, profile, fwhm\_nm)} — convolves with a Gaussian instrumental slit function.
-\end{itemize}
-Both use FFT convolution (\texttt{scipy.fft}) for efficiency. Both operate on a \emph{uniform wavelength grid}; convert energy grids to wavelength before calling. The convolution preserves the total integrated intensity.
-
-The Gaussian kernel applied to the wavelength grid is:
-\begin{equation}
-K_D(\lambda) = \exp\!\left(-\frac{(\lambda - \lambda_0)^2}{\Delta\lambda_D^2}\right)
-\end{equation}
-Convolution is performed via the FFT theorem on a wavelength grid edge-padded by $N/2$ on each side to avoid circular-wrap artifacts:
-\begin{equation}
-P_{q,\mathrm{conv}}(\lambda)
-= \mathcal{F}^{-1}\!\left[
-    \mathcal{F}(P_{q,\mathrm{pad}})\cdot
-    \mathcal{F}\!\bigl(\mathrm{fftshift}(K_{D,\mathrm{pad}})\bigr)
-  \right]
-\end{equation}
-The complete broadening pipeline is therefore:
-\begin{equation}
-I_\mathrm{obs}(\lambda) = \Bigl[I_\mathrm{SZ}(\lambda) * G_D(\lambda)\Bigr] * G_\mathrm{inst}(\lambda)
-\end{equation}
-where $I_\mathrm{SZ}$ is the Stark-Zeeman profile from \texttt{static\_profile.py} (via \texttt{line\_profile.py}), $G_D$ is the Doppler Gaussian, and $G_\mathrm{inst}$ the instrumental Gaussian. Both convolutions preserve the total integrated intensity.
+This direct summation realizes Eq.~(\ref{eq:microfield_integral}) in practice, with the frequency-dependent half-width $\gamma_e(\Delta E)$ of Section~\ref{sec:electron_impact} evaluated at the detuning of each $(E, E_{pk})$ pair. The three accumulated channels are the polarization profiles $I_\pi, I_{\sigma^+}, I_{\sigma^-}$ entering the observed intensity of Eq.~(\ref{eq:stokes}); for a line of sight at angle $\alpha$ to $\vec{B}$ they combine as $P_\pi\sin^2\!\alpha + \tfrac{1}{2}(P_{\sigma^+}+P_{\sigma^-})(1+\cos^2\!\alpha)$.
 
 \subsection{Frequency Fluctuation Model (FFM)}
 \label{sec:ffm}
-Dynamic ion motion causes the static microfield to fluctuate over time. In the FFM \cite{talin}, this is modeled as a stationary Markovian process that mixes the Stark-dressed transition components at rate $\nu_i$.
+The profile assembled in Section~\ref{sec:profile_accumulation} treats the ionic microfield as frozen during emission. When the ions move appreciably on the emission timescale, that quasi-static average must be replaced by a dynamic one, and the FFM provides this without rebuilding the atomic calculation. Dynamic ion motion causes the static microfield to fluctuate over time; in the FFM \cite{talin} this is modeled as a stationary Markovian process that mixes the Stark-dressed transition components at rate $\nu_i$.
 
 The Stark-Zeeman Hamiltonian $H = H_A + V_E$ is still diagonalized at each field configuration $(F,\mu)$, producing dressed-state frequencies $\omega_k$ and dipole weights $|d_k|^2$ — the Stark-Dressed Transitions (SDTs). This step is purely static: $\omega_k$ and $|d_k|^2$ depend only on the instantaneous ion field. Fast electron collisions add a homogeneous Lorentzian half-width $\gamma_k$ to each SDT (the GBK width from Section~\ref{sec:electron_impact}), acting on a timescale short enough that the ion configuration does not change during a single collision. Ion dynamics enter exclusively through $\nu_i$, estimated as the inverse time for an ion to cross the mean ion spacing at its thermal speed:
 \begin{equation}
@@ -817,69 +757,77 @@ where $p_k = |d_k|^2 / r^2$ are the normalized SDT weights and $r^2 = \sum_k |d_
 The limit $\nu_i \to 0$ recovers the static profile; $\nu_i \to \infty$ gives a single
 Lorentzian (motional narrowing).
 
-\section{Physical Features and Validation}
+\subsection{Thermal Doppler Broadening}
+\label{sec:doppler}
 
-\subsection{Quadratic Zeeman polarization wings}
-At $B \geq 500$\,T the diagonal QZ shifts within $n=3$ differ by up to 5\,meV,
-separating the 3p($m_l = \pm 1$)$\to$2s transitions (which carry $\approx 21\%$ of
-the H$\alpha$ oscillator strength and exhibit the \emph{largest} n=3 QZ shift,
-$+8.87$\,meV at $B=1000$\,T) from the dominant 3d$\to$2p cluster by
-$\approx 7$\,meV. The resulting ``wings'' appear only in the
-\texttt{quadratic\_zeeman=True} profiles and are validated in
-\texttt{test\_12\_halpha\_qz\_wings.py}.
+Thermal motion of the radiating ions causes each photon frequency to be Doppler-shifted by $\delta\omega = \omega_0\, v_z/c$. Averaging over a Maxwell--Boltzmann velocity distribution yields a Gaussian broadening with $1/e$ half-width
+\begin{equation}
+\Delta\omega_D = \omega_0 \sqrt{\frac{2 k_B T_i}{m_\mathrm{ion} c^2}}
+\qquad\Longleftrightarrow\qquad
+\Delta E_D = E_0 \sqrt{\frac{2 T_i}{m_\mathrm{ion} c^2 / e}}
+\end{equation}
+where $T_i$ is the ion temperature, $m_\mathrm{ion}$ the emitter mass, and $E_0$ the transition energy in eV. For H Balmer-$\alpha$ at $T_i = 5$\,eV, this gives $\Delta E_D \approx 0.062$\,meV — comparable to the Zeeman splitting at 1\,T and negligible relative to the Stark width at $N_e \sim 10^{23}$\,m$^{-3}$.
 
-\subsection{\texorpdfstring{$\pm 2\mu_B B$}{±2 mu_B B} Stark-Zeeman satellite features}
-A transverse microfield $F_x$ couples adjacent-$m_l$ states within the same
-principal shell via $\Delta l = \pm 1,\, \Delta m_l = \pm 1$ matrix elements.
-The upper eigenstate near $E_{0,n} + 2\mu_B B$ (dominated by $|nd,\, m_l{=}2\rangle$)
-acquires a small $|np,\, m_l{=}1\rangle$ admixture $\beta$, producing a
-$\sigma^+$ transition to the zero-Zeeman lower state at photon energy
-$E_0 + 2\mu_B B$.
+The two calculation paths apply Doppler broadening at different stages.
 
-\paragraph{H$\beta$ (n=4$\to$2).}
-The satellite is a \emph{distinct peak} at $+117$\,meV ($\approx 2\%$ of the
-main $\sigma^+$ intensity), because $n=4$ has both $|4d,\, m_l{=}2\rangle$
-and $|4f,\, m_l{=}2\rangle$ \emph{degenerate} at $+2\mu_B B$, greatly
-amplifying Stark mixing. The satellite is visible in the Balmer-series profile
-at $\approx 465$\,nm and $\approx 509$\,nm for $B=1000$\,T.
+\paragraph{FFM path (\texttt{calculate\_ffm\_profile}).}
+When \texttt{apply\_doppler=True} (the default), Doppler broadening is applied \emph{inside}
+\texttt{calculate\_ffm\_\allowbreak{}profile} on the energy grid, immediately after the Sherman-Morrison
+step.  The convolution is a zero-padded FFT filter of length $2N$:
+\begin{equation}
+\tilde{P}_q(k) \;\longrightarrow\; \tilde{P}_q(k)\,
+\exp\!\Bigl(-2\pi^2\,\sigma_D^2\,k^2\Bigr),
+\qquad \sigma_D = E_0\sqrt{\frac{T_i}{m_\mathrm{ion}\,c^2/e}}
+               = \frac{\Delta E_D}{\sqrt{2}}
+\end{equation}
+where $k$ is the discrete-frequency variable (cycles per eV) of the padded rfft and
+zero-padding to $2N$ avoids circular-wrap artifacts.  Set \texttt{apply\_doppler=False}
+to obtain the purely Stark-Zeeman FFM profile.
 
-\paragraph{H$\alpha$ (n=3$\to$2).}
-Only $|3d,\, m_l{=}2\rangle$ sits at $+2\mu_B B$ (no $l=3$ sub-states exist
-for $n=3$). The satellite amplitude ($\approx 0.07\%$ of main peak) is
-comparable to the Lorentzian tail of the $\sigma^+$ main peak at that
-position, so no distinct local maximum appears at 618\,nm / 700\,nm.
-This result is converged with respect to the microfield grid size
-(\texttt{num\_f} = 30, 60, 100 give identical profiles) and is validated in
-\texttt{test\_13\_stark\_zeeman\_satellites.py}.
+\paragraph{Static profile path (\texttt{calculate\_static\_profile}).}
+\texttt{calculate\_static\_\allowbreak{}profile()} returns the purely Stark-Zeeman-broadened profile
+(quasi-static ion + electron impact only); Doppler is not included.  It must be added
+afterward as a post-processing step via \texttt{convolutions.py}:
+\begin{itemize}
+    \item \texttt{apply\_doppler\_broadening(wavelengths\_nm, profile, Ti\_ev, species='H')} — convolves with a Gaussian kernel of width $\Delta\lambda_D$.
+    \item \texttt{apply\_instrument\_broadening(wavelengths\_nm, profile, fwhm\_nm)} — convolves with a Gaussian instrumental slit function.
+\end{itemize}
+Both operate on a \emph{uniform wavelength grid} (convert energy grids to wavelength before
+calling) and use FFT convolution for efficiency.  The Gaussian kernel is:
+\begin{equation}
+K_D(\lambda) = \exp\!\left(-\frac{(\lambda - \lambda_0)^2}{\Delta\lambda_D^2}\right)
+\end{equation}
+The complete broadening pipeline for the static path is therefore:
+\begin{equation}
+I_\mathrm{obs}(\lambda) = \Bigl[I_\mathrm{SZ}(\lambda) * G_D(\lambda)\Bigr] * G_\mathrm{inst}(\lambda)
+\end{equation}
+where $I_\mathrm{SZ}$ is the Stark-Zeeman profile, $G_D$ is the Doppler Gaussian, and
+$G_\mathrm{inst}$ the instrumental Gaussian.
 
-\paragraph{$B$-dependence and observability.}
-The mixing coefficient $\beta = F_x\,\langle np|r|nd\rangle/({\mu_B B})$
-scales as $B^{-1}$, so $\beta$ is \emph{larger} at lower $B$. However, the
-satellite position $2\mu_B B$ also shrinks with $B$. At $B = 100$\,T,
-$2\mu_B B = 11.6$\,meV falls inside the Stark-broadened $\sigma^+$ cluster
-($\sim10$\,meV width for $n=4$, $N_e = 10^{23}$\,m$^{-3}$). The satellite
-merges into the cluster tail: the peak/valley contrast in the satellite
-sub-window is $\approx 1.000$ (indistinguishable), versus $\approx 2.26$ at
-$B = 1000$\,T where the satellite is clearly separated. \emph{High $B$ is
-therefore required for the satellite to appear as a resolved, separated peak.}
+\section{Approximations and Numerical Choices}
+\label{sec:approximations}
 
-\section{Physical and Numerical Simplifications}
-To achieve absolute self-sufficiency, maintainability, and high execution speeds, the following simplifications were incorporated:
+StarkZee is designed to be self-contained and fast enough for exploratory spectroscopy studies.  The main approximations are explicit in the solver rather than hidden behind external atomic-structure packages:
 \begin{enumerate}
-    \item \textbf{Analytical Hydrogenic Basis}:
-    Instead of calling external commercial databases or complex atomic structure codes (e.g., Cowan or FAC), SZLS implements exact analytical hydrogenic radial wavefunctions \cite{bethesalpeter}:
+    \item \textbf{Hydrogenic basis and analytic radial functions.}
+    Matrix elements are built from analytic hydrogenic wavefunctions \cite{bethesalpeter},
     \begin{equation}
-    R_{nl}(r) = \sqrt{\left(\frac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n(n+l)!}} e^{-Zr/n} \left(\frac{2Zr}{n}\right)^l L_{n-l-1}^{2l+1}\left(\frac{2Zr}{n}\right)
+    R_{nl}(r) = \sqrt{\left(\frac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n(n+l)!}} e^{-Zr/n} \left(\frac{2Zr}{n}\right)^l L_{n-l-1}^{2l+1}\left(\frac{2Zr}{n}\right),
     \end{equation}
-    This provides self-contained matrix elements for $r$ and $r^2$ calculations.
-    
-    \item \textbf{Resonance-center impact approximation (optional)}:
-    By default (\texttt{frequency\_de\-pendent\_width=True}) the GBK electron width $\gamma_e(\Delta E)$ is evaluated at the actual detuning of each transition component. Setting \texttt{frequency\_de\-pendent\_width=False} fixes the width at its line-center value $\gamma_e(0)$, avoiding repeated evaluations of $E_1(y)$ at every wavelength point. This is a useful approximation when the profile wings are not of primary interest.
-    
-    \item \textbf{Gauss-Legendre Angle Quadrature}:
-    Integrating over the field orientation is performed using a $N_\mu$-point Gauss-Legendre quadrature over $\mu = \cos\theta \in [0, 1]$; see Section~\ref{sec:microfield} for the full discretization scheme.
-\end{enumerate}
+    giving self-contained $r$ and $r^2$ matrix elements without requiring Cowan, FAC, or another external structure code.  Empirical NIST energies can still be injected for field-free level positions when accurate line centers matter.
 
+    \item \textbf{Within-shell Stark mixing.}
+    The Stark operator is retained exactly inside each principal shell, but couplings to neighboring $n$ manifolds are neglected.  This is appropriate below the Inglis-Teller regime, where Stark shifts remain small compared with the shell spacing.
+
+    \item \textbf{Quasi-static ions with optional dynamics.}
+    The baseline profile treats ionic microfields as static during the radiative event and averages over their distribution.  When ion motion is important, the FFM layer modifies the static profile through a fluctuation rate rather than rebuilding the atomic calculation.
+
+    \item \textbf{Electron-impact broadening.}
+    Fast electrons enter through a Lorentzian impact width.  By default (\texttt{frequency\_de\-pendent\_width=True}) the GBK width $\gamma_e(\Delta E)$ is evaluated at each component detuning.  Setting \texttt{frequency\_de\-pendent\_width=False} fixes the width at the resonance-center value $\gamma_e(0)$, which is faster and usually adequate when far wings are not the observable of interest.
+
+    \item \textbf{Microfield orientation quadrature.}
+    The angular integral is evaluated with an $N_\mu$-point Gauss-Legendre rule over $\mu = \cos\theta \in [0,1]$, using the symmetry of the Hamiltonian under $\mu\to-\mu$; see Section~\ref{sec:microfield}.
+\end{enumerate}
 
 \section{Built-in Reference Models}
 \label{sec:models}
@@ -959,81 +907,9 @@ $B$-treatment       & Intrinsic to Hamiltonian & External convolution & $B$-scal
 
 The most important physical distinction at $B \ne 0$: StarkZee diagonalizes $H = H_A + V_E$ \emph{simultaneously} for all field strengths.  When $\mu_B B \sim 3n\,e\,a_0\,F$ (Zeeman and Stark splitting comparable) the eigenstates are genuine Stark-Zeeman hybrids — neither pure Zeeman nor pure Stark states.  No post-processing convolution can reproduce this mixing.  The separable approximation (Stehlé) and scaled-interpolation approach (Rosato) both become inaccurate in this regime.
 
-\section{Code Structure and Modular Architecture}
-The \textbf{StarkZee} package (\texttt{starkzee/}) is organized as a modular Python library:
-\begin{itemize}
-    \item \textbf{\texttt{starkzee/line\_profile.py}}: High-level \texttt{LineProfile} class. Manages spectral grids, unit conversions, Doppler broadening, and exposes all results as attributes. Entry point for most users.
-    \item \textbf{\texttt{starkzee/static\_profile.py}}: Core solver. \texttt{calculate\_static\_profile()} runs the microfield quadrature loop and accumulates the three polarization profiles $P_\pi$, $P_{\sigma^+}$, $P_{\sigma^-}$.
-    \item \textbf{\texttt{starkzee/radiator.py}}: Constructs $H_A$ — the atomic Hamiltonian including unperturbed energy, spin-orbit, fine-structure, and linear and quadratic Zeeman terms — and builds the dipole operator matrices using analytical angular matrix elements.  $H_A$ is \emph{not} diagonalized here; the full $H = H_A + V_E$ is diagonalized in \texttt{solve\_starkzee}.
-    \item \textbf{\texttt{starkzee/ffm.py}}: Implements dynamic ion-field fluctuations via the Frequency Fluctuation Model, supporting both an analytical Sherman-Morrison solver and a full matrix inversion.
-    \item \textbf{\texttt{starkzee/microfield.py}}: Generates screened Hooper and unscreened Holtsmark microfield distributions; supports multi-species Debye lengths and custom tabulated distributions.
-    \item \textbf{\texttt{starkzee/broadening.py}}: GBK electron-impact half-width $\gamma_e(\Delta E)$; computes plasma, Larmor, and configuration-change cutoff frequencies.
-    \item \textbf{\texttt{starkzee/convolutions.py}}: FFT-based post-processing convolutions operating on uniform wavelength grids:
-    \begin{equation}
-    I_\mathrm{conv}(\lambda) = \mathcal{F}^{-1}\!\left\{\mathcal{F}[I(\lambda)]\cdot\mathcal{F}[K_\mathrm{Doppler}(\lambda)]\cdot\mathcal{F}[K_\mathrm{slit}(\lambda)]\right\}
-    \end{equation}
-    \item \textbf{\texttt{starkzee/models/}}: Comparison lineshape models (voigt, lomanowski, stehle\_param, stehle, rosato) sharing a common signature, centered on NIST air wavelengths for each transition \cite{nist}.
-    \item \textbf{\texttt{starkzee/atomic\_loader.py}}: Placeholder for future multi-electron species support.
-\end{itemize}
-
-\begin{thebibliography}{9}
-\bibitem{ferri}
-S. Ferri, O. Peyrusse, A. Calisti, et al., \textit{Stark-Zeeman line-shape model for multi-electron ions in hot dense plasmas}, Matter and Radiation at Extremes, 7, 015901 (2022). DOI: 10.1063/5.0058552
-\bibitem{baranger}
-M. Baranger, \textit{Simplified Quantum-Mechanical Theory of Pressure Broadening}, Phys. Rev. 111, 481 (1958); \textit{Problem of Overlapping Lines in the Theory of Pressure Broadening}, Phys. Rev. 112, 855 (1958).
-\bibitem{bethesalpeter}
-H.A. Bethe, E.E. Salpeter, \textit{Quantum Mechanics of One- and Two-Electron Atoms}, Springer-Verlag, Berlin (1957).
-\bibitem{gordon}
-W. Gordon, \textit{Zur Berechnung der Matrizen beim Wasserstoffatom}, Ann. Phys. 394, 1031 (1929).
-\bibitem{edmonds}
-A.R. Edmonds, \textit{Angular Momentum in Quantum Mechanics}, Princeton University Press (1957).
-\bibitem{talin}
-B. Talin, A. Calisti, L. Godbert, R. Stamm, R.W. Lee, \textit{Frequency fluctuation Model for line-shape calculations in Plasma Spectroscopy}, Phys. Rev. A 51, 1918 (1995).
-\bibitem{griem}
-H.R. Griem, \textit{Principles of Plasma Spectroscopy}, Cambridge University Press (1997).
-\bibitem{griem1959}
-H.R. Griem, A.C. Kolb, K.Y. Shen, \textit{Stark Broadening of Hydrogen Lines in a Plasma}, Phys.\ Rev.\ 116, 4 (1959).
-\bibitem{griembaranger}
-H.R. Griem, M. Baranger, A.C. Kolb, G. Oertel, \textit{Stark Broadening of Neutral Helium Lines in a Plasma}, Phys. Rev. 125, 177 (1962).
-\bibitem{holtsmark}
-J. Holtsmark, \textit{\"Uber die Verbreiterung von Spektrallinien}, Ann. Phys. 58, 577 (1919).
-\bibitem{hooper}
-C.F. Hooper, Jr., \textit{Low-Frequency Component of the Electric Microfield in a Plasma}, Phys. Rev. 165, 215 (1968).
-\bibitem{potekhin}
-A.Y. Potekhin, G. Chabrier, D. Gilles, \textit{Analytic fits for electric microfield distributions in plasmas}, Phys. Rev. E 65, 036412 (2002).
-\bibitem{nist}
-A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team, \textit{NIST Atomic Spectra Database (ver. 5.11)}, National Institute of Standards and Technology, Gaithersburg, MD (2023). DOI: 10.18434/T4W30F
-\bibitem{stehle}
-C. Stehlé, R. Hutcheon, \textit{Extensive tabulations of Stark broadened hydrogen line profiles}, Astron. Astrophys. Suppl. Ser. 140, 93 (1999).
-\bibitem{rosato}
-J. Rosato, H. Capes, R. Stamm, \textit{Influence of ion dynamics and multiple body effects on hydrogen lines in magnetized fusion plasmas}, Phys. Rev. E 79, 046408 (2009).
-\bibitem{lomanowski}
-B. A. Lomanowski et al., \textit{Inferring divertor plasma properties from hydrogen Balmer and Paschen series spectroscopy in JET-ILW}, Nucl. Fusion 55, 123028 (2015).
-\bibitem{calisti2014}
-A. Calisti, S. Ferri, B. Talin, \textit{ZEST: A fast and accurate spectral line-shape code}, Journal of Physics B: Atomic, Molecular and Optical Physics 47, 175701 (2014).
-\end{thebibliography}
-
 % ============================================================
 \newpage
 \appendix
-% ============================================================
-
-\section{Algorithmic Overview of the Calculation Pipeline}
-\label{app:pipeline}
-
-When a user invokes \texttt{LineProfile.compute\_profile(grid, grid\_type)}, the \texttt{StarkZee} package performs a series of nested calculations to solve the coupled Stark-Zeeman line-shape problem. The numerical delegation chain is structured as follows:
-
-\begin{enumerate}
-    \item \textbf{\texttt{LineProfile.compute\_profile()}}: Manages the spectral coordinate axes, performs grid unit conversions, and forwards the arguments to the profile calculations.
-    \item \textbf{\texttt{static\_profile.calculate\_static\_profile()}}: Generates the plasma microfield grid and weights, computes the Gauss-Legendre quadrature points for the microfield orientation angle $\theta$, and runs the main double-integration loop.
-    \item \textbf{\texttt{solve\_starkzee()}}: Assembles the full electron-radiator Hamiltonian $H = H_A + V_E$ (Eq.~\ref{eq:full_hamiltonian}) and diagonalizes it as a single matrix with \texttt{numpy.linalg.eigh}.  $V_E$ is \emph{not} applied perturbatively.
-    \item \textbf{\texttt{radiator.build\_hamiltonian()}}: Builds $H_A$ — the field-free plus magnetic Hamiltonian (unperturbed energy, spin-orbit, fine structure, linear and quadratic Zeeman) in the uncoupled $|n,l,m_l,m_s\rangle$ basis.
-    \item \textbf{\texttt{static\_profile.\_stark\_templates()}}: Returns the field-independent Stark coupling matrices $M_z$ and $M_x$ [eV/(V/m)], cached per $(n,Z)$, so that $V_E = F_z M_z + F_x M_x$ is formed at each quadrature point without rebuilding the matrix loop.
-    \item \textbf{Transition Dipole Rotation}: Rotates the transition dipole operator matrices $D_q$ to the mixed eigenstate bases.
-    \item \textbf{Electron-Impact Broadening}: Evaluates the frequency-dependent electron Stark half-width $\gamma_e(\Delta E)$ via the Griem-Baranger-Kolb (GBK) model and accumulates Lorentzian profiles.
-    \item \textbf{\texttt{convolutions.\allowbreak{}apply\_doppler\_\allowbreak{}broadening()}}: Performs a post-processing Fast Fourier Transform (FFT) convolution to apply thermal Doppler broadening.
-\end{enumerate}
-
 % ============================================================
 
 \section{Physical Approximations and Domains of Validity}
@@ -1090,4 +966,42 @@ For astrophysical compact objects (magnetized white dwarfs with $B \sim 10^3$--$
     \item \textbf{High density} ($N_e \gtrsim 10^{24}$\,m$^{-3}$): The inter-particle spacing $r_e$ approaches the atomic radius $\langle r\rangle_n$. The static and $\Delta n = 0$ approximations break down as the Stark shift exceeds the Rydberg shell spacing (Inglis-Teller limit).
 \end{itemize}
 
+\begin{thebibliography}{9}
+\bibitem{ferri}
+S. Ferri, O. Peyrusse, A. Calisti, \textit{Stark-Zeeman line-shape model for multi-electron radiators in hot dense plasmas subjected to large magnetic fields}, Matter and Radiation at Extremes, 7, 015901 (2022). DOI: 10.1063/5.0058552
+\bibitem{baranger}
+M. Baranger, \textit{Simplified Quantum-Mechanical Theory of Pressure Broadening}, Phys. Rev. 111, 481 (1958), DOI: 10.1103/PhysRev.111.481; \textit{Problem of Overlapping Lines in the Theory of Pressure Broadening}, Phys. Rev. 111, 494 (1958), DOI: 10.1103/PhysRev.111.494.
+\bibitem{bethesalpeter}
+H.A. Bethe, E.E. Salpeter, \textit{Quantum Mechanics of One- and Two-Electron Atoms}, Springer-Verlag, Berlin (1957). DOI: 10.1007/978-3-662-12869-5
+\bibitem{gordon}
+W. Gordon, \textit{Zur Berechnung der Matrizen beim Wasserstoffatom}, Ann. Phys. 394, 1031 (1929). DOI: 10.1002/andp.19293940807
+\bibitem{edmonds}
+A.R. Edmonds, \textit{Angular Momentum in Quantum Mechanics}, Princeton University Press (1957). DOI: 10.1515/9781400884186
+\bibitem{talin}
+B. Talin, A. Calisti, L. Godbert, R. Stamm, R.W. Lee, L. Klein, \textit{Frequency-fluctuation model for line-shape calculations in plasma spectroscopy}, Phys. Rev. A 51, 1918 (1995). DOI: 10.1103/PhysRevA.51.1918
+\bibitem{griem}
+H.R. Griem, \textit{Principles of Plasma Spectroscopy}, Cambridge University Press (1997). DOI: 10.1017/CBO9780511524578
+\bibitem{griem1959}
+H.R. Griem, A.C. Kolb, K.Y. Shen, \textit{Stark Broadening of Hydrogen Lines in a Plasma}, Phys.\ Rev.\ 116, 4 (1959). DOI: 10.1103/PhysRev.116.4
+\bibitem{griembaranger}
+H.R. Griem, M. Baranger, A.C. Kolb, G. Oertel, \textit{Stark Broadening of Neutral Helium Lines in a Plasma}, Phys. Rev. 125, 177 (1962). DOI: 10.1103/PhysRev.125.177
+\bibitem{holtsmark}
+J. Holtsmark, \textit{\"Uber die Verbreiterung von Spektrallinien}, Ann. Phys. 58, 577 (1919). DOI: 10.1002/andp.19193630702
+\bibitem{hooper}
+C.F. Hooper, Jr., \textit{Low-Frequency Component Electric Microfield Distributions in Plasmas}, Phys. Rev. 165, 215 (1968). DOI: 10.1103/PhysRev.165.215
+\bibitem{potekhin}
+A.Y. Potekhin, G. Chabrier, D. Gilles, \textit{Electric microfield distributions in electron-ion plasmas}, Phys. Rev. E 65, 036412 (2002). DOI: 10.1103/PhysRevE.65.036412
+\bibitem{nist}
+A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team, \textit{NIST Atomic Spectra Database (ver. 5.11)}, National Institute of Standards and Technology, Gaithersburg, MD (2023). DOI: 10.18434/T4W30F
+\bibitem{stehle}
+C. Stehlé, R. Hutcheon, \textit{Extensive tabulations of Stark broadened hydrogen line profiles}, Astron. Astrophys. Suppl. Ser. 140, 93 (1999). DOI: 10.1051/aas:1999118
+\bibitem{rosato}
+J. Rosato, Y. Marandet, H. Capes, et al., \textit{Stark broadening of hydrogen lines in low-density magnetized plasmas}, Phys. Rev. E 79, 046408 (2009). DOI: 10.1103/PhysRevE.79.046408
+\bibitem{lomanowski}
+B. A. Lomanowski et al., \textit{Inferring divertor plasma properties from hydrogen Balmer and Paschen series spectroscopy in JET-ILW}, Nucl. Fusion 55, 123028 (2015). DOI: 10.1088/0029-5515/55/12/123028
+\bibitem{Gilleron2018}
+F. Gilleron, J.-C. Pain, \textit{ZEST: A fast code for simulating Zeeman-Stark line-shape functions}, Atoms 6, 11 (2018). DOI: 10.3390/atoms6010011
+\end{thebibliography}
+
 \end{document}
+

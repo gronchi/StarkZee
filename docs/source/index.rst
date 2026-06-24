@@ -60,9 +60,21 @@ field B, accounting for:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Background
+   :caption: Manual
 
-   theory
+   manual_introduction
+   manual_workflow
+   manual_formulation
+   manual_approximations
+   manual_reference_models
+   manual_validity
+   manual_operational_limits
+   manual_references
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Examples
+
    examples
 
 .. toctree::
@@ -70,3 +82,6 @@ field B, accounting for:
    :caption: API reference
 
    api/index
+
+
+

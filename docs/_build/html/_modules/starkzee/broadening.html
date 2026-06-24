@@ -1,0 +1,1134 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>starkzee.broadening &mdash; StarkZee</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            StarkZee
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#install">Install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#running-the-tests">Running the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#command-line-interface">Command-line interface</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#basic-profile">Basic profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#discrete-transition-stick-spectrum">Discrete transition stick spectrum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#balmer-series-at-once">Balmer series at once</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#lower-level-api">Lower-level API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#ffm-dynamic-ion-profile">FFM (dynamic ion) profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../quickstart.html#post-processing-doppler-and-instrumental-broadening">Post-processing: Doppler and instrumental broadening</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Manual</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_workflow.html">Calculation Workflow and Package Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_formulation.html">Physics and Numerical Formulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#liouville-space-representation">Liouville Space Representation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#from-propagator-to-resolvent">From propagator to resolvent.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#field-dependent-liouvillian-and-static-profile">Field-dependent Liouvillian and static profile.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#radiator-hamiltonian-in-magnetic-fields">Radiator Hamiltonian in Magnetic Fields</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#unperturbed-hydrogenic-energy-h-0">Unperturbed Hydrogenic Energy (<span class="math notranslate nohighlight">\(H_0\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#spin-orbit-coupling-h-rm-so">Spin-Orbit Coupling (<span class="math notranslate nohighlight">\(H_{\rm SO}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#fine-structure-relativistic-corrections-h-rm-fs">Fine-Structure Relativistic Corrections (<span class="math notranslate nohighlight">\(H_{\rm FS}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#linear-zeeman-effect-h-z-1">Linear Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(1)}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#quadratic-diamagnetic-zeeman-effect-h-z-2">Quadratic (Diamagnetic) Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(2)}\)</span>)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#empirical-field-free-energies">Empirical Field-Free Energies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#full-electron-radiator-hamiltonian">Full Electron-Radiator Hamiltonian</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#stark-perturbation-matrix-elements">Stark Perturbation Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#radial-matrix-element">Radial matrix element.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#angular-matrix-elements">Angular matrix elements.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#transition-dipole-operator">Transition Dipole Operator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#angular-dipole-matrix-elements">Angular Dipole Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#hydrogenic-radial-dipole-integrals-gordons-formula">Hydrogenic Radial Dipole Integrals (Gordon’s Formula)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#diagonalization-and-transition-dipole-basis-rotation">Diagonalization and Transition Dipole Basis Rotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#plasma-microfield-distributions">Plasma Microfield Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#the-hooper-screened-microfield-distribution">The Hooper Screened Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#the-potekhin-microfield-distribution">The Potekhin Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#quadrature-discretization">Quadrature Discretization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#electron-impact-broadening">Electron Impact Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#liouville-space-structure-of-phi-omega-and-connection-to-langle-r-2-rangle">Liouville-space structure of <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> and connection to <span class="math notranslate nohighlight">\(\langle r^2\rangle\)</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#shell-average-approximation">Shell-average approximation.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#density-temperature-prefactor">Density-Temperature Prefactor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#shell-averaged-mean-square-radius">Shell-Averaged Mean-Square Radius</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#strong-collision-constant">Strong-Collision Constant</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#dynamical-gbk-factor">Dynamical GBK Factor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#cutoff-frequency">Cutoff frequency.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#frequency-dependent-vs-resonance-center-width">Frequency-dependent vs. resonance-center width.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#zest-electron-broadening-variant-electron-model-zest">ZEST electron broadening variant (<code class="docutils literal notranslate"><span class="pre">electron_model=’zest’</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#physical-justification-delta-n-0-interaction-channels">Physical justification — <span class="math notranslate nohighlight">\(\Delta n = 0\)</span> interaction channels.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#intra-shell-squared-radius">Intra-shell squared radius.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#maximum-wave-number-cutoff-kappa-m">Maximum wave-number cutoff <span class="math notranslate nohighlight">\(\kappa_m\)</span>.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#g-function-choices-electron-model-selector">G-function choices (<code class="docutils literal notranslate"><span class="pre">electron_model</span></code> selector).</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#profile-accumulation">Profile Accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#frequency-fluctuation-model-ffm">Frequency Fluctuation Model (FFM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_formulation.html#thermal-doppler-broadening">Thermal Doppler Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#ffm-path-calculate-ffm-profile">FFM path (<code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_formulation.html#static-profile-path-calculate-static-profile">Static profile path (<code class="docutils literal notranslate"><span class="pre">calculate_static_profile</span></code>)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_approximations.html">Approximations and Numerical Choices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_reference_models.html">Built-in Reference Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_reference_models.html#tabulated-models">Tabulated Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_reference_models.html#stehle-mmm-stehle">Stehlé (MMM) — <code class="docutils literal notranslate"><span class="pre">stehle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_reference_models.html#rosato-rosato">Rosato — <code class="docutils literal notranslate"><span class="pre">rosato</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_reference_models.html#analytical-models">Analytical Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_reference_models.html#lomanowski-lomanowski">Lomanowski — <code class="docutils literal notranslate"><span class="pre">lomanowski</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_reference_models.html#parameterized-stehle-stehle-param">Parameterized Stehlé — <code class="docutils literal notranslate"><span class="pre">stehle_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../manual_reference_models.html#voigt-voigt">Voigt — <code class="docutils literal notranslate"><span class="pre">voigt</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_reference_models.html#comparison-with-starkzee">Comparison with StarkZee</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_validity.html">Physical Approximations and Domains of Validity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_operational_limits.html">Physics Explanation of Use Cases and Operational Limits</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_operational_limits.html#the-high-magnetic-field-regime">The High-Magnetic-Field Regime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../manual_operational_limits.html#density-limits">Density Limits</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../manual_references.html">References</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#balmer-series-lineprofile-class">Balmer series — LineProfile class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#h-stick-spectrum-and-broadened-profile">Hα stick spectrum and broadened profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#transition-anatomy">Transition anatomy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#reproducing-figure-1-from-ferri-et-al-2022">Reproducing Figure 1 from Ferri <em>et al.</em> (2022)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#satellite-features-at-b-1000-t">Satellite features at B = 1000 T</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#quadratic-zeeman-polarization-wings">Quadratic Zeeman polarization wings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#lyman-at-high-b">Lyman-α at high B</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/line_profile.html">line_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.energy_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.energy_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.detuning_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.detuning_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.wavelength_nm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavelength_nm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.frequency_thz"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.frequency_thz</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavenumber_cm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.q"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.q</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.strength"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.upper_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.upper_idx</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.DiscreteTransitions.lower_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.lower_idx</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile"><code class="docutils literal notranslate"><span class="pre">LineProfile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.GRID_TYPES"><code class="docutils literal notranslate"><span class="pre">LineProfile.GRID_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.compute_profile"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.compute_discrete"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_discrete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.profile_transverse"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_transverse</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.profile_parallel"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_parallel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/line_profile.html#starkzee.line_profile.LineProfile.profile_at_angle"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_at_angle()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/static_profile.html">static_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/static_profile.html#starkzee.static_profile.build_stark_matrix"><code class="docutils literal notranslate"><span class="pre">build_stark_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/static_profile.html#starkzee.static_profile.solve_starkzee"><code class="docutils literal notranslate"><span class="pre">solve_starkzee()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/static_profile.html#starkzee.static_profile.calculate_static_profile"><code class="docutils literal notranslate"><span class="pre">calculate_static_profile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/static_profile.html#starkzee.static_profile.discrete_transitions"><code class="docutils literal notranslate"><span class="pre">discrete_transitions()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/ffm.html">ffm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/ffm.html#starkzee.ffm.calculate_ion_fluctuation_rate"><code class="docutils literal notranslate"><span class="pre">calculate_ion_fluctuation_rate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/ffm.html#starkzee.ffm.calculate_ffm_profile"><code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/radiator.html">radiator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.index"><code class="docutils literal notranslate"><span class="pre">AtomicState.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.ml"><code class="docutils literal notranslate"><span class="pre">AtomicState.ml</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.s"><code class="docutils literal notranslate"><span class="pre">AtomicState.s</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.AtomicState.ms"><code class="docutils literal notranslate"><span class="pre">AtomicState.ms</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.build_basis"><code class="docutils literal notranslate"><span class="pre">build_basis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.radial_wavefunction"><code class="docutils literal notranslate"><span class="pre">radial_wavefunction()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.radial_r2_element"><code class="docutils literal notranslate"><span class="pre">radial_r2_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.set_radial_dipole_method"><code class="docutils literal notranslate"><span class="pre">set_radial_dipole_method()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.radial_dipole"><code class="docutils literal notranslate"><span class="pre">radial_dipole()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.angular_dipole_element"><code class="docutils literal notranslate"><span class="pre">angular_dipole_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.build_hamiltonian"><code class="docutils literal notranslate"><span class="pre">build_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.diagonalize_hamiltonian"><code class="docutils literal notranslate"><span class="pre">diagonalize_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.dipole_matrix_elements"><code class="docutils literal notranslate"><span class="pre">dipole_matrix_elements()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.line_strength"><code class="docutils literal notranslate"><span class="pre">line_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.oscillator_strength"><code class="docutils literal notranslate"><span class="pre">oscillator_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/radiator.html#starkzee.radiator.einstein_a"><code class="docutils literal notranslate"><span class="pre">einstein_a()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/microfield.html">microfield</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.calculate_normal_field"><code class="docutils literal notranslate"><span class="pre">calculate_normal_field()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.calculate_multispecies_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_multispecies_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.calculate_coupling_parameter"><code class="docutils literal notranslate"><span class="pre">calculate_coupling_parameter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.holtsmark_distribution"><code class="docutils literal notranslate"><span class="pre">holtsmark_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.hooper_distribution"><code class="docutils literal notranslate"><span class="pre">hooper_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.potekhin_distribution"><code class="docutils literal notranslate"><span class="pre">potekhin_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/microfield.html#starkzee.microfield.microfield_quadrature"><code class="docutils literal notranslate"><span class="pre">microfield_quadrature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/broadening.html">broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_plasma_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_plasma_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_larmor_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_larmor_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_configuration_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_configuration_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_cutoff_kappa_m"><code class="docutils literal notranslate"><span class="pre">calculate_cutoff_kappa_m()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.calculate_electron_impact_prefactor"><code class="docutils literal notranslate"><span class="pre">calculate_electron_impact_prefactor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.gbk_model"><code class="docutils literal notranslate"><span class="pre">gbk_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.gbk_zest_model"><code class="docutils literal notranslate"><span class="pre">gbk_zest_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.lee_model"><code class="docutils literal notranslate"><span class="pre">lee_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.dufty_model"><code class="docutils literal notranslate"><span class="pre">dufty_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.electron_impact_width"><code class="docutils literal notranslate"><span class="pre">electron_impact_width()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.electron_impact_width_zest"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_zest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.electron_impact_width_model"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/broadening.html#starkzee.broadening.electron_impact_r2_scaling"><code class="docutils literal notranslate"><span class="pre">electron_impact_r2_scaling()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/convolutions.html">convolutions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/convolutions.html#starkzee.convolutions.calculate_doppler_width_ev"><code class="docutils literal notranslate"><span class="pre">calculate_doppler_width_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/convolutions.html#starkzee.convolutions.convolve_fft"><code class="docutils literal notranslate"><span class="pre">convolve_fft()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/convolutions.html#starkzee.convolutions.apply_doppler_broadening"><code class="docutils literal notranslate"><span class="pre">apply_doppler_broadening()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/convolutions.html#starkzee.convolutions.apply_instrument_broadening"><code class="docutils literal notranslate"><span class="pre">apply_instrument_broadening()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/utils.html">utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.species_to_ZA"><code class="docutils literal notranslate"><span class="pre">species_to_ZA()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.nuclear_mass_kg"><code class="docutils literal notranslate"><span class="pre">nuclear_mass_kg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.reduced_mass_rydberg_ev"><code class="docutils literal notranslate"><span class="pre">reduced_mass_rydberg_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.temp_ev_to_joules"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_joules()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.temp_ev_to_kelvin"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_kelvin()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.energy_ev_to_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.vacuum_to_air_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">vacuum_to_air_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.wavelength_nm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavelength_nm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.frequency_thz_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">frequency_thz_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.energy_ev_to_frequency_thz"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_frequency_thz()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.wavenumber_cm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavenumber_cm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/utils.html#starkzee.utils.energy_ev_to_wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavenumber_cm()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/atomic_data.html">atomic_data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState.energy"><code class="docutils literal notranslate"><span class="pre">AtomicState.energy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState.j"><code class="docutils literal notranslate"><span class="pre">AtomicState.j</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.AtomicState.spin"><code class="docutils literal notranslate"><span class="pre">AtomicState.spin</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.get_data_path"><code class="docutils literal notranslate"><span class="pre">get_data_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.load_levels"><code class="docutils literal notranslate"><span class="pre">load_levels()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/atomic_data.html#starkzee.atomic_data.calculate_wavenumber"><code class="docutils literal notranslate"><span class="pre">calculate_wavenumber()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/index.html#module-overview">Module overview</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">StarkZee</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">starkzee.broadening</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for starkzee.broadening</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Electron impact broadening operator and collision G-functions (Lee, GBK, and Dufty RPA).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">exp1</span><span class="p">,</span> <span class="n">dawsn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.integrate</span><span class="w"> </span><span class="kn">import</span> <span class="n">quad</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">hbar</span> <span class="k">as</span> <span class="n">HBAR</span><span class="p">,</span> <span class="n">m_e</span> <span class="k">as</span> <span class="n">M_E</span><span class="p">,</span> <span class="n">e</span> <span class="k">as</span> <span class="n">E_CHARGE</span><span class="p">,</span> <span class="n">epsilon_0</span> <span class="k">as</span> <span class="n">EPSILON_0</span><span class="p">,</span>
+    <span class="n">physical_constants</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">starkzee.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">RYDBERG_EV</span><span class="p">,</span> <span class="n">HARTREE_EV</span>
+
+<span class="n">A_BOHR</span> <span class="o">=</span> <span class="n">physical_constants</span><span class="p">[</span><span class="s1">&#39;Bohr radius&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># m</span>
+
+
+<div class="viewcode-block" id="calculate_plasma_frequency">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_plasma_frequency">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_plasma_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the electron plasma angular frequency ω_p [rad s⁻¹].</span>
+
+<span class="sd">    The plasma frequency sets the lower cutoff for electron-impact broadening:</span>
+<span class="sd">    perturbations with frequency ω &lt; ω_p are screened by collective plasma</span>
+<span class="sd">    oscillations and do not contribute to individual collisions.</span>
+
+<span class="sd">        ω_p = √(N_e e² / (ε₀ m_e))</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Plasma angular frequency [rad s⁻¹].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">omega_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Ne_m3</span> <span class="o">*</span> <span class="p">(</span><span class="n">E_CHARGE</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">EPSILON_0</span> <span class="o">*</span> <span class="n">M_E</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">omega_p</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_larmor_frequency">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_larmor_frequency">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_larmor_frequency</span><span class="p">(</span><span class="n">B</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the electron Larmor (cyclotron) angular frequency ω_L [rad s⁻¹].</span>
+
+<span class="sd">    In a magnetic field B the electron gyrates at</span>
+
+<span class="sd">        ω_L = e B / m_e</span>
+
+<span class="sd">    This frequency acts as a lower cutoff for the GBK electron-broadening model</span>
+<span class="sd">    when it exceeds both ω_p and ω_e: cyclotron motion prevents an electron from</span>
+<span class="sd">    approaching the radiator more closely than the cyclotron radius, reducing the</span>
+<span class="sd">    effective cross-section at low detunings.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    B : float</span>
+<span class="sd">        Magnetic field strength [T]. ``B=0`` returns 0 safely.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Larmor angular frequency [rad s⁻¹].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">E_CHARGE</span> <span class="o">*</span> <span class="n">B</span> <span class="o">/</span> <span class="n">M_E</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_configuration_frequency">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_configuration_frequency">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_configuration_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the configuration-change frequency ω_e = 1 / τ_e [rad s⁻¹].</span>
+
+<span class="sd">    τ_e is the mean time for an electron to cross the Wigner-Seitz radius r_e</span>
+<span class="sd">    at the thermal velocity v_th:</span>
+
+<span class="sd">        r_e  = (3 / 4π N_e)^(1/3)     — Wigner-Seitz inter-electron radius</span>
+<span class="sd">        v_th = √(k_B T_e / m_e)        — thermal speed</span>
+<span class="sd">        τ_e  = r_e / v_th</span>
+<span class="sd">        ω_e  = 1 / τ_e  =  v_th / r_e</span>
+
+<span class="sd">    **Note on the 2π factor.**  Ferri, Peyrusse &amp; Calisti (2022) write</span>
+<span class="sd">    ω_e = 2π / τ_e, which is dimensionally correct: 1/τ_e is a rate in Hz and</span>
+<span class="sd">    multiplying by 2π gives an angular frequency in rad/s comparable to ω_p and</span>
+<span class="sd">    ω_L.  However, that formula yields ω_e ≈ 290 meV at Ne = 10¹⁷ cm⁻³,</span>
+<span class="sd">    Te = 5 eV, which exceeds ω_L even at B = 1 kT (ω_L ≈ 116 meV) and renders</span>
+<span class="sd">    the max() cutoff insensitive to B.  Their published figure shows distinct</span>
+<span class="sd">    curves at B = 500 T and 1 kT, consistent only with ω_e &lt; ω_L(500 T) ≈ 58 meV.</span>
+<span class="sd">    Their code (PPPB) therefore likely used 1/τ_e directly as an angular frequency</span>
+<span class="sd">    (a common plasma-physics convention conflating collision rate and angular</span>
+<span class="sd">    frequency), giving ω_e ≈ 46 meV.  StarkZee adopts the same convention.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Configuration-change frequency ω_e = v_th / r_e [rad s⁻¹].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">re</span> <span class="o">=</span> <span class="p">(</span><span class="mf">3.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">Ne_m3</span><span class="p">))</span><span class="o">**</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">3.0</span><span class="p">)</span>
+    <span class="n">v_th</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">M_E</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">v_th</span> <span class="o">/</span> <span class="n">re</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_debye_length">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_debye_length">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_debye_length</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the classical electron Debye screening length λ_D [m].</span>
+
+<span class="sd">        λ_D = √(ε₀ k_B T_e / (e² N_e))</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Debye length [m].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">EPSILON_0</span> <span class="o">*</span> <span class="n">Te_ev</span> <span class="o">/</span> <span class="p">(</span><span class="n">E_CHARGE</span> <span class="o">*</span> <span class="n">Ne_m3</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_cutoff_kappa_m">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_cutoff_kappa_m">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_cutoff_kappa_m</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the maximum wave-number cutoff κ_m [m⁻¹] (ZEST convention).</span>
+
+<span class="sd">    κ_m = min(κ_geo, κ_thermal) where:</span>
+<span class="sd">        κ_geo     = Z / (n² a₀)                    — geometric (Bohr orbit)</span>
+<span class="sd">        κ_thermal = Z √(2 m_e k_B T_e) / (ħ n²)  — thermal de Broglie</span>
+
+<span class="sd">    The geometric limit dominates at T_e &gt; 13.6 eV; the thermal limit dominates</span>
+<span class="sd">    below that threshold (1 Rydberg).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Principal quantum number of the upper level.</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Maximum wave-number cutoff κ_m [m⁻¹].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">p_th</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">M_E</span> <span class="o">*</span> <span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span><span class="p">)</span>    <span class="c1"># √(2 m_e k_B T_e)</span>
+    <span class="n">kappa_geo</span>     <span class="o">=</span> <span class="n">Z</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">A_BOHR</span><span class="p">)</span>
+    <span class="n">kappa_thermal</span> <span class="o">=</span> <span class="n">Z</span> <span class="o">*</span> <span class="n">p_th</span> <span class="o">/</span> <span class="p">(</span><span class="n">HBAR</span> <span class="o">*</span> <span class="n">n</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">kappa_geo</span><span class="p">,</span> <span class="n">kappa_thermal</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_electron_impact_prefactor">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.calculate_electron_impact_prefactor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_electron_impact_prefactor</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the electron-impact width prefactor W₀ [eV].</span>
+
+<span class="sd">    The total electron-impact half-width is</span>
+
+<span class="sd">        W_e = W₀ × ⟨r²⟩_n × [C_n + G(Δω)]</span>
+
+<span class="sd">    where ⟨r²⟩_n is the statistically averaged squared radius of the upper</span>
+<span class="sd">    level (in a₀²), C_n is a strong-collision constant, and G is the GBK</span>
+<span class="sd">    dynamical factor.  W₀ combines the electron density, temperature, and</span>
+<span class="sd">    fundamental constants into a single prefactor:</span>
+
+<span class="sd">        W₀ = (4π/3) N_e √(2m_e / (π k_B T_e)) × (ħ/m_e)² × (ħ/e)</span>
+
+<span class="sd">    The factor (ħ/m_e)² converts the squared velocity integral from SI to</span>
+<span class="sd">    atomic-unit area, and (ħ/e) converts rad s⁻¹ to eV.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Prefactor W₀ [eV a₀⁻²].  Multiply by ⟨r²⟩_n [a₀²] to obtain [eV].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Te_j</span> <span class="o">=</span> <span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span>
+
+    <span class="n">term1</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ne_m3</span>
+    <span class="n">term2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">M_E</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">Te_j</span><span class="p">))</span>
+    <span class="n">term3</span> <span class="o">=</span> <span class="p">(</span><span class="n">HBAR</span> <span class="o">/</span> <span class="n">M_E</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">term4</span> <span class="o">=</span> <span class="n">HBAR</span> <span class="o">/</span> <span class="n">E_CHARGE</span>
+
+    <span class="k">return</span> <span class="n">term1</span> <span class="o">*</span> <span class="n">term2</span> <span class="o">*</span> <span class="n">term3</span> <span class="o">*</span> <span class="n">term4</span></div>
+
+
+
+<div class="viewcode-block" id="gbk_model">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.gbk_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gbk_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">omega_c_ev</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate the semi-classical GBK dynamical broadening function G(Δω).</span>
+
+<span class="sd">    The Griem–Baranger–Kolb (GBK) model accounts for the frequency dependence</span>
+<span class="sd">    of electron-impact broadening using an exponential-integral form:</span>
+
+<span class="sd">        G(Δω) = ½ E₁(y)</span>
+
+<span class="sd">    where E₁ is the exponential integral and the dimensionless argument is</span>
+
+<span class="sd">        y = (n² / 2Z)² × (Δω² + ω_c²) / (E_H T_e)</span>
+
+<span class="sd">    with E_H = e²/2a₀ = 13.6057 eV (Rydberg energy) and T_e in eV.  GBK, Ferri and</span>
+<span class="sd">    ZEST all use this same definition.  At line center (Δω = 0)</span>
+<span class="sd">    G reduces to ½ E₁((n²/2Z)² ω_c² / (E_H T_e)) ≈ a positive constant; in</span>
+<span class="sd">    the far wings where Δω ≫ ω_c the argument y grows and G → 0, suppressing</span>
+<span class="sd">    the broadening at large detunings (the impact approximation breaks down).</span>
+
+<span class="sd">    The cutoff frequency ω_c = max(ω_p, ω_e, ω_L, ω_αα′) prevents the logarithm</span>
+<span class="sd">    from diverging at small impact parameters and encodes the transition</span>
+<span class="sd">    from the impact regime to the quasi-static regime.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning from line center Δω [eV].</span>
+<span class="sd">    omega_c_ev : float</span>
+<span class="sd">        Cutoff angular frequency ω_c [eV] (= ħ ω_c in SI units).</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge of the radiating ion.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the *upper* level (default 2).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Dimensionless GBK factor G(Δω) ≥ 0.</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Griem, Kolb &amp; Shen, Phys. Rev. 116, 4 (1959) — original G-function for hydrogen.</span>
+<span class="sd">    Griem, Baranger, Kolb &amp; Oertel, Phys. Rev. 125, 177 (1962) — helium extension.</span>
+<span class="sd">    Ferri, Peyrusse &amp; Calisti, Matter Radiat. Extremes 7, 015901 (2022) — C_n constants and ω_c formulation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="n">delta_omega_ev</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">omega_c_ev</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="p">((</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">Z</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">num</span> <span class="o">/</span> <span class="p">(</span><span class="n">RYDBERG_EV</span> <span class="o">*</span> <span class="n">Te_ev</span><span class="p">))</span>
+
+    <span class="n">g_val</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">exp1</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mf">1e-15</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">g_val</span></div>
+
+
+
+<div class="viewcode-block" id="gbk_zest_model">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.gbk_zest_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gbk_zest_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate the GBK G-function G(Δω) with ω_p as the only cutoff (ZEST convention).</span>
+
+<span class="sd">    Uses the κ_m-based argument written in eV units:</span>
+
+<span class="sd">        x   = κ_m λ_D                            (dimensionless cutoff)</span>
+<span class="sd">        arg = (Δω² + ω_p²) / (2 x² ω_p²)</span>
+<span class="sd">        G   = ½ E₁(arg)</span>
+
+<span class="sd">    where Δω and ω_p are in eV, and</span>
+<span class="sd">    κ_m = min(Z/(n²a₀), Z√(2mₑkBTe)/(ħn²)).</span>
+
+<span class="sd">    This is equivalent to the analytic form (n²/2Z)²(Δω²+ωp²)/(Ryd×Te) only in the</span>
+<span class="sd">    geometric κ_m regime (Te &gt; 13.6 eV).  Below that threshold the thermal branch</span>
+<span class="sd">    of κ_m is active and the analytic form gives a different (larger) G.  This</span>
+<span class="sd">    implementation uses the physical κ_m so it is consistent with :func:`lee_model`</span>
+<span class="sd">    and :func:`dufty_model`: all three converge at large Δω where G → ½ E₁(Δω²/(2x²ωp²)).</span>
+
+<span class="sd">    The only cutoff frequency is ω_p (no ω_e, no ω_L).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning Δω [eV].</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the upper level (default 2).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Dimensionless GBK factor G(Δω) ≥ 0.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    gbk_model : GBK/Ferri formula using max(ω_p, ω_e, ω_L) as cutoff.</span>
+<span class="sd">    lee_model : Lee analytical blend of impact and wing limits.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scalar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">)</span>
+    <span class="n">dw_ev</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)))</span>
+
+    <span class="n">omega_p_ev</span> <span class="o">=</span> <span class="n">calculate_plasma_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">)</span> <span class="o">*</span> <span class="n">HBAR</span> <span class="o">/</span> <span class="n">E_CHARGE</span>
+    <span class="n">lambda_D</span>   <span class="o">=</span> <span class="n">calculate_debye_length</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+    <span class="n">kappa_m</span>    <span class="o">=</span> <span class="n">calculate_cutoff_kappa_m</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">kappa_m</span> <span class="o">*</span> <span class="n">lambda_D</span>
+
+    <span class="n">arg</span> <span class="o">=</span> <span class="p">(</span><span class="n">dw_ev</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">omega_p_ev</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">omega_p_ev</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">arg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="mf">1e-30</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">exp1</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">scalar</span> <span class="k">else</span> <span class="n">res</span></div>
+
+
+
+<div class="viewcode-block" id="lee_model">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.lee_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">lee_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate Lee&#39;s analytical approximation for the G-function G(Δω).</span>
+
+<span class="sd">    The Lee model blends two limiting expressions:</span>
+<span class="sd">        G₀   = ½ [ln(1 + x²) − x²/(1 + x²)],   x = κ_m λ_D  (impact limit, Δω → 0)</span>
+<span class="sd">        G∞   = ½ E₁(Δω² / (2 κ_m² v_th²))                    (wing limit, Δω → ∞)</span>
+<span class="sd">        G    = min(G₀, G∞)</span>
+
+<span class="sd">    Unlike :func:`gbk_zest_model`, the G∞ argument contains only Δω²</span>
+<span class="sd">    (not Δω² + ω_p²): the plasma cutoff is captured implicitly by G₀.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning Δω [eV].</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the upper level (default 2).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Lee G-function value G(Δω) ≥ 0.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scalar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">)</span>
+    <span class="n">dw_rad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)))</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">HBAR</span>
+
+    <span class="n">omega_p</span>  <span class="o">=</span> <span class="n">calculate_plasma_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">)</span>
+    <span class="n">lambda_D</span> <span class="o">=</span> <span class="n">calculate_debye_length</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+    <span class="n">kappa_m</span>  <span class="o">=</span> <span class="n">calculate_cutoff_kappa_m</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+
+    <span class="n">x</span>  <span class="o">=</span> <span class="n">kappa_m</span> <span class="o">*</span> <span class="n">lambda_D</span>
+    <span class="n">g0</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="n">arg</span>   <span class="o">=</span> <span class="n">dw_rad</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">kappa_m</span> <span class="o">*</span> <span class="n">lambda_D</span> <span class="o">*</span> <span class="n">omega_p</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">g_inf</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">exp1</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="mf">1e-30</span><span class="p">))</span>
+
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">g0</span><span class="p">,</span> <span class="n">g_inf</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">scalar</span> <span class="k">else</span> <span class="n">res</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_dufty_integrand</span><span class="p">(</span><span class="n">kappa</span><span class="p">,</span> <span class="n">dw_rad</span><span class="p">,</span> <span class="n">lambda_D</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">):</span>
+    <span class="n">v_th</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">M_E</span><span class="p">)</span>   <span class="c1"># ZEST convention: √(2kT/m)</span>
+    <span class="n">x</span>     <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dw_rad</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">kappa</span> <span class="o">*</span> <span class="n">v_th</span><span class="p">)</span>
+    <span class="n">ratio</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">kappa</span> <span class="o">*</span> <span class="n">lambda_D</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">re_eps</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">ratio</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">dawsn</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mf">10.0</span><span class="p">:</span>
+        <span class="n">exp_x2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">im_eps</span> <span class="o">=</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">exp_x2</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">exp_x2</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">im_eps</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">return</span> <span class="n">exp_x2</span> <span class="o">/</span> <span class="p">(</span><span class="n">kappa</span> <span class="o">*</span> <span class="p">(</span><span class="n">re_eps</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">im_eps</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="dufty_model">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.dufty_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dufty_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate the Dufty RPA G-function G(Δω) by numerical integration.</span>
+
+<span class="sd">    Integrates the electron RPA dielectric function over wave numbers κ_min to</span>
+<span class="sd">    κ_m, accounting for Landau damping via the Dawson function:</span>
+
+<span class="sd">        G(Δω) = ∫_{κ_min}^{κ_m} e^{−x²} / (κ ‖ε(κ, Δω)‖²) dκ</span>
+
+<span class="sd">    where x = abs(Δω) / (κ v_th) and v_th = √(2 k_B T_e / m_e).  This is the most</span>
+<span class="sd">    accurate of the three G models but also the slowest (one quadrature per point).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning Δω [eV].</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the upper level (default 2).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Dufty RPA G-function value G(Δω) ≥ 0.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    gbk_zest_model : Faster closed-form GBK approximation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scalar</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">)</span>
+    <span class="n">dw_rad</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">HBAR</span>
+
+    <span class="n">lambda_D</span> <span class="o">=</span> <span class="n">calculate_debye_length</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+    <span class="n">kappa_m</span>  <span class="o">=</span> <span class="n">calculate_cutoff_kappa_m</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+    <span class="n">v_th</span>     <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">M_E</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dw_rad</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dw</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dw_rad</span><span class="p">):</span>
+        <span class="n">dw_abs</span>    <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dw</span><span class="p">)</span>
+        <span class="n">kappa_min</span> <span class="o">=</span> <span class="n">dw_abs</span> <span class="o">/</span> <span class="p">(</span><span class="mf">10.0</span> <span class="o">*</span> <span class="n">v_th</span><span class="p">)</span> <span class="k">if</span> <span class="n">dw_abs</span> <span class="o">&gt;</span> <span class="mf">1e-15</span> <span class="k">else</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">100.0</span> <span class="o">*</span> <span class="n">lambda_D</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kappa_min</span> <span class="o">&gt;=</span> <span class="n">kappa_m</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">val</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">quad</span><span class="p">(</span><span class="n">_dufty_integrand</span><span class="p">,</span> <span class="n">kappa_min</span><span class="p">,</span> <span class="n">kappa_m</span><span class="p">,</span>
+                          <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">dw</span><span class="p">,</span> <span class="n">lambda_D</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">),</span> <span class="n">epsrel</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">scalar</span> <span class="k">else</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="electron_impact_width">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.electron_impact_width">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">electron_impact_width</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the total electron-impact half-width W_e(Δω) [eV].</span>
+
+<span class="sd">    Implements the frequency-dependent GBK model for electron Stark broadening,</span>
+<span class="sd">    extended to include a magnetic-field-dependent cutoff frequency.  The total</span>
+<span class="sd">    half-width (HWHM of the Lorentzian) is:</span>
+
+<span class="sd">        W_e(Δω) = W₀ × ⟨r²⟩_n × [C_n + G(Δω, ω_c)]</span>
+
+<span class="sd">    **Prefactor W₀** — see :func:`calculate_electron_impact_prefactor`.</span>
+
+<span class="sd">    **Mean squared radius** ⟨r²⟩_n is the statistical (2l+1)-weighted average</span>
+<span class="sd">    of ⟨r²⟩_{n,l} over all l subshells:</span>
+
+<span class="sd">        ⟨r²⟩_{n,l} = (n²/2Z²) [5n² + 1 − 3l(l+1)]   [a₀²]</span>
+<span class="sd">        ⟨r²⟩_n     = (1/n²) Σ_{l=0}^{n-1} (2l+1) ⟨r²⟩_{n,l}</span>
+
+<span class="sd">    Scales approximately as n⁴/Z², so broadening grows rapidly with n.</span>
+
+<span class="sd">    **Strong-collision constant C_n** (Ferri, Peyrusse &amp; Calisti,</span>
+<span class="sd">    Matter Radiat. Extremes 7, 015901 (2022), Table 1):</span>
+
+<span class="sd">    =========  ======</span>
+<span class="sd">    n          C_n</span>
+<span class="sd">    =========  ======</span>
+<span class="sd">    ≤ 2        1.50</span>
+<span class="sd">    3          1.00</span>
+<span class="sd">    4          0.75</span>
+<span class="sd">    5          0.50</span>
+<span class="sd">    &gt; 5        0.40</span>
+<span class="sd">    =========  ======</span>
+
+<span class="sd">    **Cutoff frequency** ω_c = max(ω_p, ω_L, ω_e, ω_αα′) (Ferri, Peyrusse &amp;</span>
+<span class="sd">    Calisti 2022, below Eq. 20), where ω_p is the plasma frequency, ω_L the</span>
+<span class="sd">    electron Larmor frequency, ω_e = 1/τ_e the configuration-change frequency</span>
+<span class="sd">    (see :func:`calculate_configuration_frequency`), and ω_αα′ the</span>
+<span class="sd">    state-to-state transition frequency.  ω_αα′ = 0 for hydrogen (degenerate</span>
+<span class="sd">    l-subshells within a shell); it is non-zero for multi-electron atoms and is</span>
+<span class="sd">    currently a zero placeholder pending implementation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning from line center Δω [eV].  Pass ``0.0`` for the</span>
+<span class="sd">        on-resonance (line-center) width.</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    B : float</span>
+<span class="sd">        Magnetic field [T]. ``B=0`` is valid; ω_L = 0 in that case.</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge of the radiating ion (1 for hydrogen).</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the *upper* level (default 2).</span>
+<span class="sd">        The width refers to the upper-level broadening only; the lower-level</span>
+<span class="sd">        contribution is neglected, consistent with the semi-classical model.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Electron-impact half-width W_e [eV] (HWHM of the Lorentzian component</span>
+<span class="sd">        at detuning Δω).  Always positive.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    A negligible floor of 1e-10 eV is added by the caller in</span>
+<span class="sd">    :func:`~starkzee.static_profile.calculate_static_profile` solely to</span>
+<span class="sd">    prevent 0/0 in the Lorentzian at exactly zero density; the raw value</span>
+<span class="sd">    returned here is the physical width without that floor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">prefactor</span> <span class="o">=</span> <span class="n">calculate_electron_impact_prefactor</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+
+    <span class="n">r2_avg</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">Z</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mf">5.0</span><span class="o">*</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">3.0</span><span class="o">*</span><span class="n">l</span><span class="o">*</span><span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="o">**</span><span class="mi">2</span>
+
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">Cn</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">Cn</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">Cn</span> <span class="o">=</span> <span class="mf">0.75</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">Cn</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">Cn</span> <span class="o">=</span> <span class="mf">0.40</span>
+
+    <span class="n">omega_p</span> <span class="o">=</span> <span class="n">calculate_plasma_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">)</span>
+    <span class="n">omega_L</span> <span class="o">=</span> <span class="n">calculate_larmor_frequency</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="n">omega_e</span> <span class="o">=</span> <span class="n">calculate_configuration_frequency</span><span class="p">(</span><span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">)</span>
+
+    <span class="n">omega_aa_prime</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># state-to-state transition cutoff; non-zero for multi-electron atoms</span>
+    <span class="n">omega_c_rad</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">omega_p</span><span class="p">,</span> <span class="n">omega_L</span><span class="p">,</span> <span class="n">omega_e</span><span class="p">,</span> <span class="n">omega_aa_prime</span><span class="p">)</span>
+    <span class="n">omega_c_ev</span> <span class="o">=</span> <span class="n">omega_c_rad</span> <span class="o">*</span> <span class="n">HBAR</span> <span class="o">/</span> <span class="n">E_CHARGE</span>
+
+    <span class="c1"># Griem (Phys. Rev. A 16, 1979) approach: combine cutoffs in quadrature with the detuning</span>
+    <span class="c1"># omega_p = calculate_plasma_frequency(Ne_m3)</span>
+    <span class="c1"># omega_p_ev = omega_p * HBAR / E_CHARGE</span>
+    <span class="c1"># delta_omega_s = (13.0 * n**2 * HBAR * Ne_m3**(2.0/3.0)) / (Z * M_E)</span>
+    <span class="c1"># delta_omega_s_ev = delta_omega_s * HBAR / E_CHARGE</span>
+    <span class="c1"># omega_c = sqrt(omega_p^2 + delta_omega_s^2 + delta_omega^2)</span>
+    <span class="c1"># omega_c_ev = np.sqrt(omega_p_ev**2 + delta_omega_s_ev**2 + delta_omega_ev**2)</span>
+
+    <span class="n">g_val</span> <span class="o">=</span> <span class="n">gbk_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">omega_c_ev</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+
+    <span class="n">width_ev</span> <span class="o">=</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">r2_avg</span> <span class="o">*</span> <span class="p">(</span><span class="n">Cn</span> <span class="o">+</span> <span class="n">g_val</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">width_ev</span></div>
+
+
+
+<div class="viewcode-block" id="electron_impact_width_zest">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.electron_impact_width_zest">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">electron_impact_width_zest</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;gbk&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the electron-impact half-width W_e(Δω) [eV] using the ZEST broadening model.</span>
+
+<span class="sd">    Implements the ZEST electron broadening operator:</span>
+
+<span class="sd">        W_e(Δω) = W₀ × ⟨r²_intra⟩_n × [G_n + G(Δω)]</span>
+
+<span class="sd">    **Prefactor** W₀ = (4π/3) N_e √(2m_e/πkT_e) (ħ/m_e)² (ħ/e).</span>
+
+<span class="sd">    **Intra-shell squared radius** ⟨r²_intra⟩_n is the mean over the n²-degenerate</span>
+<span class="sd">    spatial basis of the intra-shell dipole sum:</span>
+
+<span class="sd">        r²_intra,i = Σ_{j same shell} ‖⟨i|r|j⟩‖²</span>
+
+<span class="sd">    which uses only within-shell matrix elements, unlike the full ⟨r²⟩_{n,l} used by</span>
+<span class="sd">    :func:`electron_impact_width`.  For hydrogen-like ions the per-l value is</span>
+
+<span class="sd">        r²_intra,l = (9n²/4Z²) (n² − l(l+1) − 1)     [a₀²]</span>
+
+<span class="sd">    derived from the intra-shell radial element ⟨n,l|r|n,l±1⟩ = (3n/2Z)√(n²−(l±1)²)</span>
+<span class="sd">    and the angular sum factors C(l, l+1) = (l+1)/(2l+1), C(l, l−1) = l/(2l+1).</span>
+<span class="sd">    The shell average is exact in closed form:</span>
+
+<span class="sd">        ⟨r²_intra⟩_n = (9n²/8Z²)(n²−1)     [a₀²]</span>
+
+<span class="sd">    This matches the average computed in ZEST&#39;s ``_get_level_widths_sp``.</span>
+
+<span class="sd">    The difference from :func:`electron_impact_width` is in both the G-function and r²:</span>
+
+<span class="sd">    - **r²**: intra-shell sum ⟨r²_intra⟩ &lt; full diagonal ⟨r²⟩ (ratio ~0.41 at n=2, ~0.53 at n=3)</span>
+<span class="sd">    - **Minimum impact parameter**: ZEST uses ρ_min = 1/κ_m (temperature-dependent);</span>
+<span class="sd">      StarkZee uses the fixed n²a₀/(2Z).</span>
+<span class="sd">    - **Cutoff frequency**: ZEST uses ω_p only; StarkZee uses max(ω_p, ω_e, ω_L).</span>
+<span class="sd">    - **G_n / C_n values**: identical in both.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning Δω [eV].</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the upper level (default 2).</span>
+<span class="sd">    model : {&#39;gbk&#39;, &#39;lee&#39;, &#39;dufty&#39;}, optional</span>
+<span class="sd">        G-function approximation: ``&#39;gbk&#39;`` → :func:`gbk_zest_model`,</span>
+<span class="sd">        ``&#39;lee&#39;`` → :func:`lee_model`, ``&#39;dufty&#39;`` → :func:`dufty_model`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Electron-impact half-width W_e [eV].</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    electron_impact_width : StarkZee/Ferri GBK with fixed ρ_min and ω_e, ω_L cutoffs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v_th</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Te_ev</span> <span class="o">*</span> <span class="n">E_CHARGE</span> <span class="o">/</span> <span class="n">M_E</span><span class="p">)</span>
+    <span class="n">const_factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">E_CHARGE</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">A_BOHR</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">EPSILON_0</span> <span class="o">*</span> <span class="n">HBAR</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">prefactor</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ne_m3</span>
+        <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">v_th</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="o">*</span> <span class="n">const_factor</span>
+        <span class="o">*</span> <span class="p">(</span><span class="n">HBAR</span> <span class="o">/</span> <span class="n">E_CHARGE</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Intra-shell squared radius: mean of sum_{j same shell} |&lt;i|r|j&gt;|^2 over all</span>
+    <span class="c1"># n^2 spatial basis states.  Exact closed form derived from the intra-shell</span>
+    <span class="c1"># radial element &lt;n,l|r|n,l+-1&gt; = (3n/2Z)*sqrt(n^2-(l+-1)^2) and angular sum</span>
+    <span class="c1"># factors C(l, l+1) = (l+1)/(2l+1), C(l, l-1) = l/(2l+1), giving</span>
+    <span class="c1"># r2_intra_l = (9n^2/4Z^2)*(n^2 - l(l+1) - 1) and shell average (9n^2/8Z^2)*(n^2-1).</span>
+    <span class="n">r2_intra_avg</span> <span class="o">=</span> <span class="p">(</span><span class="mf">9.0</span> <span class="o">*</span> <span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="mf">8.0</span> <span class="o">*</span> <span class="n">Z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">Gn</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">Gn</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">Gn</span> <span class="o">=</span> <span class="mf">0.75</span>
+    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">Gn</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">Gn</span> <span class="o">=</span> <span class="mf">0.4</span>
+
+    <span class="k">if</span> <span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;lee&#39;</span><span class="p">:</span>
+        <span class="n">g_val</span> <span class="o">=</span> <span class="n">lee_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;dufty&#39;</span><span class="p">:</span>
+        <span class="n">g_val</span> <span class="o">=</span> <span class="n">dufty_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">g_val</span> <span class="o">=</span> <span class="n">gbk_zest_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">r2_intra_avg</span> <span class="o">*</span> <span class="p">(</span><span class="n">Gn</span> <span class="o">+</span> <span class="n">g_val</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Accepted ``electron_model`` selectors for :func:`electron_impact_width_model`.</span>
+<span class="n">ELECTRON_MODELS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;pppb&#39;</span><span class="p">,</span> <span class="s1">&#39;ferri&#39;</span><span class="p">,</span> <span class="s1">&#39;zest&#39;</span><span class="p">,</span> <span class="s1">&#39;zest-gbk&#39;</span><span class="p">,</span> <span class="s1">&#39;zest-lee&#39;</span><span class="p">,</span> <span class="s1">&#39;zest-dufty&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="electron_impact_width_model">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.electron_impact_width_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">electron_impact_width_model</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                <span class="n">electron_model</span><span class="o">=</span><span class="s1">&#39;pppb&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the electron-impact half-width W_e(Δω) [eV] from the selected model.</span>
+
+<span class="sd">    Thin dispatcher that lets the profile solvers switch between the two published</span>
+<span class="sd">    electron-impact prescriptions without changing any call site:</span>
+
+<span class="sd">    - ``&#39;pppb&#39;`` (default) → :func:`electron_impact_width`.</span>
+<span class="sd">      The PPPB / Ferri, Peyrusse &amp; Calisti (2022) form: fixed minimum impact</span>
+<span class="sd">      parameter ρ_min = n²a₀/(2Z), GBK G-function, and a **B-dependent** cutoff</span>
+<span class="sd">      ω_c = max(ω_p, ω_e, ω_L).</span>
+<span class="sd">    - ``&#39;zest&#39;`` / ``&#39;zest-gbk&#39;`` → :func:`electron_impact_width_zest` (``model=&#39;gbk&#39;``).</span>
+<span class="sd">    - ``&#39;zest-lee&#39;`` → ZEST with Lee&#39;s analytic G-function (``model=&#39;lee&#39;``).</span>
+<span class="sd">    - ``&#39;zest-dufty&#39;`` → ZEST with the Dufty RPA G-function (``model=&#39;dufty&#39;``).</span>
+
+<span class="sd">    The ZEST variants use ω_p as the only cutoff (κ_m-based ρ_min, no Larmor</span>
+<span class="sd">    term), consistent with the ZEST formulation, so ``B`` does not enter them;</span>
+<span class="sd">    it is accepted here only to give every model a uniform signature.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    delta_omega_ev : float or array-like</span>
+<span class="sd">        Frequency detuning from line center Δω [eV].</span>
+<span class="sd">    Ne_m3 : float</span>
+<span class="sd">        Electron number density [m⁻³].</span>
+<span class="sd">    Te_ev : float</span>
+<span class="sd">        Electron temperature [eV].</span>
+<span class="sd">    B : float</span>
+<span class="sd">        Magnetic field [T].  Used only by the ``&#39;pppb&#39;`` model (Larmor cutoff).</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Principal quantum number of the upper level (default 2).</span>
+<span class="sd">    electron_model : str, optional</span>
+<span class="sd">        One of ``&#39;pppb&#39;``, ``&#39;zest&#39;``, ``&#39;zest-gbk&#39;``, ``&#39;zest-lee&#39;``, ``&#39;zest-dufty&#39;``</span>
+<span class="sd">        (default ``&#39;pppb&#39;``).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or ndarray</span>
+<span class="sd">        Electron-impact half-width W_e [eV].</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    electron_impact_width : PPPB model.</span>
+<span class="sd">    electron_impact_width_zest : ZEST model (GBK / Lee / Dufty G-functions).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">electron_model</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;pppb&#39;</span><span class="p">,</span> <span class="s1">&#39;ferri&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">electron_impact_width</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;zest&#39;</span><span class="p">,</span> <span class="s1">&#39;zest-gbk&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">electron_impact_width_zest</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;gbk&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="o">==</span> <span class="s1">&#39;zest-lee&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">electron_impact_width_zest</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;lee&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="o">==</span> <span class="s1">&#39;zest-dufty&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">electron_impact_width_zest</span><span class="p">(</span><span class="n">delta_omega_ev</span><span class="p">,</span> <span class="n">Ne_m3</span><span class="p">,</span> <span class="n">Te_ev</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;dufty&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Unknown electron_model </span><span class="si">{</span><span class="n">electron_model</span><span class="si">!r}</span><span class="s2">; choose one of </span><span class="si">{</span><span class="n">ELECTRON_MODELS</span><span class="si">}</span><span class="s2">.&quot;</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="electron_impact_r2_scaling">
+<a class="viewcode-back" href="../../api/broadening.html#starkzee.broadening.electron_impact_r2_scaling">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">electron_impact_r2_scaling</span><span class="p">(</span><span class="n">eigenvectors</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">Z</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Per-eigenstate ⟨k|r²|k⟩ / ⟨r²⟩_avg — the electron-impact **operator** diagonal.</span>
+
+<span class="sd">    The semi-classical electron-impact width is linear in the upper-state</span>
+<span class="sd">    operator ``R⃗·R⃗ = r²`` (Ferri/PPPB Eq. 19; ZEST Eq. 8).  StarkZee&#39;s scalar</span>
+<span class="sd">    width functions evaluate it with the *shell-averaged* ``⟨r²⟩_avg``; ZEST and</span>
+<span class="sd">    PPPB instead use the operator&#39;s value resolved on each Stark-Zeeman dressed</span>
+<span class="sd">    state.  Because the width is linear in r², the operator-diagonal width of</span>
+<span class="sd">    dressed state ``k`` is simply</span>
+
+<span class="sd">        W_e^{op}(k) = W_e^{scalar} × ⟨k|r²|k⟩ / ⟨r²⟩_avg ,</span>
+
+<span class="sd">    i.e. the scalar width times the factor returned here.</span>
+
+<span class="sd">    ``r²`` is purely radial, so in the ``|n, l, m_l, m_s⟩`` basis it is diagonal</span>
+<span class="sd">    with value ``⟨r²⟩_{n,l} = (n²/2Z²)[5n²+1−3l(l+1)]``; the Stark-Zeeman</span>
+<span class="sd">    eigenstates mix l, so ⟨k|r²|k⟩ varies from state to state.  The factor</span>
+<span class="sd">    averages to 1 over the shell (trace preserved), redistributing width among</span>
+<span class="sd">    components.</span>
+
+<span class="sd">    **This is the diagonal of the broadening operator.**  Keeping the diagonal</span>
+<span class="sd">    only (and discarding off-diagonal ⟨k|r²|k&#39;⟩) is exactly the ``c_k = 0``</span>
+<span class="sd">    approximation that recovers the **ZEST operator**.  The off-diagonal part is</span>
+<span class="sd">    what generates the complex SDT intensity ``a_k + i c_k`` of the full **PPPB**</span>
+<span class="sd">    operator (non-Hermitian Liouvillian) — *not yet implemented*; see the</span>
+<span class="sd">    REVIEW note below.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    eigenvectors : ndarray, shape (2n², 2n²)</span>
+<span class="sd">        Stark-Zeeman eigenvectors (columns) in the ``|n,l,m_l,m_s⟩`` basis, as</span>
+<span class="sd">        returned by the profile solvers&#39; ``eigh`` call.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Principal quantum number of the shell these eigenvectors belong to.</span>
+<span class="sd">    Z : int</span>
+<span class="sd">        Nuclear charge.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ndarray, shape (2n²,)</span>
+<span class="sd">        Per-eigenstate scaling factor ⟨k|r²|k⟩ / ⟨r²⟩_avg (mean ≈ 1).</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    REVIEW (future): only the operator **diagonal** is used (``c_k = 0`` →</span>
+<span class="sd">    ZEST).  The full PPPB operator keeps the off-diagonal ⟨k|r²|k&#39;⟩, builds the</span>
+<span class="sd">    non-Hermitian Liouvillian, and yields the complex intensity ``a_k + i c_k``</span>
+<span class="sd">    (estimated ~1–2 % asymmetry for Hβ at 1 kT).  Implementing it also calls for</span>
+<span class="sd">    the lower-manifold ``d†·d`` piece (currently neglected, as in the scalar</span>
+<span class="sd">    model).  See ``FFM_implementation_plan.md``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">starkzee.radiator</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_basis</span>
+    <span class="n">basis</span> <span class="o">=</span> <span class="n">build_basis</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">r2_diag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[(</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">Z</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mf">5.0</span> <span class="o">*</span> <span class="n">n</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">l</span> <span class="o">*</span> <span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">l</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">basis</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">r2_avg</span> <span class="o">=</span> <span class="n">r2_diag</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">eigenvectors</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">r2_diag</span> <span class="o">/</span> <span class="n">r2_avg</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, G. Ronchi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

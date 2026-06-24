@@ -31,15 +31,28 @@ def get_data_path() -> str:
 
 
 def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
-    """
-    Loads atomic states from the JSON database.
-    
-    Args:
-        atom: The chemical symbol (e.g., 'H', 'He').
-        fine_structure: Whether to load the fine structure sublevels.
-        
-    Returns:
-        A list of AtomicState objects.
+    """Load atomic states from the JSON database.
+
+    Parameters
+    ----------
+    atom : str
+        Chemical symbol of the element (e.g. ``'H'``, ``'He'``).
+    fine_structure : bool
+        If ``True``, load :math:`(n, l, j)`-resolved levels
+        (``fine_structure_true`` section); otherwise load shell-averaged
+        levels (``fine_structure_false`` section).
+
+    Returns
+    -------
+    list of AtomicState
+        Atomic states ordered as stored in the JSON file, with energies
+        in cm\ :sup:`-1` above the ground state.
+
+    Raises
+    ------
+    ValueError
+        If *atom* or the requested fine-structure section is absent from
+        the database.
     """
     data_path = get_data_path()
     
@@ -71,16 +84,27 @@ def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
 
 
 def calculate_wavenumber(upper_state: AtomicState, lower_state: AtomicState, lambda_shift: float = 0.0) -> float:
-    """
-    Computes the transition wavenumber, optionally including a lambda shift.
-    
-    Args:
-        upper_state: The upper energy level.
-        lower_state: The lower energy level.
-        lambda_shift: An optional shift to apply to the resulting wavenumber.
-        
-    Returns:
-        The transition wavenumber.
+    """Compute the transition wavenumber between two atomic states.
+
+    Parameters
+    ----------
+    upper_state : AtomicState
+        Upper energy level.
+    lower_state : AtomicState
+        Lower energy level.
+    lambda_shift : float, optional
+        Additional shift added to the computed wavenumber (default 0.0).
+
+    Returns
+    -------
+    float
+        Transition wavenumber :math:`E_u - E_l + \lambda_\mathrm{shift}`
+        in cm\ :sup:`-1`.
+
+    Raises
+    ------
+    ValueError
+        If *upper_state* has lower energy than *lower_state*.
     """
     base_wavenumber = upper_state.energy - lower_state.energy
     if base_wavenumber < 0:

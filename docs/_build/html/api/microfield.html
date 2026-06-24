@@ -1,0 +1,609 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>microfield &mdash; StarkZee</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="broadening" href="broadening.html" />
+    <link rel="prev" title="radiator" href="radiator.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            StarkZee
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#install">Install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#running-the-tests">Running the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#command-line-interface">Command-line interface</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quick start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#basic-profile">Basic profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#discrete-transition-stick-spectrum">Discrete transition stick spectrum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#balmer-series-at-once">Balmer series at once</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#lower-level-api">Lower-level API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#ffm-dynamic-ion-profile">FFM (dynamic ion) profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#post-processing-doppler-and-instrumental-broadening">Post-processing: Doppler and instrumental broadening</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Manual</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manual_introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_workflow.html">Calculation Workflow and Package Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_formulation.html">Physics and Numerical Formulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#liouville-space-representation">Liouville Space Representation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#from-propagator-to-resolvent">From propagator to resolvent.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#field-dependent-liouvillian-and-static-profile">Field-dependent Liouvillian and static profile.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#radiator-hamiltonian-in-magnetic-fields">Radiator Hamiltonian in Magnetic Fields</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#unperturbed-hydrogenic-energy-h-0">Unperturbed Hydrogenic Energy (<span class="math notranslate nohighlight">\(H_0\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#spin-orbit-coupling-h-rm-so">Spin-Orbit Coupling (<span class="math notranslate nohighlight">\(H_{\rm SO}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#fine-structure-relativistic-corrections-h-rm-fs">Fine-Structure Relativistic Corrections (<span class="math notranslate nohighlight">\(H_{\rm FS}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#linear-zeeman-effect-h-z-1">Linear Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(1)}\)</span>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#quadratic-diamagnetic-zeeman-effect-h-z-2">Quadratic (Diamagnetic) Zeeman Effect (<span class="math notranslate nohighlight">\(H_Z^{(2)}\)</span>)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#empirical-field-free-energies">Empirical Field-Free Energies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#full-electron-radiator-hamiltonian">Full Electron-Radiator Hamiltonian</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#stark-perturbation-matrix-elements">Stark Perturbation Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#radial-matrix-element">Radial matrix element.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#angular-matrix-elements">Angular matrix elements.</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#transition-dipole-operator">Transition Dipole Operator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#angular-dipole-matrix-elements">Angular Dipole Matrix Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#hydrogenic-radial-dipole-integrals-gordons-formula">Hydrogenic Radial Dipole Integrals (Gordon’s Formula)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#diagonalization-and-transition-dipole-basis-rotation">Diagonalization and Transition Dipole Basis Rotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#plasma-microfield-distributions">Plasma Microfield Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#the-hooper-screened-microfield-distribution">The Hooper Screened Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#the-potekhin-microfield-distribution">The Potekhin Microfield Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#quadrature-discretization">Quadrature Discretization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#electron-impact-broadening">Electron Impact Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#liouville-space-structure-of-phi-omega-and-connection-to-langle-r-2-rangle">Liouville-space structure of <span class="math notranslate nohighlight">\(\Phi(\omega)\)</span> and connection to <span class="math notranslate nohighlight">\(\langle r^2\rangle\)</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#shell-average-approximation">Shell-average approximation.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#density-temperature-prefactor">Density-Temperature Prefactor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#shell-averaged-mean-square-radius">Shell-Averaged Mean-Square Radius</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#strong-collision-constant">Strong-Collision Constant</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#dynamical-gbk-factor">Dynamical GBK Factor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#cutoff-frequency">Cutoff frequency.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#frequency-dependent-vs-resonance-center-width">Frequency-dependent vs. resonance-center width.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#zest-electron-broadening-variant-electron-model-zest">ZEST electron broadening variant (<code class="docutils literal notranslate"><span class="pre">electron_model=’zest’</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#physical-justification-delta-n-0-interaction-channels">Physical justification — <span class="math notranslate nohighlight">\(\Delta n = 0\)</span> interaction channels.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#intra-shell-squared-radius">Intra-shell squared radius.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#maximum-wave-number-cutoff-kappa-m">Maximum wave-number cutoff <span class="math notranslate nohighlight">\(\kappa_m\)</span>.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#g-function-choices-electron-model-selector">G-function choices (<code class="docutils literal notranslate"><span class="pre">electron_model</span></code> selector).</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#profile-accumulation">Profile Accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#frequency-fluctuation-model-ffm">Frequency Fluctuation Model (FFM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_formulation.html#thermal-doppler-broadening">Thermal Doppler Broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#ffm-path-calculate-ffm-profile">FFM path (<code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_formulation.html#static-profile-path-calculate-static-profile">Static profile path (<code class="docutils literal notranslate"><span class="pre">calculate_static_profile</span></code>)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_approximations.html">Approximations and Numerical Choices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_reference_models.html">Built-in Reference Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../manual_reference_models.html#tabulated-models">Tabulated Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_reference_models.html#stehle-mmm-stehle">Stehlé (MMM) — <code class="docutils literal notranslate"><span class="pre">stehle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_reference_models.html#rosato-rosato">Rosato — <code class="docutils literal notranslate"><span class="pre">rosato</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_reference_models.html#analytical-models">Analytical Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../manual_reference_models.html#lomanowski-lomanowski">Lomanowski — <code class="docutils literal notranslate"><span class="pre">lomanowski</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_reference_models.html#parameterized-stehle-stehle-param">Parameterized Stehlé — <code class="docutils literal notranslate"><span class="pre">stehle_param</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../manual_reference_models.html#voigt-voigt">Voigt — <code class="docutils literal notranslate"><span class="pre">voigt</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_reference_models.html#comparison-with-starkzee">Comparison with StarkZee</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_validity.html">Physical Approximations and Domains of Validity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_operational_limits.html">Physics Explanation of Use Cases and Operational Limits</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../manual_operational_limits.html#the-high-magnetic-field-regime">The High-Magnetic-Field Regime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../manual_operational_limits.html#density-limits">Density Limits</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../manual_references.html">References</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#balmer-series-lineprofile-class">Balmer series — LineProfile class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#h-stick-spectrum-and-broadened-profile">Hα stick spectrum and broadened profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#transition-anatomy">Transition anatomy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#reproducing-figure-1-from-ferri-et-al-2022">Reproducing Figure 1 from Ferri <em>et al.</em> (2022)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#satellite-features-at-b-1000-t">Satellite features at B = 1000 T</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#quadratic-zeeman-polarization-wings">Quadratic Zeeman polarization wings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#lyman-at-high-b">Lyman-α at high B</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="line_profile.html">line_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.energy_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.energy_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.detuning_ev"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.detuning_ev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.wavelength_nm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavelength_nm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.frequency_thz"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.frequency_thz</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.wavenumber_cm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.q"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.q</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.strength"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.upper_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.upper_idx</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.DiscreteTransitions.lower_idx"><code class="docutils literal notranslate"><span class="pre">DiscreteTransitions.lower_idx</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile"><code class="docutils literal notranslate"><span class="pre">LineProfile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.GRID_TYPES"><code class="docutils literal notranslate"><span class="pre">LineProfile.GRID_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.compute_profile"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.compute_discrete"><code class="docutils literal notranslate"><span class="pre">LineProfile.compute_discrete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.profile_transverse"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_transverse</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.profile_parallel"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_parallel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="line_profile.html#starkzee.line_profile.LineProfile.profile_at_angle"><code class="docutils literal notranslate"><span class="pre">LineProfile.profile_at_angle()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="static_profile.html">static_profile</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="static_profile.html#starkzee.static_profile.build_stark_matrix"><code class="docutils literal notranslate"><span class="pre">build_stark_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="static_profile.html#starkzee.static_profile.solve_starkzee"><code class="docutils literal notranslate"><span class="pre">solve_starkzee()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="static_profile.html#starkzee.static_profile.calculate_static_profile"><code class="docutils literal notranslate"><span class="pre">calculate_static_profile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="static_profile.html#starkzee.static_profile.discrete_transitions"><code class="docutils literal notranslate"><span class="pre">discrete_transitions()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ffm.html">ffm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ffm.html#starkzee.ffm.calculate_ion_fluctuation_rate"><code class="docutils literal notranslate"><span class="pre">calculate_ion_fluctuation_rate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ffm.html#starkzee.ffm.calculate_ffm_profile"><code class="docutils literal notranslate"><span class="pre">calculate_ffm_profile()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="radiator.html">radiator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.index"><code class="docutils literal notranslate"><span class="pre">AtomicState.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.ml"><code class="docutils literal notranslate"><span class="pre">AtomicState.ml</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.s"><code class="docutils literal notranslate"><span class="pre">AtomicState.s</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="radiator.html#starkzee.radiator.AtomicState.ms"><code class="docutils literal notranslate"><span class="pre">AtomicState.ms</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.build_basis"><code class="docutils literal notranslate"><span class="pre">build_basis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.radial_wavefunction"><code class="docutils literal notranslate"><span class="pre">radial_wavefunction()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.radial_r2_element"><code class="docutils literal notranslate"><span class="pre">radial_r2_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.set_radial_dipole_method"><code class="docutils literal notranslate"><span class="pre">set_radial_dipole_method()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.radial_dipole"><code class="docutils literal notranslate"><span class="pre">radial_dipole()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.angular_dipole_element"><code class="docutils literal notranslate"><span class="pre">angular_dipole_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.build_hamiltonian"><code class="docutils literal notranslate"><span class="pre">build_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.diagonalize_hamiltonian"><code class="docutils literal notranslate"><span class="pre">diagonalize_hamiltonian()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.dipole_matrix_elements"><code class="docutils literal notranslate"><span class="pre">dipole_matrix_elements()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.line_strength"><code class="docutils literal notranslate"><span class="pre">line_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.oscillator_strength"><code class="docutils literal notranslate"><span class="pre">oscillator_strength()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="radiator.html#starkzee.radiator.einstein_a"><code class="docutils literal notranslate"><span class="pre">einstein_a()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">microfield</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.calculate_normal_field"><code class="docutils literal notranslate"><span class="pre">calculate_normal_field()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.calculate_multispecies_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_multispecies_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.calculate_coupling_parameter"><code class="docutils literal notranslate"><span class="pre">calculate_coupling_parameter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.holtsmark_distribution"><code class="docutils literal notranslate"><span class="pre">holtsmark_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.hooper_distribution"><code class="docutils literal notranslate"><span class="pre">hooper_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.potekhin_distribution"><code class="docutils literal notranslate"><span class="pre">potekhin_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#starkzee.microfield.microfield_quadrature"><code class="docutils literal notranslate"><span class="pre">microfield_quadrature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="broadening.html">broadening</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_plasma_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_plasma_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_larmor_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_larmor_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_configuration_frequency"><code class="docutils literal notranslate"><span class="pre">calculate_configuration_frequency()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_debye_length"><code class="docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_cutoff_kappa_m"><code class="docutils literal notranslate"><span class="pre">calculate_cutoff_kappa_m()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.calculate_electron_impact_prefactor"><code class="docutils literal notranslate"><span class="pre">calculate_electron_impact_prefactor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.gbk_model"><code class="docutils literal notranslate"><span class="pre">gbk_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.gbk_zest_model"><code class="docutils literal notranslate"><span class="pre">gbk_zest_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.lee_model"><code class="docutils literal notranslate"><span class="pre">lee_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.dufty_model"><code class="docutils literal notranslate"><span class="pre">dufty_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.electron_impact_width"><code class="docutils literal notranslate"><span class="pre">electron_impact_width()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.electron_impact_width_zest"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_zest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.electron_impact_width_model"><code class="docutils literal notranslate"><span class="pre">electron_impact_width_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="broadening.html#starkzee.broadening.electron_impact_r2_scaling"><code class="docutils literal notranslate"><span class="pre">electron_impact_r2_scaling()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="convolutions.html">convolutions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="convolutions.html#starkzee.convolutions.calculate_doppler_width_ev"><code class="docutils literal notranslate"><span class="pre">calculate_doppler_width_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="convolutions.html#starkzee.convolutions.convolve_fft"><code class="docutils literal notranslate"><span class="pre">convolve_fft()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="convolutions.html#starkzee.convolutions.apply_doppler_broadening"><code class="docutils literal notranslate"><span class="pre">apply_doppler_broadening()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="convolutions.html#starkzee.convolutions.apply_instrument_broadening"><code class="docutils literal notranslate"><span class="pre">apply_instrument_broadening()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.species_to_ZA"><code class="docutils literal notranslate"><span class="pre">species_to_ZA()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.nuclear_mass_kg"><code class="docutils literal notranslate"><span class="pre">nuclear_mass_kg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.reduced_mass_rydberg_ev"><code class="docutils literal notranslate"><span class="pre">reduced_mass_rydberg_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.temp_ev_to_joules"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_joules()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.temp_ev_to_kelvin"><code class="docutils literal notranslate"><span class="pre">temp_ev_to_kelvin()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.energy_ev_to_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.vacuum_to_air_wavelength_nm"><code class="docutils literal notranslate"><span class="pre">vacuum_to_air_wavelength_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.wavelength_nm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavelength_nm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.frequency_thz_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">frequency_thz_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.energy_ev_to_frequency_thz"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_frequency_thz()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.wavenumber_cm_to_energy_ev"><code class="docutils literal notranslate"><span class="pre">wavenumber_cm_to_energy_ev()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#starkzee.utils.energy_ev_to_wavenumber_cm"><code class="docutils literal notranslate"><span class="pre">energy_ev_to_wavenumber_cm()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="atomic_data.html">atomic_data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState"><code class="docutils literal notranslate"><span class="pre">AtomicState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState.energy"><code class="docutils literal notranslate"><span class="pre">AtomicState.energy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState.n"><code class="docutils literal notranslate"><span class="pre">AtomicState.n</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState.l"><code class="docutils literal notranslate"><span class="pre">AtomicState.l</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState.j"><code class="docutils literal notranslate"><span class="pre">AtomicState.j</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.AtomicState.spin"><code class="docutils literal notranslate"><span class="pre">AtomicState.spin</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.get_data_path"><code class="docutils literal notranslate"><span class="pre">get_data_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.load_levels"><code class="docutils literal notranslate"><span class="pre">load_levels()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="atomic_data.html#starkzee.atomic_data.calculate_wavenumber"><code class="docutils literal notranslate"><span class="pre">calculate_wavenumber()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#module-overview">Module overview</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">StarkZee</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API reference</a></li>
+      <li class="breadcrumb-item active">microfield</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/microfield.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="microfield">
+<h1>microfield<a class="headerlink" href="#microfield" title="Link to this heading"></a></h1>
+<p>Ion microfield distributions and quadrature grids.  The unscreened Holtsmark
+field distribution is written in reduced field units <span class="math notranslate nohighlight">\(\beta = F/F_0\)</span> as</p>
+<div class="math notranslate nohighlight">
+\[W_H(\beta) = \frac{2\beta}{\pi}
+\int_0^\infty y\sin(\beta y)\,e^{-y^{3/2}}\,dy.\]</div>
+<p>The default Hooper screened form modifies the exponent with the screening
+function <span class="math notranslate nohighlight">\(S(y,a)\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[W(\beta,a) = \frac{2\beta}{\pi}
+\int_0^\infty y\sin(\beta y)\,
+e^{-y^{3/2}S(y,a)}\,dy,
+\qquad
+a = r_e/\lambda_D.\]</div>
+<dl class="py function" id="module-starkzee.microfield">
+<dt class="sig sig-object py" id="starkzee.microfield.calculate_normal_field">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">calculate_normal_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Ne_m3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Z_bar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#calculate_normal_field"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.calculate_normal_field" title="Link to this definition"></a></dt>
+<dd><p>Return the Holtsmark normal electric field F₀ [V m⁻¹] and mean inter-particle distance r_e [m].</p>
+<p>F₀ is the characteristic field strength that scales the microfield distribution.
+It is defined as the Coulomb field of an ion with average charge Z_bar * e at the
+mean inter-particle distance (Wigner-Seitz radius) r_e:</p>
+<blockquote>
+<div><p>r_e = (3 * Z_bar / (4π N_e))^(1/3)
+F₀  = Z_bar * e / (4π ε₀ r_e²)</p>
+</div></blockquote>
+<p>Note that the screening parameter <cite>a</cite> used in screened microfield distributions (like
+Hooper or Potekhin) is defined as the ratio of the mean inter-particle distance <cite>r_e</cite>
+to the Debye length <cite>λ_D</cite>, i.e., a = r_e / λ_D. The mean inter-particle distance
+characterizes the average spacing between ions in the plasma, whereas the Debye length
+characterizes the scale over which electrostatic fields are screened by the plasma.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Ne_m3</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron number density [m⁻³].</p></li>
+<li><p><strong>Z_bar</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Average background ion charge (default is 1.0).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>F0</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Normal (Holtsmark) electric field [V m⁻¹].</p></li>
+<li><p><strong>re</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Mean inter-particle distance (Wigner-Seitz radius) [m].</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.calculate_debye_length">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">calculate_debye_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Te_ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ne_m3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#calculate_debye_length"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.calculate_debye_length" title="Link to this definition"></a></dt>
+<dd><p>Return the electron Debye screening length λ_D [m].</p>
+<p>The Debye length characterizes the spatial scale over which the plasma
+screens individual Coulomb fields:</p>
+<blockquote>
+<div><p>λ_D = √(ε₀ T_e / (N_e e))     [T_e in eV, so e T_e gives k_B T_e in J]</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Te_ev</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron temperature [eV].</p></li>
+<li><p><strong>Ne_m3</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron number density [m⁻³].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Debye length [m].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.calculate_multispecies_debye_length">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">calculate_multispecies_debye_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Te_ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ne_m3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_charges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_concentrations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#calculate_multispecies_debye_length"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.calculate_multispecies_debye_length" title="Link to this definition"></a></dt>
+<dd><p>Return the multi-species Debye length λ_D [m].</p>
+<p>Extends the single-species Debye length to a plasma containing multiple ion
+species by summing their charge-weighted contributions to the screening:</p>
+<blockquote>
+<div><p>λ_D = √(ε₀ T_e / (N_e e × (1 + Σ_i X_i Z_i²)))</p>
+</div></blockquote>
+<p>where X_i = N_i / N_e is the fractional concentration and Z_i the charge of
+species i.  The <code class="docutils literal notranslate"><span class="pre">1</span></code> in the denominator accounts for the electron contribution.
+If no species information is given the function falls back to the single-species
+result <a class="reference internal" href="#starkzee.microfield.calculate_debye_length" title="starkzee.microfield.calculate_debye_length"><code class="xref py py-func docutils literal notranslate"><span class="pre">calculate_debye_length()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Te_ev</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron (and ion) temperature [eV].  The formula assumes T_e = T_i.</p></li>
+<li><p><strong>Ne_m3</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron number density [m⁻³].</p></li>
+<li><p><strong>species_charges</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Charge numbers Z_i for each ion species.</p></li>
+<li><p><strong>species_concentrations</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Relative concentrations X_i = N_i / N_e for each species.  Must have
+the same length as <code class="docutils literal notranslate"><span class="pre">species_charges</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Multi-species Debye length [m].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.calculate_coupling_parameter">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">calculate_coupling_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Z_bar</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ti_ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R_ii</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#calculate_coupling_parameter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.calculate_coupling_parameter" title="Link to this definition"></a></dt>
+<dd><p>Return the ion-ion coupling parameter Gamma_ii.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Z_bar</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Average ion charge.</p></li>
+<li><p><strong>Ti_ev</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Ion temperature [eV].</p></li>
+<li><p><strong>R_ii</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Wigner-Seitz radius [m].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ion-ion coupling parameter.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.holtsmark_distribution">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">holtsmark_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'vectorized'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#holtsmark_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.holtsmark_distribution" title="Link to this definition"></a></dt>
+<dd><p>Return the Holtsmark microfield probability density W(β) at reduced field β.</p>
+<p>Supports both scalar and array-like inputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>beta</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – Reduced electric field β = F / F₀.</p></li>
+<li><p><strong>method</strong> (<code class="docutils literal notranslate"><span class="pre">{'vectorized',</span> <span class="pre">'exact',</span> <span class="pre">'potekhin'}</span></code>, <em>optional</em>) – Computation method (default is ‘vectorized’):
+- ‘vectorized’: fast Gauss-Legendre quadrature.
+- ‘exact’: exact adaptive quadrature.
+- ‘potekhin’: Zest-compatible Potekhin analytical fit at Gamma=0.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.hooper_distribution">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">hooper_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charged</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'vectorized'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#hooper_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.hooper_distribution" title="Link to this definition"></a></dt>
+<dd><p>Return the Hooper screened microfield probability density W(β, a).</p>
+<p>Supports both scalar and array-like inputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>beta</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – Reduced electric field β = F / F₀.</p></li>
+<li><p><strong>a</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Screening parameter a = r_e / λ_D.</p></li>
+<li><p><strong>charged</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>, <em>optional</em>) – True for a charged point (ion radiator), False for neutral (atom radiator).
+Default is True.</p></li>
+<li><p><strong>method</strong> (<code class="docutils literal notranslate"><span class="pre">{'vectorized',</span> <span class="pre">'exact'}</span></code>, <em>optional</em>) – Computation method (default is ‘vectorized’):
+- ‘vectorized’: fast Gauss-Legendre quadrature.
+- ‘exact’: exact adaptive quadrature.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.potekhin_distribution">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">potekhin_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charged</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#potekhin_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.potekhin_distribution" title="Link to this definition"></a></dt>
+<dd><p>Return the Potekhin screened/unscreened microfield probability density.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>beta</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – Dimensionless field strength beta = F/F_0.</p></li>
+<li><p><strong>gamma</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Ion-ion coupling parameter Gamma_ii.</p></li>
+<li><p><strong>s</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Screening parameter s = R_ii / lambda_e (default 0.0).</p></li>
+<li><p><strong>charged</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>, <em>optional</em>) – True for a charged point (ion radiator), False for neutral (atom radiator).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Potekhin probability density values on the beta grid.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="starkzee.microfield.microfield_quadrature">
+<span class="sig-prename descclassname"><span class="pre">starkzee.microfield.</span></span><span class="sig-name descname"><span class="pre">microfield_quadrature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Ne_m3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Te_ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_beta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_screening</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_charges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_concentrations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_table_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charged</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Z_bar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/starkzee/microfield.html#microfield_quadrature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#starkzee.microfield.microfield_quadrature" title="Link to this definition"></a></dt>
+<dd><p>Build a quadrature grid of plasma electric microfield magnitudes and weights.</p>
+<p>Discretises the microfield integral ∫ W(F) dF over a uniform grid of
+<code class="docutils literal notranslate"><span class="pre">num_points</span></code> values of the reduced field β = F / F₀ in [0, max_beta].
+The returned arrays satisfy:</p>
+<blockquote>
+<div><p>Σ_i weight_i ≈ 1</p>
+</div></blockquote>
+<p>so that integrals of the form ∫ f(F) W(F) dF can be approximated by a
+simple weighted sum Σ_i weight_i × f(fields_i).</p>
+<p>The distribution W(β) is one of:</p>
+<ul class="simple">
+<li><p><strong>Holtsmark</strong> (<code class="docutils literal notranslate"><span class="pre">use_screening=False</span></code>): unscreened, valid when r_e ≪ λ_D.</p></li>
+<li><p><strong>Hooper</strong> (<code class="docutils literal notranslate"><span class="pre">use_screening=True</span></code>, default): screened by the Debye length,
+appropriate for most laboratory plasmas.</p></li>
+<li><p><strong>Custom table</strong> (<code class="docutils literal notranslate"><span class="pre">custom_table_path</span></code> provided): loads a user-supplied
+two-column file [β, W(β)] (e.g. from APEX or MD simulations) and
+interpolates it onto the β grid.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Ne_m3</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron number density [m⁻³].</p></li>
+<li><p><strong>Te_ev</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – Electron temperature [eV].  Used to compute the Debye length when
+<code class="docutils literal notranslate"><span class="pre">use_screening=True</span></code>.</p></li>
+<li><p><strong>num_points</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <em>optional</em>) – Number of quadrature points in β (default 50).  20 points is usually
+sufficient; 50 gives better accuracy in the far wings.</p></li>
+<li><p><strong>max_beta</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Upper limit of the β grid (default 10).  W(β) is negligible beyond
+β ≈ 5–8 for typical screening parameters.</p></li>
+<li><p><strong>use_screening</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>, <em>optional</em>) – If True (default) use the Hooper screened distribution; if False use
+the unscreened Holtsmark distribution.</p></li>
+<li><p><strong>species_charges</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Ion charge numbers for multi-species Debye screening.</p></li>
+<li><p><strong>species_concentrations</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Relative ion concentrations N_i / N_e for each species.</p></li>
+<li><p><strong>custom_table_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> or <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>, <em>optional</em>) – Path to a plain-text file with columns [β, W(β)].  If loading fails the
+function falls back to the analytical Hooper distribution with a warning.</p></li>
+<li><p><strong>charged</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>, <em>optional</em>) – True for a charged-point radiator (ion), False for a neutral atom
+radiator (default False).  Ferri et al. (2022) use the Hooper neutral
+distribution for hydrogen and the APEX distribution for charged emitters;
+APEX is not yet implemented — pass a <code class="docutils literal notranslate"><span class="pre">custom_table_path</span></code> or use
+<code class="docutils literal notranslate"><span class="pre">charged=True</span></code> as a Hooper approximation for charged emitters.</p></li>
+<li><p><strong>Z_bar</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <em>optional</em>) – Average background ion charge (default is 1.0).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fields</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">shape</span> <span class="pre">(num_points,)</span></code>) – Electric field magnitudes F = β × F₀ [V m⁻¹].</p></li>
+<li><p><strong>weights</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">shape</span> <span class="pre">(num_points,)</span></code>) – Quadrature weights W(β) dβ (dimensionless, sum ≈ 1).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The grid starts at β = 0 (F = 0) where W(0) = 0.  Points with weight
+≤ 1e-15 are skipped by the profile integrator for efficiency.</p>
+<p>The screening parameter <cite>a</cite> is computed as the ratio of the mean inter-particle
+distance <cite>r_e</cite> (which scales with <cite>Z_bar</cite>) to the Debye length <cite>λ_D</cite>:</p>
+<blockquote>
+<div><p>a = r_e / λ_D</p>
+</div></blockquote>
+<p>The Debye length represents the scale over which electrostatic fields are screened
+by the plasma, whereas the mean inter-particle distance (Wigner-Seitz radius) represents
+the typical spacing between particles.</p>
+<p>Results are cached internally; repeated calls with identical arguments
+return the pre-computed arrays without re-evaluating the distribution
+integrals.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="radiator.html" class="btn btn-neutral float-left" title="radiator" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="broadening.html" class="btn btn-neutral float-right" title="broadening" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, G. Ronchi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
