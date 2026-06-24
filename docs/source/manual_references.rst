@@ -79,12 +79,6 @@ References
    Nucl. Fusion **55**, 123028 (2015).
    `DOI: 10.1088/0029-5515/55/12/123028 <https://doi.org/10.1088/0029-5515/55/12/123028>`__
 
-.. [nist]
-   A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team,
-   *NIST Atomic Spectra Database (ver. 5.11)*,
-   National Institute of Standards and Technology, Gaithersburg, MD (2023).
-   `DOI: 10.18434/T4W30F <https://doi.org/10.18434/T4W30F>`__
-
 .. [potekhin]
    A.Y. Potekhin, G. Chabrier, D. Gilles,
    *Electric microfield distributions in electron-ion plasmas*,
@@ -102,6 +96,12 @@ References
    *Extensive tabulations of Stark broadened hydrogen line profiles*,
    Astron. Astrophys. Suppl. Ser. **140**, 93 (1999).
    `DOI: 10.1051/aas:1999118 <https://doi.org/10.1051/aas:1999118>`__
+
+.. [nist]
+   A. Kramida, Yu. Ralchenko, J. Reader, NIST ASD Team,
+   *NIST Atomic Spectra Database (ver. 5.11)*,
+   National Institute of Standards and Technology, Gaithersburg, MD (2023).
+   `DOI: 10.18434/T4W30F <https://doi.org/10.18434/T4W30F>`__
 
 .. [talin]
    B. Talin, A. Calisti, L. Godbert, R. Stamm, R.W. Lee, L. Klein,
