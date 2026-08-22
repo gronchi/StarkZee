@@ -31,7 +31,7 @@ def get_data_path() -> str:
 
 
 def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
-    """Load atomic states from the JSON database.
+    r"""Load atomic states from the JSON database.
 
     Parameters
     ----------
@@ -46,7 +46,7 @@ def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
     -------
     list of AtomicState
         Atomic states ordered as stored in the JSON file, with energies
-        in cm\ :sup:`-1` above the ground state.
+        in :math:`\mathrm{cm}^{-1}` above the ground state.
 
     Raises
     ------
@@ -84,7 +84,7 @@ def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
 
 
 def calculate_wavenumber(upper_state: AtomicState, lower_state: AtomicState, lambda_shift: float = 0.0) -> float:
-    """Compute the transition wavenumber between two atomic states.
+    r"""Compute the transition wavenumber between two atomic states.
 
     Parameters
     ----------
@@ -99,7 +99,7 @@ def calculate_wavenumber(upper_state: AtomicState, lower_state: AtomicState, lam
     -------
     float
         Transition wavenumber :math:`E_u - E_l + \lambda_\mathrm{shift}`
-        in cm\ :sup:`-1`.
+        in :math:`\mathrm{cm}^{-1}`.
 
     Raises
     ------
