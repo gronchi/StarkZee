@@ -54,6 +54,24 @@ html_theme_options = {
     "prev_next_buttons_location": "bottom",
 }
 
+# ── MathJax ───────────────────────────────────────────────────────────────────
+# Fix span.eqno positioning: MathJax 3 renders display math as a block-level
+# mjx-container, which breaks Sphinx's float:right approach.
+mathjax3_config = {
+    "startup": {
+        "ready": """() => {
+            MathJax.startup.defaultReady();
+            const style = document.createElement('style');
+            style.textContent = [
+                'div.math { position: relative; padding-right: 5em; }',
+                'span.eqno { float: none; position: absolute; right: 0;',
+                '            top: 50%; transform: translateY(-50%); }'
+            ].join('\\n');
+            document.head.appendChild(style);
+        }"""
+    }
+}
+
 # ── Misc ──────────────────────────────────────────────────────────────────────
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 templates_path   = []

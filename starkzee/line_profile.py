@@ -1,4 +1,4 @@
-"""
+r"""
 line_profile.py — High-level LineProfile class for Stark-Zeeman calculations.
 
 Typical usage::
@@ -39,7 +39,7 @@ Typical usage::
     lp.discrete.frequency_thz
     lp.discrete.wavenumber_cm
     lp.discrete.q            # polarization (0, +1, -1)
-    lp.discrete.strength     # \|d_q\|²  [a₀²]
+    lp.discrete.strength     # |d_q|²  [a₀²]
 """
 
 import numpy as np
@@ -61,7 +61,7 @@ from starkzee.static_profile import (
 
 
 class DiscreteTransitions:
-    """Discrete Stark-Zeeman dipole transitions at a single (B, Fz, Fx) configuration.
+    r"""Discrete Stark-Zeeman dipole transitions at a single (B, Fz, Fx) configuration.
 
     Attributes
     ----------
@@ -78,7 +78,7 @@ class DiscreteTransitions:
     q : ndarray of int
         Polarization index: 0 = π, +1 = σ+, −1 = σ−.
     strength : ndarray
-        Dipole matrix element squared \|d_q(i→j)\|² [a₀²].
+        Dipole matrix element squared :math:`|d_q(i \to j)|^2` [:math:`a_0^2`].
     upper_idx : ndarray of int
         Upper eigenstate index (0 … 2n_u²−1).
     lower_idx : ndarray of int

@@ -51,15 +51,23 @@ def build_basis(n):
     return basis
 
 def radial_wavefunction(r, n, l, Z):
-    """Return the hydrogenic radial wavefunction R_{nl}(r) [a₀^{−3/2}].
+    r"""Return the hydrogenic radial wavefunction R_{nl}(r) [a₀^{−3/2}].
 
     Evaluates the normalized hydrogenic radial wavefunction using the
     associated Laguerre polynomial representation:
 
-        R_{nl}(r) = N_{nl} × exp(−Z r / n) × (2Z r/n)^l × L_{n-l-1}^{2l+1}(2Z r/n)
+    .. math::
 
-    where r is in units of a₀ and N_{nl} is chosen so that
-    ∫₀^∞ \|R_{nl}\|² r² dr = 1.
+        R_{nl}(r) = N_{nl}\,\exp\!\left(-\frac{Zr}{n}\right)
+                    \left(\frac{2Zr}{n}\right)^{\!l}
+                    L_{n-l-1}^{(2l+1)}\!\left(\frac{2Zr}{n}\right)
+
+    where :math:`r` is in units of :math:`a_0` and :math:`N_{nl}` is the
+    normalization constant chosen so that
+
+    .. math::
+
+        \int_0^{\infty} |R_{nl}(r)|^2\, r^2\, dr = 1.
 
     Parameters
     ----------
