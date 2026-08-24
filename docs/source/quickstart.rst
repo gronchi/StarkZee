@@ -22,27 +22,39 @@ a plasma-averaged profile.
    :name: model-selection-flowchart
 
    flowchart TD
-       A["What output is needed?"] --> B{"One specified electric-field<br/>configuration?"}
+       A(["What output do you need?"]) --> B{"Fixed field<br/>configuration (Fz, Fx)?"}
+
        B -- Yes --> C["compute_discrete(Fz, Fx)"]
-       C --> D["Diagonalize the upper and lower<br/>Stark-Zeeman Hamiltonians once"]
-       D --> E["Return transition energies,<br/>polarizations, and strengths"]
+       C --> D["Diagonalize upper/lower<br/>Hamiltonians once"]
+       D --> E(["Energies, polarizations,<br/>strengths"])
 
-       B -- No --> F["Continuous plasma line profile"]
-       F --> G{"Are the StarkZee assumptions valid?<br/>Hydrogen-like radiator and<br/>within-shell Stark mixing"}
-       G -- No --> H["Use a model with multi-electron<br/>or inter-shell coupling"]
-       G -- Yes --> I{"Is the ion microfield effectively frozen?<br/>Ion fluctuation energy νᵢ much smaller<br/>than the characteristic Stark/SDT spread"}
+       B -- "No, plasma-<br/>averaged profile" --> G{"Hydrogen-like radiator,<br/>within-shell Stark mixing<br/>only?"}
+       G -- No --> H(["Use a model with multi-<br/>electron / inter-shell coupling"])
 
-       I -- Yes --> J["Static solver<br/>compute_static_profile()"]
-       I -- No --> K["Dynamic-ion solver<br/>compute_ffm_profile()"]
-       I -- Unsure --> L["Run both with matched settings<br/>and compare the line core"]
-       L --> J
-       L --> K
+       G -- Yes --> I{"Ion microfield frozen on the<br/>emission timescale?<br/>(νᵢ ≪ Stark/SDT spread)"}
+       I -- Yes --> J["compute_static_profile()"]
+       I -- No --> K["compute_ffm_profile()"]
+       I -- Unsure --> L["Run both,<br/>compare the line core"]
+       L -.-> J
+       L -.-> K
 
-       J --> M["π, σ+, and σ− profiles"]
+       J --> M["π, σ+, σ− profiles"]
        K --> M
-       M --> N["Combine for the observation angle"]
-       N --> O["Optional instrumental convolution"]
-       O --> P["Observable spectrum"]
+       M --> N["Combine for<br/>observation angle"] --> O["Optional instrument<br/>convolution"] --> P(["Observable spectrum"])
+
+       classDef decision fill:#fff3cd,stroke:#c9971d,color:#4a3800
+       classDef discreteNode fill:#f0fdfa,stroke:#0d9488,color:#0f3d38
+       classDef staticNode fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+       classDef ffmNode fill:#ede9fe,stroke:#7c3aed,color:#3b1f6b
+       classDef deadend fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+       classDef terminal fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+       class B,G,I decision
+       class C,D discreteNode
+       class J staticNode
+       class K ffmNode
+       class H deadend
+       class A,E,P terminal
 
 Here ``ν_i`` denotes the ion jumping rate in energy units (the code multiplies
 the rate in s\ :sup:`-1` by :math:`\hbar`).  FFM becomes more relevant as the

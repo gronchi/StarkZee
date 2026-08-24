@@ -56,36 +56,68 @@ rotation before assembling the spectrum in a different way.
    :name: calculation-flowchart
 
    flowchart TD
-       A["Inputs: transition, species, B,<br/>Ne, Te, Ti, and spectral grid"] --> B["Convert the spectral grid to energy"]
-       B --> C["Generate microfield magnitudes F<br/>and probability weights W(F)"]
-       B --> D["Generate orientation quadrature<br/>μ = cos θ"]
-       B --> E["Build atomic Hamiltonians HA,<br/>Stark templates, and dipole matrices Dq"]
+       A(["Inputs: transition, species,<br/>B, Ne, Te, Ti, spectral grid"]) --> B["Convert spectral grid to energy"]
 
-       C --> F["For every active (F, μ) point"]
-       D --> F
-       E --> F
-       F --> G["Resolve Fz = Fμ and<br/>Fx = F sqrt(1-μ²)"]
-       G --> H["Construct Hu = HA,u + VE,u<br/>and Hl = HA,l + VE,l"]
-       H --> I["Diagonalize Hu and Hl"]
-       I --> J["Stark-Zeeman dressed states:<br/>Eu, El, Vu, and Vl"]
-       J --> K["Rotate dipoles:<br/>D'q = Vl† Dq Vu"]
-       K --> L["Create Stark-Dressed Transitions:<br/>Epk = Eu - El and Sq = |D'q|²"]
+       subgraph setup["Setup — computed once"]
+           direction LR
+           C["Microfield magnitudes F<br/>and weights W(F)"]
+           D["Orientation quadrature<br/>μ = cos θ"]
+           E["Atomic Hamiltonians HA,<br/>Stark templates, dipoles Dq"]
+       end
+       B --> C
+       B --> D
+       B --> E
 
-       L --> M{"Selected spectrum assembly"}
-       M -- Static --> N["Immediately add each SDT with<br/>microfield, electron-impact,<br/>natural, and optional Doppler broadening"]
-       N --> O["Direct quasi-static average"]
+       subgraph loop["For every active (F, μ) point — repeated"]
+           direction TB
+           G["Fz = Fμ,  Fx = F√(1-μ²)"]
+           G --> H["Hu = HA,u + VE,u<br/>Hl = HA,l + VE,l"]
+           H --> I["Diagonalize Hu, Hl"]
+           I --> J["Dressed states:<br/>Eu, El, Vu, Vl"]
+           J --> K["Rotate dipoles:<br/>D'q = Vl† Dq Vu"]
+           K --> L["Stark-Dressed Transitions:<br/>Epk = Eu - El,  Sq = |D'q|²"]
+       end
+       C --> G
+       D --> G
+       E --> G
 
-       M -- FFM --> P["Collect weighted SDTs from<br/>all microfield configurations"]
-       P --> Q["Calculate ion fluctuation energy νᵢ"]
-       Q --> R["Optional SDT frequency binning"]
-       R --> S["Sherman-Morrison or full<br/>Markov-system solve"]
-       S --> T["Optional Doppler FFT<br/>enabled by default"]
+       L --> M{"Static or FFM?"}
 
-       O --> U["π, σ+, and σ− profiles"]
+       subgraph static_path["Static solver"]
+           direction TB
+           N["Broaden + accumulate each SDT<br/>(microfield, electron, natural,<br/>optional Doppler)"] --> O["Quasi-static average"]
+       end
+       M -- Static --> N
+
+       subgraph ffm_path["FFM solver"]
+           direction TB
+           P["Collect weighted SDTs<br/>from all (F, μ)"] --> Q["Ion fluctuation energy νᵢ"]
+           Q --> R["Optional SDT<br/>frequency binning"]
+           R --> S["Sherman-Morrison or<br/>full Markov solve"]
+           S --> T["Optional Doppler FFT<br/>(on by default)"]
+       end
+       M -- FFM --> P
+
+       O --> U["π, σ+, σ− profiles"]
        T --> U
-       U --> V["Stokes observation-angle combination"]
-       V --> W["Store all spectral axes and detunings"]
-       W --> X["Optional external<br/>instrumental convolution"]
+       U --> V["Stokes observation-angle<br/>combination"]
+       V --> W["Store spectral axes<br/>and detunings"]
+       W --> X(["Optional instrumental<br/>convolution"])
+
+       classDef setupNode fill:#f1f5f9,stroke:#64748b,color:#1e293b
+       classDef decision fill:#fff3cd,stroke:#c9971d,color:#4a3800
+       classDef terminal fill:#dcfce7,stroke:#16a34a,color:#14532d
+       classDef outNode fill:#f1f5f9,stroke:#64748b,color:#1e293b
+
+       class C,D,E setupNode
+       class M decision
+       class A terminal
+       class U,V,W,X outNode
+
+       style loop fill:#fefce8,stroke:#ca8a04
+       style static_path fill:#eff6ff,stroke:#2563eb
+       style ffm_path fill:#f5f3ff,stroke:#7c3aed
+       style setup fill:#f8fafc,stroke:#94a3b8
 
 The dressed states are calculated at the central diagonalization step—not
 when ``LineProfile`` is constructed and not after broadening.  For every
