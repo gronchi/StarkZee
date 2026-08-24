@@ -53,6 +53,7 @@ solver performs the same microfield-resolved diagonalization and dipole-basis
 rotation before assembling the spectrum in a different way.
 
 .. mermaid::
+   :name: calculation-flowchart
 
    flowchart TD
        A["Inputs: transition, species, B,<br/>Ne, Te, Ti, and spectral grid"] --> B["Convert the spectral grid to energy"]

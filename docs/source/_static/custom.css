@@ -1,0 +1,9 @@
+/* The workflow diagrams are intentionally tall.  sphinxcontrib-mermaid's
+   500 px default makes their node labels too small in the RTD content column. */
+#model-selection-flowchart > svg {
+    height: 760px !important;
+}
+
+#calculation-flowchart > svg {
+    height: 1000px !important;
+}
