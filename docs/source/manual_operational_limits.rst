@@ -12,9 +12,9 @@ In laboratory magnetic confinement fusion devices (tokamaks, stellarators), the 
 
 For astrophysical compact objects (magnetized white dwarfs with :math:`B \sim 10^3`--:math:`10^5` T, neutron stars with :math:`B \sim 10^8` T):
 
-- The quadratic Zeeman term :math:`H_Z^{(2)} \propto B^2` dominates, causing significant blue-shifting and highly asymmetric splitting. The ``quadratic_zeeman=True`` flag enables exact numerical treatment of the :math:`\Delta l = \pm 2` coupling (see the Radiator Hamiltonian section).
+- The quadratic Zeeman term :math:`H_Z^{(2)} \propto B^2` dominates, causing significant blue-shifting and highly asymmetric splitting. The ``quadratic_zeeman=True`` flag enables exact numerical treatment of the :math:`\Delta l = \pm 2` coupling *within a single principal shell* (see the Radiator Hamiltonian section).
 
-- StarkZee's exact numerical computation of :math:`\langle n, l_1 | r^2 | n, l_2\rangle` avoids the geometric-mean overestimation of up to 41% for :math:`n=5`.
+- StarkZee's exact numerical computation of :math:`\langle n, l_1 | r^2 | n, l_2\rangle` avoids the geometric-mean overestimation of up to 41% for :math:`n=5`, but this is still an intra-shell (same-:math:`n`) matrix element — **inter-:math:`n` configuration-interaction mixing driven by the quadratic term is not included.** Ferri, Peyrusse & Calisti (2022) show this coupling is crucial precisely in this regime (:math:`B \sim 10^2`\ –\ :math:`10^3` T, white-dwarf-like conditions): it produces a red shift of the high-PQN Balmer lines that grows with the field, which StarkZee's intra-shell treatment cannot reproduce. See :doc:`manual_approximations` and TODO item 1 for details.
 
 Density Limits
 ----------------------
