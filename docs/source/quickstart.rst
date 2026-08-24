@@ -19,6 +19,7 @@ spectrum at one specified electric-field configuration is required instead of
 a plasma-averaged profile.
 
 .. mermaid::
+   :name: model-selection-flowchart
 
    flowchart TD
        A["What output is needed?"] --> B{"One specified electric-field<br/>configuration?"}
