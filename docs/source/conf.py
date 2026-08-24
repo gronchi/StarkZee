@@ -57,6 +57,13 @@ html_theme_options = {
 }
 
 # ── MathJax ───────────────────────────────────────────────────────────────────
+# Self-hosted (docs/source/_static/mathjax/tex-mml-chtml.js) instead of the
+# sphinx.ext.mathjax default CDN URL, so equations render without requiring
+# internet access when the built HTML is viewed (e.g. on an air-gapped or
+# firewalled machine). Re-download from
+# https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js to update.
+mathjax_path = "mathjax/tex-mml-chtml.js"
+
 # Fix span.eqno positioning: MathJax 3 renders display math as a block-level
 # mjx-container, which breaks Sphinx's float:right approach.
 mathjax3_config = {
