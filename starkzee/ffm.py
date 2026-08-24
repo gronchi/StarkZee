@@ -56,12 +56,12 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion):
     return nu_rad * HBAR / E_CHARGE
 
 def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_ev,
-                                  num_f=30, num_mu=10, use_screening=True,
+                                  num_f=30, num_mu=10, max_beta=10.0, use_screening=True,
                                   quadratic_zeeman=True, fine_structure=True,
                                   numerical_inversion=False,
                                   use_empirical_data=False, atom="H",
                                   electron_model='pppb', parallel_stark=False,
-                                  apply_doppler=True):
+                                  apply_doppler=True, sdt_bin_tol=None):
     """Compute the dynamical Stark-Zeeman line profile using the Frequency Fluctuation Model.
 
     The FFM treats the ion microfield as a Markov jump process between
@@ -108,8 +108,10 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         thermal velocity for Doppler broadening.
     A_ion : float
         Atomic mass number of the perturbing ion species (e.g. 1 for H⁺, 2 for
-        D⁺).  Also used as the emitter mass for the Doppler width (same-species
-        assumption).
+        D⁺).  Under the same-species assumption it is also used as the emitter
+        mass: for the Doppler width and for the reduced-mass Rydberg that sets
+        the absolute level energies (so D/T lines land at their own line
+        centers, not the H one).
     energies_ev : array-like
         Photon energies at which to evaluate the profile [eV].
     num_f : int, optional
@@ -121,6 +123,11 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         over μ = cos θ ∈ [0, 1] (default 10).  Ferri et al. (2022) recommend
         ~30; 10 is sufficient for hydrogen but should be increased for
         multi-electron atoms (future: set dynamically by atom type).
+    max_beta : float, optional
+        Upper limit of the reduced-microfield grid β = F/F₀ (default 10).
+        The Holtsmark tail beyond β = 10 carries ~3 % of the probability;
+        increase this (with ``num_f``) for far-wing studies.  Forwarded to
+        :func:`~starkzee.microfield.microfield_quadrature`.
     use_screening : bool, optional
         Use the Hooper screened microfield distribution (default True).
     quadratic_zeeman : bool, optional
@@ -155,15 +162,27 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         σ_D = E₀ √(T_i / m_ion c²), using ``Ti_ev`` and ``A_ion``.
         Set to False to obtain the purely Stark-Zeeman-broadened FFM profile
         without Doppler.
+    sdt_bin_tol : float or None, optional
+        SDT frequency-binning tolerance [eV] (default ``None`` = no binning).
+        Before solving the Markov system, SDTs of each polarization channel
+        whose frequencies fall in the same bin of width ``sdt_bin_tol`` are
+        merged (intensities summed, frequency = intensity-weighted mean).
+        This shrinks the O(N) Sherman-Morrison sum — often by 10-100× since
+        many quadrature points produce nearly degenerate transitions — and is
+        exact in the limit ``sdt_bin_tol ≪ (γ_k, ν_i)``; ``1e-5`` eV is safe
+        for typical conditions.  (Note: re-implemented at merge time; may
+        differ in detail from the unpushed original on the other machine.)
 
     Returns
     -------
     profile_pi : ndarray, shape like *energies_ev*
-        π polarization component (Δm = 0).
+        π polarization component (Δm = m_u − m_l = 0; dipole channel q = 0).
     profile_sig_plus : ndarray
-        σ+ polarization component (Δm = +1).
+        σ+ polarization component (Δm = +1, blue-shifted at B > 0; dipole
+        channel q = m_l − m_u = −1, same convention as
+        :func:`~starkzee.static_profile.calculate_static_profile`).
     profile_sig_minus : ndarray
-        σ− polarization component (Δm = −1).
+        σ− polarization component (Δm = −1, red-shifted; channel q = +1).
 
     Notes
     -----
@@ -186,7 +205,8 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
     nu_i = calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z, A_ion)
 
     # 2. Get microfield grid and weights
-    fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f, use_screening=use_screening)
+    fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f,
+                                              max_beta=max_beta, use_screening=use_screening)
     
     # 3. Get angular integration points (Gauss-Legendre)
     mu_points, mu_weights = np.polynomial.legendre.leggauss(num_mu)
@@ -210,10 +230,14 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             Fz = fi * mu
             Fx = 0.0 if parallel_stark else fi * np.sqrt(1.0 - mu**2)
             
-            # Solve combined Stark-Zeeman Hamiltonian for upper and lower states
+            # Solve combined Stark-Zeeman Hamiltonian for upper and lower states.
+            # A=A_ion (same-species assumption) so the reduced-mass Rydberg — and
+            # hence the absolute SDT frequencies — match the emitting isotope.
             sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                         A=A_ion,
                                                          use_empirical_data=use_empirical_data, atom=atom)
             sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                         A=A_ion,
                                                          use_empirical_data=use_empirical_data, atom=atom)
             
             V_l_adj = sz_vectors_l.conj().T
@@ -249,7 +273,19 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             
         intensities = np.array([item["intensity"] for item in sdts])
         frequencies = np.array([item["frequency"] for item in sdts])
-        
+
+        # Optional SDT binning: merge near-degenerate transitions to shrink N.
+        # Exact for the Markov solution when the bin width is small compared to
+        # the Lorentzian scale ν_i + γ_k (the solver only sees p_k and ω_k).
+        if sdt_bin_tol is not None and sdt_bin_tol > 0 and len(frequencies) > 1:
+            bin_idx = np.round(frequencies / sdt_bin_tol).astype(np.int64)
+            _, inv = np.unique(bin_idx, return_inverse=True)
+            binned_I  = np.bincount(inv, weights=intensities)
+            binned_wf = np.bincount(inv, weights=intensities * frequencies)
+            keep = binned_I > 0
+            intensities = binned_I[keep]
+            frequencies = (binned_wf[keep] / binned_I[keep])
+
         r_q_sq = np.sum(intensities)
         if r_q_sq <= 1e-15:
             output_profiles[q] = np.zeros_like(energies_ev)
@@ -257,9 +293,13 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
             
         normalized_intensities = intensities / r_q_sq
         M = len(energies_ev)
-        N = len(sdts)
-        
-        if numerical_inversion and N > 1:
+        N = len(intensities)   # post-binning count (== len(sdts) when unbinned)
+
+        # Per-q solver choice: a LinAlgError fallback must not silently switch
+        # the solver for the remaining polarizations, so keep the flag local.
+        use_inversion = numerical_inversion
+
+        if use_inversion and N > 1:
             # Full Liouville-space Markov mixing matrix numerical inversion
             # M_mj = delta_mj * (1j * (omega - w_j) + nu_i + gamma_j) - nu_i * p_m
             # We solve M X = p, where p is the normalized intensities.
@@ -280,9 +320,9 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                 output_profiles[q] = np.maximum(0.0, profile)
             except np.linalg.LinAlgError:
                 # Fallback to analytical Sherman-Morrison solver if singular
-                numerical_inversion = False
-                
-        if not numerical_inversion or N <= 1:
+                use_inversion = False
+
+        if not use_inversion or N <= 1:
             # Analytical Sherman-Morrison solver
             omega_diff = energies_ev[:, np.newaxis] - frequencies[np.newaxis, :]
             S_omega = np.sum(normalized_intensities[np.newaxis, :] / (nu_i + gamma_k + 1j * omega_diff), axis=1)
@@ -312,4 +352,6 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                 conv = np.fft.irfft(np.fft.rfft(padded) * fft_filter, n=n_pad)
                 output_profiles[q] = conv[:n_pts]
 
-    return output_profiles[0], output_profiles[1], output_profiles[-1]
+    # σ+ (blue at B > 0) is the q = −1 dipole channel, σ− is q = +1 — the same
+    # mapping used by calculate_static_profile (q = m_l − m_u; σ+ has m_u = m_l + 1).
+    return output_profiles[0], output_profiles[-1], output_profiles[1]

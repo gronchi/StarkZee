@@ -48,7 +48,11 @@ _NIST_CENTER_AIR_NM = {
     ('H', 8, 3):  954.62,
     ('H', 9, 3):  922.90,
     # D Balmer
-    ('D', 3, 2): 656.107,
+    # (3,2): corrected from pystark's 656.107 to NIST ASD's directly published
+    # blended-line Ritz wavelength (physics.nist.gov Lines query, D I, ~656 nm;
+    # NIST has no separate "Observed" entry for this blended line, only Ritz,
+    # unc. 0.0009 nm). 656.107 does not match any NIST-published value for D-alpha.
+    ('D', 3, 2): 656.1012,
     ('D', 4, 2): 486.000,
     ('D', 5, 2): 433.928,
     ('D', 6, 2): 410.062,

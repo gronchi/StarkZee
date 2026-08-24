@@ -124,12 +124,17 @@ def calculate_debye_length(Ne_m3, Te_ev):
 def calculate_cutoff_kappa_m(Z, n, Te_ev):
     """Return the maximum wave-number cutoff κ_m [m⁻¹] (ZEST convention).
 
-    κ_m = min(κ_geo, κ_thermal) where:
-        κ_geo     = Z / (n² a₀)                    — geometric (Bohr orbit)
-        κ_thermal = Z √(2 m_e k_B T_e) / (ħ n²)  — thermal de Broglie
+    κ_m = min(κ_geo, κ_thermal), i.e. ρ_min = 1/κ_m = max of two radii:
+        κ_geo     = Z / (n² a₀)                   — geometric (Bohr-orbit radius
+                                                    ρ = n²a₀/Z)
+        κ_thermal = Z √(2 m_e k_B T_e) / (ħ n²)   — inverse Weisskopf radius
+                                                    ρ_W = n²ħ/(Z m_e v_th),
+                                                    v_th = √(2 k_B T_e/m_e)
 
-    The geometric limit dominates at T_e > 13.6 eV; the thermal limit dominates
-    below that threshold (1 Rydberg).
+    (Note ρ_W is the hydrogen strong-collision/Weisskopf radius, which carries
+    the n²/Z factor; it is *not* the thermal de Broglie length ħ/(m v).)
+    The geometric limit dominates at T_e > 13.6 eV; the Weisskopf limit
+    dominates below that threshold (1 Rydberg).
 
     Parameters
     ----------
@@ -413,7 +418,7 @@ def dufty_model(delta_omega_ev, Ne_m3, Te_ev, Z, n=2):
     return float(result[0]) if scalar else result
 
 
-def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
+def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full'):
     """Return the total electron-impact half-width W_e(Δω) [eV].
 
     Implements the frequency-dependent GBK model for electron Stark broadening,
@@ -424,13 +429,31 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
 
     **Prefactor W₀** — see :func:`calculate_electron_impact_prefactor`.
 
-    **Mean squared radius** ⟨r²⟩_n is the statistical (2l+1)-weighted average
-    of ⟨r²⟩_{n,l} over all l subshells:
+    **Mean squared radius** ⟨r²⟩_n — selected by ``r2_form``:
 
-        ⟨r²⟩_{n,l} = (n²/2Z²) [5n² + 1 − 3l(l+1)]   [a₀²]
-        ⟨r²⟩_n     = (1/n²) Σ_{l=0}^{n-1} (2l+1) ⟨r²⟩_{n,l}
+    - ``'full'`` (default): statistical (2l+1)-weighted average of the full
+      diagonal expectation value (closure sum over *all* intermediate shells):
 
-    Scales approximately as n⁴/Z², so broadening grows rapidly with n.
+          ⟨r²⟩_{n,l} = (n²/2Z²) [5n² + 1 − 3l(l+1)]   [a₀²]
+          ⟨r²⟩_n     = (1/n²) Σ_{l=0}^{n-1} (2l+1) ⟨r²⟩_{n,l}
+
+    - ``'intra'``: intra-shell dipole sum (each R⃗ projected on shell n, i.e.
+      Δn = 0 / no-quenching channels only — the same operator the ZEST model
+      uses):
+
+          ⟨r²_intra⟩_n = (9n²/8Z²)(n² − 1)   [a₀²]
+
+    Both scale as ~n⁴/Z²; the full form is larger by ×2.44 at n = 2 and ×1.89
+    at n = 3.  **Which form PPPB intends is ambiguous.**  Ferri et al. (2022)
+    Eq. (19) writes R⃗·R⃗ with "R⃗ the (emitter) electron position operator
+    operating in the subspace of PQN n": projecting each R⃗ on the shell gives
+    the intra-shell sum, and both the paper's separate ω_αα′ cutoff (which is
+    how non-degenerate channels enter G) and standard GBK theory for degenerate
+    hydrogen point the same way.  ``'full'`` is retained as the default only
+    because the package's PPPB-comparison figures were produced with it; pass
+    ``r2_form='intra'`` here (or ``electron_model='pppb-intra'`` in the profile
+    solvers) for the projected reading.  To be settled against digitized Ferri
+    width data.
 
     **Strong-collision constant C_n** (Ferri, Peyrusse & Calisti,
     Matter Radiat. Extremes 7, 015901 (2022), Table 1):
@@ -468,8 +491,14 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
         Nuclear charge of the radiating ion (1 for hydrogen).
     n : int, optional
         Principal quantum number of the *upper* level (default 2).
-        The width refers to the upper-level broadening only; the lower-level
-        contribution is neglected, consistent with the semi-classical model.
+        The width uses the upper-level operator only.  **This is an
+        approximation, not part of the reference models**: PPPB and ZEST both
+        include the lower-level (d†·d) contribution — and PPPB additionally the
+        upper-lower interference term — which partially cancel each other.  For
+        Balmer lines the neglected lower-level piece is of order 15-20 % of the
+        upper-level scale before that cancellation.
+    r2_form : {'full', 'intra'}, optional
+        Which ⟨r²⟩ operator average to use (see above).  Default ``'full'``.
 
     Returns
     -------
@@ -479,17 +508,21 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2):
 
     Notes
     -----
-    A negligible floor of 1e-10 eV is added by the caller in
-    :func:`~starkzee.static_profile.calculate_static_profile` solely to
-    prevent 0/0 in the Lorentzian at exactly zero density; the raw value
-    returned here is the physical width without that floor.
+    The profile solvers add the natural linewidth ħ(Γ_u + Γ_l)/2 on top of this
+    value, which also serves as the physical width floor at very low density;
+    the raw value returned here is the bare electron-impact width.
     """
     prefactor = calculate_electron_impact_prefactor(Ne_m3, Te_ev)
 
-    r2_avg = sum(
-        (2*l + 1) * (n**2 / (2.0 * Z**2)) * (5.0*n**2 + 1.0 - 3.0*l*(l + 1.0))
-        for l in range(n)
-    ) / n**2
+    if r2_form == 'intra':
+        r2_avg = (9.0 * n**2 * (n**2 - 1)) / (8.0 * Z**2)
+    elif r2_form == 'full':
+        r2_avg = sum(
+            (2*l + 1) * (n**2 / (2.0 * Z**2)) * (5.0*n**2 + 1.0 - 3.0*l*(l + 1.0))
+            for l in range(n)
+        ) / n**2
+    else:
+        raise ValueError(f"Unknown r2_form {r2_form!r}; choose 'full' or 'intra'.")
 
     if n <= 2:
         Cn = 1.5
@@ -622,7 +655,8 @@ def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'
 
 
 # Accepted ``electron_model`` selectors for :func:`electron_impact_width_model`.
-ELECTRON_MODELS = ('pppb', 'ferri', 'zest', 'zest-gbk', 'zest-lee', 'zest-dufty')
+ELECTRON_MODELS = ('pppb', 'ferri', 'pppb-intra', 'ferri-intra',
+                   'zest', 'zest-gbk', 'zest-lee', 'zest-dufty')
 
 
 def electron_impact_width_model(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2,
@@ -635,7 +669,12 @@ def electron_impact_width_model(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2,
     - ``'pppb'`` (default) → :func:`electron_impact_width`.
       The PPPB / Ferri, Peyrusse & Calisti (2022) form: fixed minimum impact
       parameter ρ_min = n²a₀/(2Z), GBK G-function, and a **B-dependent** cutoff
-      ω_c = max(ω_p, ω_e, ω_L).
+      ω_c = max(ω_p, ω_e, ω_L).  Uses the full closure ⟨r²⟩ (``r2_form='full'``).
+    - ``'pppb-intra'`` → :func:`electron_impact_width` with ``r2_form='intra'``:
+      same cutoffs and G-function but the shell-projected (intra-shell) R⃗·R⃗,
+      the reading of Ferri Eq. (19) favored by the paper's wording ("operating
+      in the subspace of PQN n") and by standard GBK theory; ~2.4× (n=2) /
+      ~1.9× (n=3) narrower than ``'pppb'``.
     - ``'zest'`` / ``'zest-gbk'`` → :func:`electron_impact_width_zest` (``model='gbk'``).
     - ``'zest-lee'`` → ZEST with Lee's analytic G-function (``model='lee'``).
     - ``'zest-dufty'`` → ZEST with the Dufty RPA G-function (``model='dufty'``).
@@ -675,6 +714,9 @@ def electron_impact_width_model(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2,
     m = electron_model.lower()
     if m in ('pppb', 'ferri'):
         return electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=n)
+    if m in ('pppb-intra', 'ferri-intra'):
+        return electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=n,
+                                     r2_form='intra')
     if m in ('zest', 'zest-gbk'):
         return electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=n, model='gbk')
     if m == 'zest-lee':

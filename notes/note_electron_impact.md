@@ -36,7 +36,19 @@ The constants are identical across all papers:
 
 The electron impact width is directly proportional to the radiator mean-square radius. StarkZee supports two treatments:
 
-### Full Shell-Average (PPPB/Ferri Default)
+> **Caution (2026-08-22 review):** the claim that the *full* average is the PPPB/Ferri
+> form is **not established by the paper**. Ferri 2022 Eq. (19) writes $\vec R\cdot\vec R$
+> with "$\vec R$ the (emitter) electron position operator **operating in the subspace of
+> PQN $n$**" — projecting each $\vec R$ on the shell gives the *intra-shell* sum (identical
+> to ZEST), and the paper's separate $\omega_{\alpha\alpha'}$ cutoff (the mechanism by which
+> non-degenerate channels enter $G$) plus standard GBK theory for degenerate hydrogen point
+> the same way. The full closure sum counts $\Delta n \neq 0$ channels at $G(\Delta\omega)$
+> even though their transition frequencies are ~eV $\gg \omega_c$. StarkZee keeps 'full' as
+> the `'pppb'` default (the comparison figures were made with it) and exposes the projected
+> reading as `electron_model='pppb-intra'` / `r2_form='intra'`. Settle by comparing both
+> against digitized Ferri width data.
+
+### Full Shell-Average (StarkZee `'pppb'` default — see caution above)
 Includes all inter-shell ($n \neq n'$) and intra-shell dipole coupling channels:
 $$\langle r^2 \rangle_n = \frac{1}{n^2} \sum_{l=0}^{n-1} (2l+1) \frac{n^2}{2Z^2} \left[5n^2 + 1 - 3l(l+1)\right] a_0^2$$
 *(H values: $n=2$: $33\text{ }a_0^2$, $n=3$: $153\text{ }a_0^2$)*

@@ -157,17 +157,19 @@ $$I_q(E) = \sum_{\beta,\mu} w_{\beta\mu}\sum_k I_q^k\,\mathcal{L}\!\big(E - \Del
   $w = W_e(\Delta\omega) + w_\text{natural}$ (§5), with
   $w_\text{natural} = \hbar(\Gamma_u + \Gamma_l)/2$ from summed Einstein A.
 
-### 3.7. Pseudo-Voigt (fast kernel option, Thompson 1987)
-$$V \approx \eta\,\mathcal{L}(x;\Gamma) + (1-\eta)\,G(x;\sigma),\quad
-\eta = 1.36603\tfrac{f_L}{f} - 0.47719\big(\tfrac{f_L}{f}\big)^2 + 0.11116\big(\tfrac{f_L}{f}\big)^3$$
-with the combined FWHM f from the Thompson 5-term polynomial.
-- **Code**: [`_pseudo_voigt`](starkzee/static_profile.py#L13).
+### 3.7. Pseudo-Voigt (removed)
+The Thompson (1987) pseudo-Voigt kernel `_pseudo_voigt` was never wired into the
+profile pipeline (the code uses exact Gaussian/Lorentzian kernels + FFT) and was
+removed as dead code in the 2026-08-22 review.
 
 ### 3.8. Observable polarization combinations
 $$I(\theta) = I_\pi\sin^2\theta + \tfrac12(I_{\sigma+}+I_{\sigma-})(1+\cos^2\theta)$$
 Transverse (90°): $I_\pi + \tfrac12(I_{\sigma+}+I_{\sigma-})$;
 Parallel (0°): $I_{\sigma+}+I_{\sigma-}$;
-Angle-averaged: $\tfrac23 I_\pi + \tfrac13(I_{\sigma+}+I_{\sigma-})$.
+Angle-averaged: $\tfrac23\,(I_\pi + I_{\sigma+}+I_{\sigma-})$
+(both $\sin^2\theta$ and $\tfrac12(1+\cos^2\theta)$ average to $\tfrac23$ over the
+sphere; isotropic check: $I_\pi = I_{\sigma\pm} = I \Rightarrow I(\theta) = 2I$
+at every angle).
 - **Code**: `line_profile.profile_at_angle`.
 
 ### 3.9. Discrete stick spectrum
