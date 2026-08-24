@@ -109,12 +109,6 @@ pi, sp, sm = calculate_ffm_profile(
 )
 ```
 
-### CLI
-
-```bash
-starkzee -Z 1 -B 5 --Ne 1e20 --Te 5 -o profile.txt -p profile.png
-```
-
 ### Comparison with all models — D_γ
 
 ```python
@@ -201,7 +195,6 @@ plt.show()
 | `convolutions.py` | Standalone wavelength-space FFT Doppler and instrumental broadening helpers |
 | `atomic_data.py` | NIST atomic energy-level database loader (`starkzee/data/atomic_levels.json`) |
 | `utils.py` | Physical constants (CODATA via scipy) and unit conversions |
-| `cli.py` | Command-line interface |
 
 ---
 
