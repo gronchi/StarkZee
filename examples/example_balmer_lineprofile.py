@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-Balmer series (Hα – Hε) at DIII-D edge conditions
-B = 12 T,  Ne = 1e20 m⁻³,  Te = 5 eV  —  transverse observation
+Balmer series (Hα – Hε) at DIII-D-like edge conditions
+B = 12 T,  Ne = 1e21 m⁻³,  Te = Ti = 10 eV  —  transverse observation
+
+Ti_ev is supplied so the static solver folds in thermal Doppler broadening
+(the compute_static_profile default is a bare, un-Dopplered profile). Without
+it, the natural/electron-impact linewidth at these conditions is narrower
+than the wavelength-grid spacing, and the resulting undersampled Lorentzians
+show up as spiky, sawtooth-textured curves rather than the smooth envelope a
+real (Doppler-broadened) spectrum would have.
 """
 
 import numpy as np
@@ -16,15 +23,21 @@ from starkzee.line_profile import LineProfile
 Z   = 1
 B   = 12.0   # T
 Ne  = 1e21   # m⁻³
-Te  = 500.0    # eV
+Te  = 1.0    # eV
+Ti  = 10.0   # eV (Doppler; see module docstring)
 
 # (n_u, n_l, label, half-window [nm])
+# Stark broadening grows rapidly with n, so a fixed half-window truncates the
+# wings of the higher lines instead of letting them decay to ~0 (at a fixed
+# 1.0 nm window, the profile is still at 6% of its peak at the edge for Hε
+# vs 0.4% for Hα) -- each half-window below is sized so its line's profile
+# has decayed to <0.2% of peak by the edge.
 LINES = [
-    (3, 2, "Hα", 1.0),
-    (4, 2, "Hβ", 1.0),
-    (5, 2, "Hγ", 1.0),
-    (6, 2, "Hδ", 1.0),
-    (7, 2, "Hε", 1.0),
+    (3, 2, "Hα", 1.75),
+    (4, 2, "Hβ", 2.00),
+    (5, 2, "Hγ", 2.50),
+    (6, 2, "Hδ", 3.50),
+    (7, 2, "Hε", 5.00),
 ]
 
 PROFILE_KWARGS = dict(
@@ -37,7 +50,7 @@ PROFILE_KWARGS = dict(
 # ── Compute ───────────────────────────────────────────────────────────────────
 profiles = {}
 for n_u, n_l, label, hw_nm in LINES:
-    lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne, Te_ev=Te, species='H')
+    lp = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne, Te_ev=Te, Ti_ev=Ti, species='H')
 
     wl_grid = np.linspace(lp.E0_wavelength_nm - hw_nm, lp.E0_wavelength_nm + hw_nm, 1000)
     print(f"Computing {label} (n={n_u}→{n_l}), λ₀={lp.E0_wavelength_nm:.2f} nm …", flush=True)
@@ -51,7 +64,7 @@ for n_u, n_l, label, hw_nm in LINES:
 fig, axes = plt.subplots(len(LINES), 1, figsize=(10, 9), sharex=False)
 fig.suptitle(
     rf"Balmer series — Stark-Zeeman  |  B = {B} T,  "
-    rf"$N_e$ = {Ne:.0e} m$^{{-3}}$,  $T_e$ = {Te} eV",
+    rf"$N_e$ = {Ne:.0e} m$^{{-3}}$,  $T_e$ = {Te} eV,  $T_i$ = {Ti} eV",
     fontsize=12,
 )
 
