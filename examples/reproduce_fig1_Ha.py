@@ -14,7 +14,7 @@ def generate_balmer_spectrum(B, Ne, Te, wavelengths_nm, quadratic_zeeman):
     Z = 1
     # (n_upper, relative-scale)  — approximate oscillator-strength weighting
     balmer_lines = [
-        (3, 0.35, "rH$_\alpha$"),
+        (3, 0.35, "Hα"),
     ]
 
     global_energies = wavelength_nm_to_energy_ev(wavelengths_nm)
@@ -106,4 +106,7 @@ if __name__ == "__main__":
 #    axes[-1].set_xlim(3800, 7200)
 
     plt.tight_layout()
+    out = os.path.join(os.path.dirname(__file__), "reproduce_fig1_Ha.png")
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"Saved plot to {out}")
     plt.show()

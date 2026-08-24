@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Test and Verification Script: C VI Lyman-alpha Stark-Zeeman Splitting (Figure 3 Benchmark)
-========================================================================================
+H Lyman-alpha Stark-Zeeman Splitting at B = 100 T
 
-Reproduces Figure 3 of:
-  Stark-Zeeman line-shape model for multi-electron radiators in hot dense plasmas
-  subjected to large magnetic fields (AIP, 2021, DOI: 10.1063/5.0058552)
+Illustrates the polarization structure of Lyman-alpha (n=2 -> n=1) under
+plasma conditions loosely inspired by the Figure 3 benchmark of Ferri,
+Peyrusse & Calisti (2022, DOI: 10.1063/5.0058552) — note that figure was
+computed for C VI (Z = 6), not H; this script uses H (Z = 1) throughout, so
+absolute splittings and widths differ from the published figure.
 
 Conditions:
-  - Radiator: C VI (Z = 6), hydrogen-like carbon, Lyman-alpha (n=2 -> n=1)
+  - Radiator: H (Z = 1), Lyman-alpha (n=2 -> n=1)
   - B = 100 T
   - Ne = 5e25 m^-3
   - Te = 100 eV
   - No Doppler or instrumental convolution (pure Stark-Zeeman profile)
 
-The pi component is multiplied by -1 to match the paper's visual convention.
+The pi component is multiplied by -1 for visual separation of polarizations.
 The x-axis is energy detuning (eV) from the unperturbed transition center E0.
 """
 
@@ -31,23 +32,23 @@ from starkzee.static_profile import calculate_static_profile
 
 
 def run_lyman_alpha_test():
-    # ── Physical parameters matching paper Fig. 3 ──────────────────────────
-    Z  = 6        # Carbon VI
+    # ── Physical parameters (loosely inspired by paper Fig. 3, but H not C VI) ─
+    Z  = 1        # Hydrogen
     B  = 100.0    # Tesla
     Ne = 5e25     # m^-3
     Te = 100.0    # eV
 
-    # Unperturbed Lyman-alpha transition energy for C VI: n=2 -> n=1
+    # Unperturbed Lyman-alpha transition energy for H: n=2 -> n=1
     E_upper = -(Z**2) * RYDBERG_EV / 4.0   # n=2 level
     E_lower = -(Z**2) * RYDBERG_EV          # n=1 level
-    E0 = E_upper - E_lower                  # ~367.35 eV for C VI
+    E0 = E_upper - E_lower                  # ~10.2 eV for H
 
     # Energy grid: ±0.20 eV around E0
     detuning_grid = np.linspace(-0.2, 0.2, 500)
     energies_ev   = E0 + detuning_grid
 
     print("=" * 70)
-    print("test_lyman_alpha: C VI Lyman-alpha Stark-Zeeman — Fig. 3 Benchmark")
+    print("test_lyman_alpha: H Lyman-alpha Stark-Zeeman at B = 100 T")
     print(f"  Z={Z}, B={B} T, Ne={Ne:.1e} m^-3, Te={Te} eV")
     print(f"  Unperturbed center E0 = {E0:.6f} eV  "
           f"({energy_ev_to_wavelength_nm(E0):.6f} nm)")
@@ -79,9 +80,9 @@ def run_lyman_alpha_test():
                label=f'$E_0 = {E0:.4f}$ eV')
 
     ax.set_title(
-        f"SZ Lyman-$\\alpha$ of C VI  (B = {B:.0f} T, "
-        f"$N_e = {Ne:.0e}$ cm$^{{-3}}$, $T_e = {Te:.0f}$ eV)\n"
-        r"Pure Stark-Zeeman profile — reproduces Fig. 3",
+        f"SZ Lyman-$\\alpha$ of H  (B = {B:.0f} T, "
+        f"$N_e = {Ne:.0e}$ m$^{{-3}}$, $T_e = {Te:.0f}$ eV)\n"
+        r"Pure Stark-Zeeman profile",
         fontsize=12, pad=12,
     )
     ax.set_xlabel(r"Energy detuning from $E_0$ (eV)", fontsize=11)
@@ -92,7 +93,7 @@ def run_lyman_alpha_test():
     ax.legend(frameon=True, fontsize=10)
 
     plt.tight_layout()
-    plot_file = os.path.join(os.path.dirname(__file__), "starkzee_profile.png")
+    plot_file = os.path.join(os.path.dirname(__file__), "lyman_alpha_100T.png")
     plt.savefig(plot_file, dpi=300)
     print(f"Plot saved → {plot_file}")
     plt.show()

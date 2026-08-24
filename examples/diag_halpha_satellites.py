@@ -67,13 +67,13 @@ for label, num_f, num_mu in configs:
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=num_f, num_mu=num_mu,
         use_screening=True, quadratic_zeeman=False,
-        frequency_dependent_width=False)
+        frequency_dependent_width=False, Ti_ev=Te)
     print("  without QZ done.", flush=True)
     pi_yq, sp_yq, sm_yq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=num_f, num_mu=num_mu,
         use_screening=True, quadratic_zeeman=True,
-        frequency_dependent_width=False)
+        frequency_dependent_width=False, Ti_ev=Te)
     print("  with QZ done.", flush=True)
     results[label] = dict(pi_nq=pi_nq, sp_nq=sp_nq, sm_nq=sm_nq,
                           pi_yq=pi_yq, sp_yq=sp_yq, sm_yq=sm_yq)
@@ -93,7 +93,7 @@ fig, axes = plt.subplots(3, 1, figsize=(14, 12), sharex=True)
 fig.suptitle(
     r"Hα (n=3→2) full Stark-Zeeman profile, B=1000 T — searching for ±2μ$_B$B satellites"
     "\n"
-    r"$N_e=10^{17}$ cm$^{-3}$, $T_e=5$ eV, transverse obs. (I$_\pi$ + ½(I$_{\sigma+}$ + I$_{\sigma-}$))",
+    r"$N_e=10^{17}$ m$^{-3}$, $T_e=5$ eV, transverse obs. (I$_\pi$ + ½(I$_{\sigma+}$ + I$_{\sigma-}$))",
     fontsize=11)
 
 det_meV = det * 1e3

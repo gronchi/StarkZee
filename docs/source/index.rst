@@ -34,14 +34,14 @@ field B, accounting for:
 - Electron impact broadening (GBK model with Larmor-frequency cutoff)
 - Ion dynamics via the Frequency Fluctuation Model (FFM)
 - Spin-orbit coupling and the quadratic (diamagnetic) Zeeman term
-- Doppler and instrumental broadening as post-processing convolutions
+- Optional in-solver Doppler broadening and standalone Doppler/instrumental convolutions
 
 .. code-block:: python
 
     import numpy as np
     from starkzee.line_profile import LineProfile
 
-    lp = LineProfile(n_u=3, n_l=2, Z=1, B=5.0, Ne_m3=1e20, Te_ev=5.0)
+    lp = LineProfile(n_u=3, n_l=2, B=5.0, Ne_m3=1e20, Te_ev=5.0)
     energies = lp.E0 + np.linspace(-0.005, 0.005, 1000)
     lp.compute_profile(energies, num_f=30, num_mu=8)
 

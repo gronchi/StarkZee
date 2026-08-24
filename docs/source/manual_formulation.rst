@@ -243,7 +243,11 @@ This operator couples states with :math:`\Delta l = 0` and :math:`\Delta l = \pm
 Empirical Field-Free Energies
 -------------------------------------
 
-The analytic diagonal :math:`H_0 = -Z^2\,\mathrm{Ry}_{\mathrm{red}}/n^2`, together with the spin-orbit and fine-structure terms, reproduces the field-free level positions only to the accuracy of the hydrogenic Dirac formula. For quantitative line centers, ``StarkZee`` can instead inject *measured* field-free energies through the ``use_empirical_data=True`` flag (with the element symbol ``atom``). The values are read from a tabulated database (``atomic_data.load_levels``) holding NIST level energies [nist]_ in wavenumbers [cm\ :math:`^{-1}`], resolved by :math:`(n, l, j)`.  The database is stored in ``starkzee/data/atomic_levels.json``; currently only hydrogen (``"H"``) is included.  Each top-level key is an atom symbol; the value is an object with two sections: ``"fine_structure_true"`` (entries with fields ``n``, ``l``, ``j``, ``energy``) and ``"fine_structure_false"`` (entries with fields ``n``, ``energy``).  All energies are in cm\ :math:`^{-1}` above the ground state (NIST vacuum values).  Additional atoms can be supported by adding the corresponding entry to this file.  To refresh the bundled data from the NIST ASD levels query, run ``python scripts/update_nist_levels.py H --spectrum "H I"``.  The updater is a development tool: it writes the local JSON database and checks that each requested fine-structure shell contains all hydrogenic ``(l, j)`` states before replacing the data.  The empirical Hamiltonian is kept in cm\ :math:`^{-1}` throughout this code path so that callers can work entirely in wavenumber units; all Zeeman contributions are also converted from eV to cm\ :math:`^{-1}` before being added, keeping every term on the same scale.
+The analytic diagonal :math:`H_0 = -Z^2\,\mathrm{Ry}_{\mathrm{red}}/n^2`, together with the spin-orbit and fine-structure terms, reproduces the field-free level positions only to the accuracy of the hydrogenic Dirac formula. For quantitative line centers, ``StarkZee`` can instead inject *measured* field-free energies through the ``use_empirical_data=True`` flag (with the element symbol ``atom``). The values are read from a tabulated database (``atomic_data.load_levels``) holding NIST level energies [nist]_ in wavenumbers [cm\ :math:`^{-1}`], resolved by :math:`(n, l, j)`.  The database is stored in ``starkzee/data/atomic_levels.json``; it currently holds hydrogen (``"H"``, :math:`n \le 8`), deuterium (``"D"``, :math:`n \le 6`), and tritium (``"T"``, :math:`n \le 3`).  Each top-level key is an atom symbol; the value is an object with two sections: ``"fine_structure_true"`` (entries with fields ``n``, ``l``, ``j``, ``energy``) and ``"fine_structure_false"`` (entries with fields ``n``, ``energy``).  All energies are in cm\ :math:`^{-1}` above the ground state (NIST vacuum values).  Additional atoms can be supported by adding the corresponding entry to this file.  To refresh the bundled data from the NIST ASD levels query, run ``python scripts/update_nist_levels.py H --spectrum "H I"``.  The updater is a development tool: it writes the local JSON database and checks that each requested fine-structure shell contains all hydrogenic ``(l, j)`` states before replacing the data; it also keeps NIST rows marked uncertain (a trailing ``?`` on the energy value) rather than silently dropping them.  The empirical Hamiltonian is kept in cm\ :math:`^{-1}` throughout this code path so that callers can work entirely in wavenumber units; all Zeeman contributions are also converted from eV to cm\ :math:`^{-1}` before being added, keeping every term on the same scale.
+
+.. note::
+
+   ``use_empirical_data``/``atom`` are not confined to the bare Hamiltonian: they are forwarded end-to-end by ``calculate_static_profile``, ``calculate_ffm_profile``, and the corresponding ``LineProfile.compute_static_profile``/``compute_ffm_profile`` methods. When active, the Stark matrices :math:`M_z, M_x` (built once in eV per :math:`(n,Z)`, Section 3.4 ) are rescaled to cm\ :math:`^{-1}`/(V/m) so that :math:`V_E = F_zM_z+F_xM_x` stays unit-consistent with the cm\ :math:`^{-1}` empirical Hamiltonian, and the diagonal-centering reference used to condition the eigensolve becomes the mean of the empirical levels rather than the analytic :math:`E_n`; the gross-structure line center :math:`E_0` used for GBK detunings and for the returned transition energies is derived from that same empirical reference (via :math:`E_0=E_{n_u}^{\mathrm{emp}}-E_{n_l}^{\mathrm{emp}}` converted back to eV), so absolute energies stay correct throughout. **Isotope caveat:** ``atomic_levels.json`` tabulates each isotope's own levels (H, D, T) but applies no further per-isotope correction — pass ``atom`` matching the emitting ``species`` (e.g. ``atom='D'`` with ``species='D'``) to get the true isotope-shifted line center; combining empirical data for one isotope with a different emitting species reproduces that *other* isotope's line center instead.
 
 Because the field-free Hamiltonian is degenerate (the Dirac formula makes :math:`2s_{1/2}` and :math:`2p_{1/2}` coincide), the empirical energies cannot simply be written on the diagonal of the uncoupled :math:`|n,l,m_l,m_s\rangle` basis: ``numpy.linalg.eigh`` is free to mix the degenerate :math:`l` states arbitrarily. ``StarkZee`` therefore:
 
@@ -445,11 +449,13 @@ The electric microfield is averaged over a probability distribution :math:`W(F)`
 The Hooper Screened Microfield Distribution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To account for Debye screening of the ion Coulomb fields by surrounding plasma electrons, StarkZee implements the **Hooper microfield distribution** [hooper]_:
+To account for Debye screening of the ion Coulomb fields by surrounding plasma electrons, StarkZee implements a Hooper-like screened microfield distribution [hooper]_:
 
 .. math::
 
    W(\beta, a) = \frac{2\beta}{\pi} \int_0^\infty y \sin(\beta y)\, T(y, a)\, dy
+
+**Provenance note.** This is the analytic screened characteristic-function ansatz below — it reduces to Holtsmark at :math:`a=0` and approximates the Debye suppression Hooper's low-frequency-component theory predicts — not an interpolation of Hooper's own tabulated numerical results. For quantitative work at strong screening (:math:`a \gtrsim 1`) prefer a tabulated distribution via ``custom_table_path``, or :func:`~starkzee.microfield.potekhin_distribution`.
 
 
 where:
@@ -505,12 +511,14 @@ Quadrature Discretization
 
 The double integral :math:`\iint W(F,\mu)\,dF\,d\mu` (Eq. [eq:microfield_integral] ) is discretized as follows:
 
-#. **Field magnitude** :math:`F`: A uniform grid of :math:`N_F` points in reduced field space :math:`\beta_i \in [0, \beta_{\max}]` (default :math:`\beta_{\max} = 10`):
+#. **Field magnitude** :math:`F`: A uniform grid of :math:`N_F` points (``num_f``) in reduced field space :math:`\beta_i \in [0, \beta_{\max}]` (``max_beta``, default :math:`\beta_{\max} = 10`):
 
    .. math::
 
           F_i = \beta_i F_0, \qquad W_{F,i} = W(\beta_i, a)\,\Delta\beta,
           \qquad \sum_i W_{F,i} = 1
+
+   The core of :math:`W(\beta)` sits below :math:`\beta \approx 5`–:math:`8`, but the Holtsmark tail decays only as :math:`\beta^{-5/2}`: about 3 % of the probability lies beyond :math:`\beta = 10`, and truncating it (the weights above are renormalized to sum to 1) removes exactly the strong-field configurations that build the quasi-static far wings of the line. Increase ``max_beta`` (together with ``num_f``, since the same point count must now cover a wider range) for far-wing studies; the default is adequate for line-core work.
 
 
 #. **Field orientation** :math:`\mu`: :math:`N_\mu`-point **Gauss-Legendre quadrature** over :math:`[0, 1]`. Legendre roots :math:`x_j \in [-1,1]` and weights :math:`w_j` are mapped as:
@@ -605,6 +613,10 @@ Shell-Averaged Mean-Square Radius
 
 This expression scales as :math:`n^4/Z^2` and is *not* replaced by an approximate constant.
 
+.. warning::
+
+   **Which :math:`\langle r^2\rangle` PPPB intends is ambiguous, and unresolved as of this writing.** Ferri et al. (2022) Eq. (19) write the broadening operator as :math:`\vec R\cdot\vec R` with ":math:`\vec R` the (emitter) electron position operator operating in the subspace of PQN :math:`n`." Projecting :math:`\vec R` onto the shell before squaring gives the *intra-shell* sum below (:math:`\langle r^2_\mathrm{intra}\rangle_n`) — the same operator ZEST uses, for the same :math:`\Delta n=0` reasons given in the ZEST-justification paragraph further down this page — rather than the full closure sum shown above. StarkZee keeps the full form as the ``electron_model='pppb'`` default only because the package's Ferri-figure comparisons were produced with it; the projected reading is available as ``electron_model='pppb-intra'`` (or ``r2_form='intra'`` passed to :func:`~starkzee.broadening.electron_impact_width`). The two differ by ×2.44 at :math:`n=2` and ×1.89 at :math:`n=3`. To be settled against digitized Ferri width data.
+
 Strong-Collision Constant
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -663,7 +675,7 @@ The largest frequency dominates, imposing the tightest bound on :math:`\rho_{\ma
 Frequency-dependent vs. resonance-center width.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When ``frequency_dependent_width=True`` (default), :math:`\gamma_e(\Delta E)` is evaluated at the actual detuning of each transition component using the full :math:`E_1(y(\Delta E))` function. Setting this flag to ``False`` fixes the width at the line-center value :math:`\gamma_e(0)`, which reduces computation time at the cost of accuracy in the far wings.
+When ``frequency_dependent_width=True`` (default), :math:`\gamma_e(\Delta E)` is evaluated **pointwise at the observation detuning from the gross-structure line center**, :math:`\Delta E = E - E_0`, using the full :math:`E_1(y(\Delta E))` function — the PPPB convention :math:`\Phi(\Delta\omega)` of [ferri]_ Eq. (19), where :math:`\Delta\omega` is the detuning from line center. All Stark-dressed components share this single width function, so each component becomes non-Lorentzian: its far wings relax toward the strong-collision floor :math:`C_n` as :math:`G \to 0`, and a component sitting far from line center receives a reduced width at its own position. Setting the flag to ``False`` fixes the width at the line-center value :math:`\gamma_e(0)`, which reduces computation time at the cost of accuracy in the far wings.
 
 This single half-width :math:`\gamma_e(\Delta E)` is the only quantity the electron model hands to the profile builder; how it is applied to each Stark-dressed transition is described in Section 3.9 .
 
@@ -723,7 +735,7 @@ The PPPB model fixes the minimum impact parameter as :math:`\rho_\mathrm{min} = 
    \kappa_m = \min\!\left(\frac{Z}{n^2 a_0},\;\frac{Z\sqrt{2m_e k_B T_e}}{\hbar n^2}\right)
 
 
-The geometric branch :math:`Z/(n^2 a_0)` dominates above :math:`T_e \approx \mathrm{Ry}_\infty \approx 13.6` eV; below that the thermal de Broglie branch takes over. The only cutoff frequency retained in all ZEST G-functions is the electron plasma frequency :math:`\omega_p` (no :math:`\omega_e` or :math:`\omega_L` terms), so :math:`B` does not enter the ZEST broadening directly.
+The geometric branch :math:`Z/(n^2 a_0)` dominates above :math:`T_e \approx \mathrm{Ry}_\infty \approx 13.6` eV; below that the Weisskopf branch takes over — the second cutoff is the inverse **Weisskopf radius** :math:`\rho_W = n^2\hbar/(Z m_e v_\mathrm{th})`, :math:`v_\mathrm{th}=\sqrt{2k_BT_e/m_e}` (the hydrogen strong-collision radius), *not* the thermal de Broglie length :math:`\hbar/(m_e v)`. The only cutoff frequency retained in all ZEST G-functions is the electron plasma frequency :math:`\omega_p` (no :math:`\omega_e` or :math:`\omega_L` terms), so :math:`B` does not enter the ZEST broadening directly.
 
 G-function choices (``electron_model`` selector).
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -797,14 +809,14 @@ The three polarization profiles are accumulated by vectorized summation over all
    P_q(E) = \sum_i W_{F,i} \sum_j W_{\mu,j} \sum_{p,k} S_q(p,k)\,L_{pk}\!\left(E - E_{pk}\right)
 
 
-where :math:`q{=}0 \to P_\pi`, :math:`q{=}{-1} \to P_{\sigma^+}` (blue), :math:`q{=}{+1} \to P_{\sigma^-}` (red). This direct summation realizes Eq. :eq:`eq:microfield_integral` in practice, with the frequency-dependent half-width :math:`\gamma_e(\Delta E)` of Section 3.8  evaluated at the detuning of each :math:`(E, E_{pk})` pair. The three accumulated channels are the polarization profiles :math:`I_\pi, I_{\sigma^+}, I_{\sigma^-}` entering the observed intensity of Eq. :eq:`eq:stokes`; for a line of sight at angle :math:`\alpha` to :math:`\vec{B}` they combine as :math:`P_\pi\sin^2\!\alpha + \tfrac{1}{2}(P_{\sigma^+}+P_{\sigma^-})(1+\cos^2\!\alpha)`.
+where :math:`q{=}0 \to P_\pi`, :math:`q{=}{-1} \to P_{\sigma^+}` (blue), :math:`q{=}{+1} \to P_{\sigma^-}` (red). This direct summation realizes Eq. :eq:`eq:microfield_integral` in practice.  The Lorentzian denominator is centered on each transition through :math:`E-E_{pk}`, while the default frequency-dependent half-width of Section 3.8 is evaluated on the shared observation-detuning grid :math:`\gamma_e(E-E_0)`. The three accumulated channels are the polarization profiles :math:`I_\pi, I_{\sigma^+}, I_{\sigma^-}` entering the observed intensity of Eq. :eq:`eq:stokes`; for a line of sight at angle :math:`\alpha` to :math:`\vec{B}` they combine as :math:`P_\pi\sin^2\!\alpha + \tfrac{1}{2}(P_{\sigma^+}+P_{\sigma^-})(1+\cos^2\!\alpha)`.
 
 .. _`sec:ffm`:
 
 Frequency Fluctuation Model (FFM)
 -----------------------------------------
 
-The profile assembled in Section 3.9  treats the ionic microfield as frozen during emission. When the ions move appreciably on the emission timescale, that quasi-static average must be replaced by a dynamic one, and the FFM provides this without rebuilding the atomic calculation. Dynamic ion motion causes the static microfield to fluctuate over time; in the FFM [talin]_ this is modeled as a stationary Markovian process that mixes the Stark-dressed transition components at rate :math:`\nu_i`.
+The profile assembled in Section 3.9  treats the ionic microfield as frozen during emission. When the ions move appreciably on the emission timescale, that quasi-static average must be replaced by a dynamic one.  The FFM retains the same instantaneous atomic calculation but assembles its dressed transitions dynamically instead. Dynamic ion motion causes the static microfield to fluctuate over time; in the FFM [talin]_ this is modeled as a stationary Markovian process that mixes the Stark-dressed transition components at rate :math:`\nu_i`.
 
 The Stark-Zeeman Hamiltonian :math:`H = H_A + V_E` is still diagonalized at each field configuration :math:`(F,\mu)`, producing dressed-state frequencies :math:`\omega_k` and dipole weights :math:`|d_k|^2` — the Stark-Dressed Transitions (SDTs). This step is purely static: :math:`\omega_k` and :math:`|d_k|^2` depend only on the instantaneous ion field. Fast electron collisions add a homogeneous Lorentzian half-width :math:`\gamma_k` to each SDT (the GBK width from Section 3.8 ), acting on a timescale short enough that the ion configuration does not change during a single collision. Ion dynamics enter exclusively through :math:`\nu_i`, estimated as the inverse time for an ion to cross the mean ion spacing at its thermal speed:
 
@@ -828,6 +840,8 @@ with the static propagator sum:
 
 
 where :math:`p_k = |d_k|^2 / r^2` are the normalized SDT weights and :math:`r^2 = \sum_k |d_k|^2`. The limit :math:`\nu_i \to 0` recovers the static profile; :math:`\nu_i \to \infty` gives a single Lorentzian (motional narrowing).
+
+**SDT binning** (``sdt_bin_tol``). The microfield-and-angle quadrature loop typically produces thousands of SDTs per polarization channel, many at nearly the same frequency — the :math:`S(\omega)` sum above is :math:`O(N)` per frequency point, so this dominates the FFM runtime. Passing ``sdt_bin_tol`` (an energy tolerance in eV) merges every group of SDTs within one polarization channel whose frequencies fall in the same bin of that width *before* the Sherman-Morrison solve: intensities are summed and each merged frequency becomes the intensity-weighted mean of its group. Because the solver only ever sees the pair :math:`(p_k, \omega_k)` per SDT, this is exact in the limit :math:`\text{sdt\_bin\_tol} \ll (\nu_i, \gamma_k)` and reduces :math:`N` by a factor of 10–100 in practice; ``sdt_bin_tol=1e-5`` (eV) is a safe default for typical Balmer-line conditions. Leaving it at its default of ``None`` performs the exact, unbinned calculation.
 
 .. _`sec:doppler`:
 
@@ -869,9 +883,19 @@ and zero-padding to :math:`2N` avoids circular-wrap artifacts.  Set
 Static profile path (``calculate_static_profile``)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``calculate_static_profile`` returns the purely Stark-Zeeman-broadened profile
-(quasi-static ion + electron impact only); Doppler is not included.  It must be
-added afterward as a post-processing step via ``convolutions.py``:
+When ``Ti_ev=None`` (the default), ``calculate_static_profile`` returns the
+quasi-static-ion, electron-impact, and natural-width profile without Doppler
+broadening.  When ``Ti_ev`` is supplied, the static solver includes Doppler
+broadening internally.  It uses an adaptive Voigt strategy: if the Doppler
+Gaussian is resolved on the energy grid, Gaussian components are accumulated
+inside the microfield loop and a resonance-width Lorentzian is applied by a
+zero-padded FFT afterward; otherwise Lorentzian components are accumulated and
+the Gaussian is applied by FFT afterward.
+
+The same internal behavior is reached through ``LineProfile.compute_profile``
+because the wrapper forwards its stored ``Ti_ev`` to the static solver.  As an
+alternative, leave ``Ti_ev`` unset during the static calculation and apply the
+standalone wavelength-space helper afterward:
 
 - ``apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H')``
   — convolves with a Gaussian kernel of width :math:`\Delta\lambda_D`.
@@ -879,15 +903,18 @@ added afterward as a post-processing step via ``convolutions.py``:
 - ``apply_instrument_broadening(wavelengths_nm, profile, fwhm_nm)``
   — convolves with a Gaussian instrumental slit function.
 
-Both operate on a *uniform wavelength grid* (convert energy grids to wavelength
-before calling) and use FFT convolution for efficiency.  The Gaussian kernel is:
+Both standalone helpers operate on a *uniform wavelength grid* and use FFT
+convolution for efficiency.  Compute on or resample to such a grid before
+calling them.  Do not apply ``apply_doppler_broadening`` to a profile that
+already included Doppler inside either solver.  The wavelength-space Gaussian
+kernel is:
 
 .. math::
 
    K_D(\lambda) = \exp\!\left(-\frac{(\lambda - \lambda_0)^2}{\Delta\lambda_D^2}\right)
 
 
-The complete broadening pipeline for the static path is therefore:
+The complete physical broadening pipeline is therefore:
 
 .. math::
 

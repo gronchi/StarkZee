@@ -37,7 +37,7 @@ Module overview
    * - :mod:`starkzee.broadening`
      - GBK electron impact broadening with magnetic-field cutoff
    * - :mod:`starkzee.convolutions`
-     - FFT-based Doppler and instrumental broadening (post-processing)
+     - Standalone wavelength-space FFT Doppler and instrumental broadening helpers
    * - :mod:`starkzee.utils`
      - Physical constants (via scipy.constants) and unit conversions
    * - :mod:`starkzee.atomic_data`

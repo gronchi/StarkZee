@@ -106,4 +106,7 @@ if __name__ == "__main__":
 #    axes[-1].set_xlim(3800, 7200)
 
     plt.tight_layout()
+    out = os.path.join(os.path.dirname(__file__), "reproduce_fig1_Hb.png")
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"Saved plot to {out}")
     plt.show()

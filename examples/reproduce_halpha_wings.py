@@ -65,13 +65,13 @@ for B in [500.0, 1000.0]:
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=30, num_mu=8,
         use_screening=True, quadratic_zeeman=False,
-        frequency_dependent_width=False)
+        frequency_dependent_width=False, Ti_ev=Te)
     print("done.  With QZ …", end=" ", flush=True)
     pi_yq, sp_yq, sm_yq = calculate_static_profile(
         n_u, n_l, Z, B, Ne, Te, energies,
         num_f=30, num_mu=8,
         use_screening=True, quadratic_zeeman=True,
-        frequency_dependent_width=False)
+        frequency_dependent_width=False, Ti_ev=Te)
     print("done.")
     results[B] = dict(
         pi_nq=pi_nq, sp_nq=sp_nq, sm_nq=sm_nq,
@@ -85,7 +85,7 @@ fig, axes = plt.subplots(2, 3, figsize=(15, 9), sharey='row')
 fig.suptitle(
     r"H$\alpha$ (n=3→2, Z=1) polarization wings from quadratic Zeeman"
     "\n"
-    r"$N_e = 10^{17}$ cm$^{-3}$, $T_e = 5$ eV — solid: with QZ, dashed: without QZ",
+    r"$N_e = 10^{17}$ m$^{-3}$, $T_e = 5$ eV — solid: with QZ, dashed: without QZ",
     fontsize=12)
 
 pol_labels = [r"$\pi$", r"$\sigma^+$", r"$\sigma^-$"]

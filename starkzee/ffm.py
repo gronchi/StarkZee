@@ -186,11 +186,14 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
 
     Notes
     -----
-    **Static vs FFM guidance**: use the static profile
-    (:func:`~starkzee.static_profile.calculate_static_profile`)
-    when B ≥ 50 T or N_e < 10²¹ m⁻³, where ion dynamics are negligible.
-    For lower B or higher densities (especially Hβ, Hδ at N_e ≥ 10²³ m⁻³)
-    FFM is needed to reproduce the correct central dip depth and peak structure.
+    **Static vs FFM guidance**: there is no universal threshold in ``B`` or
+    ``N_e`` alone.  Use the static profile when the ion fluctuation energy
+    ``ν_i`` is small compared with the characteristic Stark-dressed-transition
+    spread.  FFM becomes more relevant for faster, lighter ions, higher-``n``
+    transitions, and line cores whose components are not well separated (often
+    at lower ``B``).  If the regimes are not clearly separated, calculate both
+    profiles with matched quadrature, microfield, electron-width, and Doppler
+    settings and compare them over the observable spectral window.
 
     **B = 0 note**: the π/σ decomposition is physically meaningless at B = 0
     (no preferred axis); all three components are equal by symmetry and their

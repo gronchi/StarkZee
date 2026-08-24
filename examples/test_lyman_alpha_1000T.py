@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Test: C VI Lyman-alpha Stark-Zeeman Splitting at B = 1000 T
-============================================================
+H Lyman-alpha Stark-Zeeman Splitting at B = 1000 T
 
-Variant of the Figure 3 benchmark (DOI: 10.1063/5.0058552) at very high field.
+Highest-field companion to test_lyman_alpha.py / test_lyman_alpha_500T.py,
+loosely inspired by the Figure 3 benchmark of Ferri, Peyrusse & Calisti
+(2022, DOI: 10.1063/5.0058552) — that figure used C VI (Z = 6); this script
+uses H (Z = 1) throughout.
 
 Conditions:
-  - Radiator: C VI (Z = 6), Lyman-alpha (n=2 → n=1)
+  - Radiator: H (Z = 1), Lyman-alpha (n=2 → n=1)
   - B = 1000 T
   - Ne = 5e25 m^-3
   - Te = 100 eV
@@ -30,12 +32,12 @@ from starkzee.static_profile import calculate_static_profile
 
 def run_test():
     # ── Physical parameters ────────────────────────────────────────────────
-    Z  = 6        # Carbon VI
+    Z  = 1        # Hydrogen
     B  = 1000.0   # Tesla
     Ne = 5e25     # m^-3
     Te = 100.0    # eV
 
-    # Unperturbed Lyman-alpha for C VI (n=2 → n=1)
+    # Unperturbed Lyman-alpha for H (n=2 → n=1)
     E0 = (Z**2) * RYDBERG_EV * (1.0 - 1.0/4.0)
 
     # Energy grid: ±1.0 eV around E0
@@ -43,7 +45,7 @@ def run_test():
     energies_ev   = E0 + detuning_grid
 
     print("=" * 70)
-    print("test_lyman_alpha_1000T: C VI Lyman-alpha — B = 1000 T")
+    print("test_lyman_alpha_1000T: H Lyman-alpha — B = 1000 T")
     print(f"  Z={Z}, B={B} T, Ne={Ne:.1e} m^-3, Te={Te} eV")
     print(f"  E0 = {E0:.6f} eV  ({energy_ev_to_wavelength_nm(E0):.6f} nm)")
     print("=" * 70)
@@ -73,8 +75,8 @@ def run_test():
                label=f'$E_0 = {E0:.4f}$ eV')
 
     ax.set_title(
-        f"SZ Lyman-$\\alpha$ of C VI  (B = {B:.0f} T, "
-        f"$N_e = {Ne:.0e}$ cm$^{{-3}}$, $T_e = {Te:.0f}$ eV)\n"
+        f"SZ Lyman-$\\alpha$ of H  (B = {B:.0f} T, "
+        f"$N_e = {Ne:.0e}$ m$^{{-3}}$, $T_e = {Te:.0f}$ eV)\n"
         r"Pure Stark-Zeeman profile",
         fontsize=12, pad=12,
     )
