@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 plot = ["matplotlib>=3.5"]
 dev  = ["pytest>=7", "scipy>=1.8", "matplotlib>=3.5"]
-docs = ["sphinx>=7.2", "sphinx-rtd-theme>=2.0"]
+docs = ["sphinx>=7.2", "sphinx-rtd-theme>=2.0", "sphinxcontrib-mermaid>=2.1.0"]
 
 [project.scripts]
 starkzee = "starkzee.cli:main"

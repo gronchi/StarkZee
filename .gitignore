@@ -23,6 +23,7 @@ env/
 
 # Generated plot output
 *.png
+!docs/figures/**/*.png
 
 # Generated profile data
 *.txt

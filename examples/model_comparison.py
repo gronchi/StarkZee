@@ -1,6 +1,6 @@
 """
-model_comparison.py — Compare StarkZee's static profile against analytical 
-and tabulated models.
+model_comparison.py — Compare StarkZee's static and FFM profiles against
+analytical and tabulated models.
 
 Edit the parameters block inside run() to change plasma conditions.
 All models receive the same (Ti, Te, Ne, B, angle), so differences are
@@ -8,7 +8,8 @@ purely due to the underlying physics model.
 
 Run directly::
 
-    python examples/model_comparison.py
+    python examples/model_comparison.py                 # show interactively
+    python examples/model_comparison.py out/figure.png  # save to file
 """
 
 import time
@@ -22,14 +23,14 @@ from starkzee.convolutions import calculate_doppler_width_ev
 import starkzee.models as models
 
 
-def run():
+def run(save_path=None):
     # ── parameters ────────────────────────────────────────────────────────────
     n_u, n_l       = 3, 2      # transition  (Hα)
     species        = 'D'       # emitting species: 'H', 'D', or 'T'
     Ne_m3          = 1e20      # electron density          [m⁻³]
     Te_ev          = 1       # electron temperature      [eV]  → Stark width
     Ti_ev          = 1       # ion temperature           [eV]  → Doppler width
-    B              = 10.0       # magnetic field            [T]
+    B              = 3.0       # magnetic field            [T]
     view_angle_deg = 90.0      # observation angle to B    [deg]
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -39,22 +40,32 @@ def run():
 
     delta_E_D        = calculate_doppler_width_ev(lp.E0, Ti_ev, A_emitter=1)
     delta_lambda_D_nm = lp.E0_wavelength_nm * delta_E_D / lp.E0
-    half_width_nm    = max(2.0, 4.0 * delta_lambda_D_nm)
+    half_width_nm    = max(2.1, 4.0 * delta_lambda_D_nm)
 
     # StarkZee computes in vacuum nm, on a grid centered on the gross-structure
     # Rydberg line center.  Compute it up front so the comparison models can be
     # referenced to its actual line center (next).
     wl_sz_nm = np.linspace(lp.E0_wavelength_nm - half_width_nm,
-                            lp.E0_wavelength_nm + half_width_nm, 1000)
+                            lp.E0_wavelength_nm + half_width_nm, 3000)
     print('--------\ntimings:\n--------')
     t0 = time.time()
-    lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=20, num_mu=6, fine_structure=True)
-    print(f'starkzee: {time.time() - t0:.3g} sec')
+    lp.compute_static_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=60, num_mu=11, use_empirical_data=True, atom=species)
+    print(f'starkzee (static): {time.time() - t0:.3g} sec')
+
+    # StarkZee FFM (dynamic ion) profile, on the same vacuum-nm grid and
+    # plasma parameters; Doppler broadening is applied internally by the FFM
+    # solver (apply_doppler=True default), so both curves are directly
+    # comparable.
+    lp_ffm = LineProfile(n_u=n_u, n_l=n_l, B=B, Ne_m3=Ne_m3, Te_ev=Te_ev, Ti_ev=Ti_ev,
+                         species=species, view_angle_deg=view_angle_deg)
+    t0 = time.time()
+    lp_ffm.compute_ffm_profile(wl_sz_nm, grid_type='wavelength_nm', sdt_bin_tol=1e-5, use_empirical_data=True, atom=species)
+    print(f'starkzee (ffm): {time.time() - t0:.3g} sec')
+    ffm_profile = lp_ffm.profile
 
     # Physical line center = intensity-weighted centroid of the StarkZee profile.
-    # The StarkZee profile includes Dirac fine structure (and the full Stark-Zeeman
-    # asymmetry), which shifts the line ~0.01 nm to the blue of the gross-structure
-    # value lp.E0 — onto the physical (NIST) wavelength.  The comparison models have
+    # With use_empirical_data the levels carry the Lamb shift, so the centroid
+    # falls on the physical (NIST) wavelength.  The comparison models have
     # no fine structure and are symmetric about their grid mean, so centering their
     # grid and the vertical guide line on this centroid makes every peak overlay;
     # otherwise StarkZee appears offset from the others and from the vertical line.
@@ -78,7 +89,7 @@ def run():
         'voigt':        models.voigt,
         'stehle':       models.stehle,
         'stehle_param': models.stehle_param,
-        'lomanowski':   models.lomanowski,
+        #'lomanowski':   models.lomanowski,
         'rosato':   models.rosato,
     }
 
@@ -96,10 +107,12 @@ def run():
             print(f'{name} failed: {exc}')
             traceback.print_exc()
 
-    # ── StarkZee static profile (computed above) ──────────────────────────────
+    # ── StarkZee static and FFM profiles (computed above) ─────────────────────
     y = lp.profile / lp.profile.max()
+    y_ffm = ffm_profile / ffm_profile.max()
     for ax in (ax1, ax2):
-        ax.plot(lp.wavelengths_air_nm, y, 'k--', linewidth=2, label='starkzee')
+        ax.plot(lp.wavelengths_air_nm, y, 'k--', linewidth=2, label='starkzee (static)')
+        ax.plot(lp_ffm.wavelengths_air_nm, y_ffm, 'k:', linewidth=2, label='starkzee (ffm)')
 
     # ── formatting ────────────────────────────────────────────────────────────
     for ax in (ax1, ax2):
@@ -107,14 +120,19 @@ def run():
         ax.axvline(center_air_nm, ls='--', color='dimgrey', zorder=0)
         ax.legend(fontsize=10)
         ax.set_xlabel('wavelength (nm)', fontsize=10)
-        ax.set_yticklabels([])
-        ax.set_yticks([])
 
-    ax1.set_xlim(center_air_nm - 3, center_air_nm + 3)
+    ax1.set_xlim(center_air_nm - 0.2, center_air_nm + 0.2)
+    ax2.set_xlim(center_air_nm - 2, center_air_nm + 2)
     ax2.semilogy()
     plt.tight_layout()
-    plt.show()
+
+    if save_path:
+        fig.savefig(save_path, dpi=200)
+        print(f'saved figure to {save_path}')
+    else:
+        plt.show()
 
 
 if __name__ == '__main__':
-    run()
+    import sys
+    run(save_path=sys.argv[1] if len(sys.argv) > 1 else None)

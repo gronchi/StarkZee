@@ -18,6 +18,7 @@ extensions = [
     "sphinx.ext.intersphinx",    # cross-links to NumPy / SciPy
     "sphinx.ext.autosummary",    # summary tables
     "sphinx_rtd_theme",          # Read the Docs HTML theme
+    "sphinxcontrib.mermaid",     # maintainable workflow and decision diagrams
 ]
 
 # ── napoleon settings ─────────────────────────────────────────────────────────

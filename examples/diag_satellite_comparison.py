@@ -41,15 +41,25 @@ E0_Ha = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1/n_l**2 - 1/n_u**2)
 det_Ha = np.linspace(0.040, 0.170, 2600)
 en_Ha  = E0_Ha + det_Ha
 
-print("Hα: computing σ+ profile (no-QZ) …")
+print("Hα: computing σ+ profile (no-QZ and with-QZ) …")
 _, sp_Ha, _ = calculate_static_profile(
     n_u, n_l, Z, B, Ne, Te, en_Ha,
     num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
-    frequency_dependent_width=False)
+    frequency_dependent_width=False, Ti_ev=Te)
+_, sp_Ha_yq, _ = calculate_static_profile(
+    n_u, n_l, Z, B, Ne, Te, en_Ha,
+    num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=True,
+    frequency_dependent_width=False, Ti_ev=Te)
 sp_Ha_max = sp_Ha.max()
+# QZ shifts the satellite away from the naive linear 2*muB_B position (it also
+# shifts the main cluster itself), so search a window around it rather than
+# reading a single exact point — same convention as diag_halpha_satellites.py.
+sat_window_Ha = np.abs(det_Ha - 2*muB_B) < 0.015
 print(f"  σ+ peak = {sp_Ha_max:.3e} at +{det_Ha[np.argmax(sp_Ha)]*1e3:.1f} meV")
-print(f"  Value at satellite (+{2*muB_B*1e3:.1f} meV): "
-      f"{sp_Ha[np.argmin(np.abs(det_Ha - 2*muB_B))]/sp_Ha_max*100:.4f}%")
+print(f"  No-QZ max in ±15 meV around +{2*muB_B*1e3:.1f} meV: "
+      f"{sp_Ha[sat_window_Ha].max()/sp_Ha_max*100:.4f}%")
+print(f"  With-QZ max in ±15 meV around +{2*muB_B*1e3:.1f} meV: "
+      f"{sp_Ha_yq[sat_window_Ha].max()/sp_Ha_max*100:.4f}%")
 print()
 
 # ─── Hβ (n=4→2) ──────────────────────────────────────────────────────────────
@@ -58,19 +68,26 @@ E0_Hb = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1/n_l4**2 - 1/n_u4**2)
 det_Hb = np.linspace(0.040, 0.170, 2600)
 en_Hb  = E0_Hb + det_Hb
 
-print("Hβ: computing σ+ profile (no-QZ) …")
+print("Hβ: computing σ+ profile (no-QZ and with-QZ) …")
 _, sp_Hb, _ = calculate_static_profile(
     n_u4, n_l4, Z, B, Ne, Te, en_Hb,
     num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
-    frequency_dependent_width=False)
+    frequency_dependent_width=False, Ti_ev=Te)
+_, sp_Hb_yq, _ = calculate_static_profile(
+    n_u4, n_l4, Z, B, Ne, Te, en_Hb,
+    num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=True,
+    frequency_dependent_width=False, Ti_ev=Te)
 sp_Hb_max = sp_Hb.max()
+sat_window_Hb = np.abs(det_Hb - 2*muB_B) < 0.015
 print(f"  σ+ peak = {sp_Hb_max:.3e} at +{det_Hb[np.argmax(sp_Hb)]*1e3:.1f} meV")
-print(f"  Value at satellite (+{2*muB_B*1e3:.1f} meV): "
-      f"{sp_Hb[np.argmin(np.abs(det_Hb - 2*muB_B))]/sp_Hb_max*100:.4f}%")
+print(f"  No-QZ max in ±15 meV around +{2*muB_B*1e3:.1f} meV: "
+      f"{sp_Hb[sat_window_Hb].max()/sp_Hb_max*100:.4f}%")
+print(f"  With-QZ max in ±15 meV around +{2*muB_B*1e3:.1f} meV: "
+      f"{sp_Hb_yq[sat_window_Hb].max()/sp_Hb_max*100:.4f}%")
 
 from scipy.signal import find_peaks
-peaks, _ = find_peaks(sp_Hb, height=sp_Hb_max*0.005)
-print(f"  σ+ peaks > 0.5%: {[(det_Hb[p]*1e3, sp_Hb[p]/sp_Hb_max*100) for p in peaks]}")
+peaks, _ = find_peaks(sp_Hb_yq, height=sp_Hb_max*0.005)
+print(f"  With-QZ σ+ peaks > 0.5%: {[(det_Hb[p]*1e3, sp_Hb_yq[p]/sp_Hb_max*100) for p in peaks]}")
 print()
 
 # ─── Figure ──────────────────────────────────────────────────────────────────
@@ -80,37 +97,41 @@ sat_meV = 2*muB_B*1e3
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 6))
 fig.suptitle(
-    f"B = {int(B)} T,  $N_e = 10^{{17}}$ cm$^{{-3}}$,  $T_e = 5$ eV  — "
-    r"σ$^+$ polarization, no quadratic Zeeman",
+    f"B = {int(B)} T,  $N_e = 10^{{17}}$ m$^{{-3}}$,  $T_e = 5$ eV  — "
+    r"σ$^+$ polarization: solid = with QZ, dashed = no QZ",
     fontsize=12)
 
-for ax, det_meV, sp, sp_max, label, color, n_u_val in [
-        (axes[0], det_meV_Ha, sp_Ha, sp_Ha_max, r"H$\alpha$  (n=3→2)", "tab:blue", 3),
-        (axes[1], det_meV_Hb, sp_Hb, sp_Hb_max, r"H$\beta$  (n=4→2)",  "tab:red",  4),
+for ax, det_meV, sp_nq, sp_yq, sp_max, sat_window, label, color in [
+        (axes[0], det_meV_Ha, sp_Ha, sp_Ha_yq, sp_Ha_max, sat_window_Ha, r"H$\alpha$  (n=3→2)", "tab:blue"),
+        (axes[1], det_meV_Hb, sp_Hb, sp_Hb_yq, sp_Hb_max, sat_window_Hb, r"H$\beta$  (n=4→2)",  "tab:red"),
 ]:
-    sp_norm = sp / sp_max * 100
+    sp_nq_norm = sp_nq / sp_max * 100
+    sp_yq_norm = sp_yq / sp_max * 100
 
-    ax.semilogy(det_meV, sp_norm, color=color, lw=1.8, label=label)
+    ax.semilogy(det_meV, sp_nq_norm, 'k--', lw=1.2, alpha=0.7, label='No QZ')
+    ax.semilogy(det_meV, sp_yq_norm, color=color, lw=1.8, label=f'{label}, with QZ')
 
     # Mark satellite position
     ax.axvline(sat_meV, color='orange', ls='--', lw=1.5, label=f'+2μ_B×B = +{sat_meV:.0f} meV')
     ax.axvline(muB_B*1e3, color='gray', ls=':', lw=1.0, label=f'+μ_B×B = +{muB_B*1e3:.0f} meV')
 
-    # Annotations
-    sat_val = sp_norm[np.argmin(np.abs(det_meV - sat_meV))]
-    ax.annotate(f'{sat_val:.3f}%\nat +{sat_meV:.0f} meV',
-                xy=(sat_meV, sat_val), xytext=(sat_meV+5, sat_val*2),
+    # Annotation: max with-QZ value in a +-15 meV window around the naive satellite
+    # position (computed, not hardcoded) -- QZ shifts the actual peak off that
+    # position, so a single exact-point lookup would misrepresent the feature.
+    sat_idx = np.argmax(sp_yq_norm[sat_window])
+    sat_val = sp_yq_norm[sat_window][sat_idx]
+    sat_pos = det_meV[sat_window][sat_idx]
+    ax.annotate(f'{sat_val:.3f}%\nat +{sat_pos:.0f} meV',
+                xy=(sat_pos, sat_val), xytext=(sat_pos+5, sat_val*2),
                 fontsize=9, color='orange',
                 arrowprops=dict(arrowstyle='->', color='orange', lw=1.0))
 
-    if n_u_val == 4:
-        ax.text(0.40, 0.70, "Distinct satellite\npeak: ~2%", transform=ax.transAxes,
-                fontsize=10, color='darkred', fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='wheat', alpha=0.7))
-    else:
-        ax.text(0.40, 0.70, "No distinct peak:\n~0.07% = tail level", transform=ax.transAxes,
-                fontsize=10, color='navy', fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7))
+    distinct = sat_val > 0.5   # heuristic: a resolved peak vs. Lorentzian tail level
+    box_text = f"With-QZ satellite: {sat_val:.2f}%\n" + ("distinct peak" if distinct else "tail level, no distinct peak")
+    ax.text(0.40, 0.70, box_text, transform=ax.transAxes,
+            fontsize=10, color='darkred' if distinct else 'navy', fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.3',
+                      facecolor='wheat' if distinct else 'lightblue', alpha=0.7))
 
     ax.set_xlabel(f'Detuning from $E_0$ (meV)', fontsize=11)
     ax.set_ylabel('σ⁺ intensity (% of main peak)', fontsize=11)
@@ -151,7 +172,7 @@ for ax, n_u_val, E0_n, label, color in [
     pi_p, sp_p, sm_p = calculate_static_profile(
         n_u_val, 2, Z, B, Ne, Te, en_plot,
         num_f=50, num_mu=12, use_screening=True, quadratic_zeeman=False,
-        frequency_dependent_width=False)
+        frequency_dependent_width=False, Ti_ev=Te)
     total = pi_p + 0.5*(sp_p + sm_p)
     peak  = total.max()
     wl_plot = ev_to_nm(en_plot)   # wavelength in nm (note: reversed x-axis)

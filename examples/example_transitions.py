@@ -95,10 +95,10 @@ print("=" * 65)
 LINES = [
     ("H  Ly-α", 2, 1, 1),
     ("H  Ly-β", 3, 1, 1),
+    ("H  Ly-γ", 4, 1, 1),
     ("H  Hα  ", 3, 2, 1),
     ("H  Hβ  ", 4, 2, 1),
-    ("C VI Ly-α", 2, 1, 6),
-    ("C VI Hα  ", 3, 2, 6),
+    ("H  Hγ  ", 5, 2, 1),
 ]
 print(f"{'Line':>12}  {'gf':>8}  {'S_ul (a₀²)':>12}  {'A_ul (s⁻¹)':>14}")
 print("-" * 52)
@@ -121,7 +121,7 @@ ax_b5   = fig.add_subplot(gs[0, 1])
 ax_full = fig.add_subplot(gs[0, 2])
 ax_stark = fig.add_subplot(gs[1, 0])
 ax_hb   = fig.add_subplot(gs[1, 1])
-ax_cvi  = fig.add_subplot(gs[1, 2])
+ax_hib  = fig.add_subplot(gs[1, 2])
 
 # ── Panel 1: H Ly-α stick at B=0 ────────────────────────────────────────────
 tr_b0 = discrete_transitions(n_u=2, n_l=1, Z=1, B=0.0,
@@ -211,24 +211,30 @@ ax_hb.legend(fontsize=8, framealpha=0.7)
 ax_hb.set_xlim(-12, 12)
 ax_hb.axhline(0, color="grey", linewidth=0.5)
 
-# ── Panel 6: C VI Ly-α stick at B=5T — large SO dominates ───────────────────
-E0_cvi = bohr_energy(2, 1, 6)
-tr_cvi = discrete_transitions(n_u=2, n_l=1, Z=6, B=5.0,
+# ── Panel 6: H Ly-α stick at B=5000T — Zeeman dominates over SO ─────────────
+# Complements Panels 1 (B=0, pure SO) and 2 (B=5T, SO and Zeeman comparable):
+# at very high B the Zeeman splitting (∝ B) overtakes the fixed SO splitting,
+# so the pattern below is dominated by the linear-in-B Zeeman structure.
+B_hib = 5000.0
+tr_hib = discrete_transitions(n_u=2, n_l=1, Z=1, B=B_hib,
                                fine_structure=True, min_strength=1e-6)
-det_cvi = (tr_cvi['energy_ev'] - E0_cvi) * 1e3
-s_cvi   = tr_cvi['strength'] / tr_cvi['strength'].max()
+det_hib = (tr_hib['energy_ev'] - E0) * 1e3
+s_hib   = tr_hib['strength'] / tr_hib['strength'].max()
 for q in [0, -1, 1]:
-    mask = tr_cvi['q'] == q
+    mask = tr_hib['q'] == q
     if mask.any():
-        ax_cvi.vlines(det_cvi[mask], 0, s_cvi[mask],
+        ax_hib.vlines(det_hib[mask], 0, s_hib[mask],
                       colors=POL_COLOR[q], linewidth=1.8, alpha=0.85,
                       label=POL_LABEL[q])
-ax_cvi.set_xlabel("Detuning from E₀ (meV)", fontsize=10)
-ax_cvi.set_ylabel("Norm. strength", fontsize=10)
-ax_cvi.set_title("C VI Ly-α (Z=6)  B=5 T\nSO dominates (ξ ≫ μ_B B)", fontsize=11)
-ax_cvi.legend(fontsize=8, framealpha=0.7)
-ax_cvi.set_xlim(-32, 32)
-ax_cvi.axhline(0, color="grey", linewidth=0.5)
+ax_hib.set_xlabel("Detuning from E₀ (meV)", fontsize=10)
+ax_hib.set_ylabel("Norm. strength", fontsize=10)
+ax_hib.set_title(f"H Ly-α  B={B_hib:.0f} T\nZeeman dominates (μ_B B ≫ ξ)", fontsize=11)
+ax_hib.legend(fontsize=8, framealpha=0.7)
+ax_hib.axhline(0, color="grey", linewidth=0.5)
 
 fig.suptitle("starkzee — Discrete Stark-Zeeman Transitions", fontsize=14, y=1.01)
+plt.tight_layout()
+out = os.path.join(os.path.dirname(__file__), "example_transitions.png")
+plt.savefig(out, dpi=150, bbox_inches="tight")
+print(f"Saved {out}")
 plt.show()
