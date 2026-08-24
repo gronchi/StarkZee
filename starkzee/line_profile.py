@@ -15,6 +15,12 @@ Typical usage::
     lp.compute_profile(np.linspace(450, 490, 2000),   grid_type='frequency_thz')
     lp.compute_profile(np.linspace(15000, 16000, 2000), grid_type='wavenumber_cm')
 
+    # Static solver under its explicit name, and the dynamical-ion FFM solver
+    # (requires Ti_ev; stores results in the same attributes):
+    lp.compute_static_profile(np.linspace(620, 660, 2000), grid_type='wavelength_nm')
+    lp.compute_ffm_profile(np.linspace(620, 660, 2000), grid_type='wavelength_nm',
+                           sdt_bin_tol=1e-5)
+
     # Results are always available in all unit systems
     lp.energies_ev          # energy grid [eV]
     lp.detuning_ev          # E - E0       [eV]
@@ -38,7 +44,7 @@ Typical usage::
     lp.discrete.wavelength_nm
     lp.discrete.frequency_thz
     lp.discrete.wavenumber_cm
-    lp.discrete.q            # polarization (0, +1, -1)
+    lp.discrete.q            # polarization channel (0 = π, -1 = σ+, +1 = σ-)
     lp.discrete.strength     # |d_q|²  [a₀²]
 """
 
@@ -58,6 +64,7 @@ from starkzee.static_profile import (
     calculate_static_profile,
     discrete_transitions,
 )
+from starkzee.ffm import calculate_ffm_profile
 
 
 class DiscreteTransitions:
@@ -76,7 +83,8 @@ class DiscreteTransitions:
     wavenumber_cm : ndarray
         Photon wavenumber [cm⁻¹].
     q : ndarray of int
-        Polarization index: 0 = π, +1 = σ+, −1 = σ−.
+        Polarization index q = m_l − m_u: 0 = π; **−1 = σ+** (Δm = m_u − m_l
+        = +1, blue-shifted at B > 0); **+1 = σ−** (red-shifted).
     strength : ndarray
         Dipole matrix element squared :math:`|d_q(i \to j)|^2` [:math:`a_0^2`].
     upper_idx : ndarray of int
@@ -253,7 +261,61 @@ class LineProfile:
             species=self.species,
             **kwargs,
         )
+        self._store_profile(energies_ev, pi, sp, sm, view_angle_deg)
+        return self
 
+    # ``compute_static_profile`` is the explicit name used since the FFM became
+    # available on this class; ``compute_profile`` is kept as the historical
+    # alias so existing scripts keep working.
+    def compute_static_profile(self, grid, grid_type='energy_ev', view_angle_deg=None, **kwargs):
+        """Alias of :meth:`compute_profile` (static-ion Stark-Zeeman solver)."""
+        return self.compute_profile(grid, grid_type=grid_type,
+                                    view_angle_deg=view_angle_deg, **kwargs)
+
+    def compute_ffm_profile(self, grid, grid_type='energy_ev', view_angle_deg=None, **kwargs):
+        """Compute the dynamical (FFM) Stark-Zeeman profile on the supplied grid.
+
+        Runs :func:`~starkzee.ffm.calculate_ffm_profile` with this profile's
+        stored plasma parameters (``Ti_ev`` is required — set it in the
+        constructor; ``A`` is used as both emitter and perturber mass under the
+        same-species assumption) and stores the results in the same attributes
+        as :meth:`compute_profile` (``profile_pi``, ``profile_sig_plus``,
+        ``profile_sig_minus``, ``profile``, and every spectral-axis /
+        ``detuning_*`` array).
+
+        Parameters
+        ----------
+        grid, grid_type, view_angle_deg
+            Same meaning as in :meth:`compute_profile`.
+        **kwargs
+            Forwarded to :func:`~starkzee.ffm.calculate_ffm_profile`
+            (``num_f``, ``num_mu``, ``max_beta``, ``use_screening``,
+            ``quadratic_zeeman``, ``fine_structure``, ``numerical_inversion``,
+            ``use_empirical_data``, ``atom``, ``electron_model``,
+            ``parallel_stark``, ``apply_doppler``, ``sdt_bin_tol``).
+
+        Returns
+        -------
+        self
+            Allows method chaining.
+        """
+        if self.Ti_ev is None:
+            raise ValueError(
+                "compute_ffm_profile requires Ti_ev (ion temperature); "
+                "pass it to the LineProfile constructor.")
+        energies_ev = self._to_energy_ev(grid, grid_type)
+
+        pi, sp, sm = calculate_ffm_profile(
+            n_u=self.n_u, n_l=self.n_l, Z=self.Z, B=self.B,
+            Ne_m3=self.Ne_m3, Te_ev=self.Te_ev, Ti_ev=self.Ti_ev,
+            A_ion=self.A, energies_ev=energies_ev,
+            **kwargs,
+        )
+        self._store_profile(energies_ev, pi, sp, sm, view_angle_deg)
+        return self
+
+    def _store_profile(self, energies_ev, pi, sp, sm, view_angle_deg=None):
+        """Store solver output and populate every spectral-axis attribute."""
         self.energies_ev      = energies_ev
         self.detuning_ev      = energies_ev - self.E0
         self.wavelengths_nm   = energy_ev_to_wavelength_nm(energies_ev)
@@ -270,8 +332,6 @@ class LineProfile:
 
         angle = view_angle_deg if view_angle_deg is not None else self.view_angle_deg
         self.profile = self.profile_at_angle(angle)
-
-        return self
 
     # ── Discrete transitions ─────────────────────────────────────────────────
 

@@ -170,8 +170,8 @@ def energy_ev_to_wavelength_nm(energy_ev):
     Parameters
     ----------
     energy_ev : float or array-like
-        Photon energy [eV]. Zero-valued elements are mapped to zero wavelength
-        rather than triggering a division-by-zero error.
+        Photon energy [eV]. Zero-valued elements are mapped elementwise to zero
+        wavelength rather than triggering a division-by-zero error.
 
     Returns
     -------
@@ -184,10 +184,13 @@ def energy_ev_to_wavelength_nm(energy_ev):
     hc = 2π ħ c ≈ 1239.842 eV·nm.  The code derives this from CODATA values
     of ħ and c so there is no hardcoded conversion constant.
     """
-    if np.any(energy_ev == 0):
-        return np.zeros_like(energy_ev)
     h_ev_s = _c.hbar * 2.0 * np.pi / _c.e
-    return (h_ev_s * _c.c / energy_ev) * 1e9
+    energy = np.asarray(energy_ev, dtype=float)
+    zero = energy == 0.0
+    wl = np.where(zero, 0.0, (h_ev_s * _c.c * 1e9) / np.where(zero, 1.0, energy))
+    if np.ndim(energy_ev) == 0:
+        return float(wl)
+    return wl
 
 
 def vacuum_to_air_wavelength_nm(wavelength_vac_nm):

@@ -221,7 +221,21 @@ def _hooper_integrand_vec(y, beta_arr, a, charged):
 
 
 def hooper_distribution(beta, a, charged=True, method='vectorized'):
-    """Return the Hooper screened microfield probability density W(β, a).
+    """Return a Hooper-like screened microfield probability density W(β, a).
+
+    **Provenance note.**  This is *not* an interpolation of Hooper's tabulated
+    numerical results (C. F. Hooper Jr., Phys. Rev. 165, 215 (1968);
+    Phys. Rev. 169, 193 (1968)).  It evaluates the analytic screened
+    characteristic-function ansatz
+
+        W(β) = (2β/π) ∫₀^∞ y sin(βy) exp[−y^{3/2} (1 + c a²/y²)^{−3/4}] dy
+
+    with c = 1.5 for a charged radiator and c = 1.0 for a neutral one, which
+    reduces to Holtsmark at a = 0 and mimics the Debye suppression of large
+    fields at a > 0.  It approximates Hooper's low-frequency-component
+    distributions; for quantitative work at strong screening (a ≳ 1) prefer a
+    tabulated distribution via ``custom_table_path`` in
+    :func:`microfield_quadrature`, or :func:`potekhin_distribution`.
 
     Supports both scalar and array-like inputs.
 
@@ -539,7 +553,8 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
     The distribution W(β) is one of:
 
     - **Holtsmark** (``use_screening=False``): unscreened, valid when r_e ≪ λ_D.
-    - **Hooper** (``use_screening=True``, default): screened by the Debye length,
+    - **Hooper-like** (``use_screening=True``, default): Debye-screened analytic
+      approximation (see the provenance note in :func:`hooper_distribution`),
       appropriate for most laboratory plasmas.
     - **Custom table** (``custom_table_path`` provided): loads a user-supplied
       two-column file [β, W(β)] (e.g. from APEX or MD simulations) and
@@ -556,8 +571,12 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
         Number of quadrature points in β (default 50).  20 points is usually
         sufficient; 50 gives better accuracy in the far wings.
     max_beta : float, optional
-        Upper limit of the β grid (default 10).  W(β) is negligible beyond
-        β ≈ 5–8 for typical screening parameters.
+        Upper limit of the β grid (default 10).  The core of W(β) sits below
+        β ≈ 5–8, but the Holtsmark tail decays only as β^{−5/2}: ~3 % of the
+        probability lies beyond β = 10, and truncating it (the weights are
+        renormalized to 1) removes exactly the strong-field configurations
+        that build the quasi-static far wings of the line.  Increase max_beta
+        (together with ``num_points``) for far-wing studies.
     use_screening : bool, optional
         If True (default) use the Hooper screened distribution; if False use
         the unscreened Holtsmark distribution.

@@ -111,6 +111,11 @@ def parse_energy(value: str) -> float | None:
     value = value.strip().strip('"').replace(" ", "")
     if not value:
         return None
+    if value.endswith("?"):
+        # NIST marks a value as uncertain (not yet fully confirmed) with a
+        # trailing "?"; the number itself is still the best known estimate,
+        # so keep it rather than silently dropping the row.
+        value = value[:-1]
     try:
         return float(value)
     except ValueError:
@@ -209,9 +214,34 @@ def load_database(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+_LEVEL_KEYS = ("n", "l", "j", "energy")
+
+
+def _dump_compact(obj: object, indent: int = 0) -> str:
+    """Serialize like ``json.dumps(indent=2)``, except level dicts (only
+    ``n``/``l``/``j``/``energy`` keys) are kept on a single line so each
+    level reads as one row instead of spanning 4-6 lines."""
+
+    pad, pad_in = "  " * indent, "  " * (indent + 1)
+    if isinstance(obj, dict):
+        if not obj:
+            return "{}"
+        items = [f'{pad_in}{json.dumps(k)}: {_dump_compact(v, indent + 1)}' for k, v in obj.items()]
+        return "{\n" + ",\n".join(items) + "\n" + pad + "}"
+    if isinstance(obj, list):
+        if not obj:
+            return "[]"
+        if all(isinstance(x, dict) and set(x.keys()) <= set(_LEVEL_KEYS) for x in obj):
+            rows = [pad_in + json.dumps(x) for x in obj]
+            return "[\n" + ",\n".join(rows) + "\n" + pad + "]"
+        items = [pad_in + _dump_compact(x, indent + 1) for x in obj]
+        return "[\n" + ",\n".join(items) + "\n" + pad + "]"
+    return json.dumps(obj)
+
+
 def write_database(path: Path, database: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(database, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(_dump_compact(database) + "\n", encoding="utf-8")
 
 
 def update_database(database: dict, atom: str, spectrum: str, levels: ParsedNistLevels) -> dict:

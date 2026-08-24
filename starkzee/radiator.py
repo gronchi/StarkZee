@@ -293,8 +293,12 @@ def _quad_radial_dipole(n1, l1, n2, l2, Z):
     Returns
     -------
     float
-        Radial dipole matrix element [a₀].  Always ≥ 0 (the sign convention
-        is handled by the angular part :func:`angular_dipole_element`).
+        Radial dipole matrix element [a₀], **signed**: it is the integral with
+        the standard (positive-near-origin) radial functions, e.g.
+        ⟨2s|r|2p⟩ = −3√3 a₀.  Note the intra-shell Stark templates in
+        :mod:`starkzee.static_profile` use the opposite (positive) sign
+        convention; the two differ by the uniform basis rephasing
+        |n,l,m⟩ → (−1)^l |n,l,m⟩, which cancels in all observable |d|².
 
     Notes
     -----
@@ -400,7 +404,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
     Constructs the full magnetic Hamiltonian in the uncoupled ``|n, l, m_l, m_s⟩``
-    basis returned by :func:`build_basis`.  Four physical contributions are
+    basis returned by :func:`build_basis`.  Five physical contributions are
     included:
 
     **1. Unperturbed energy** (diagonal, degenerate across the shell):
@@ -611,7 +615,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
 
     Builds the (2n²) × (2n²) Hamiltonian via :func:`build_hamiltonian`
     with no applied electric field and diagonalizes it using ``numpy.linalg.eigh``
-    (real symmetric solver, numerically stable).
+    (complex Hermitian solver, numerically stable).
 
     Parameters
     ----------
@@ -641,8 +645,10 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
         ``|n, l, m_l, m_s⟩`` basis of :func:`build_basis`.
     """
     H = build_hamiltonian(n, Z, B, quadratic_zeeman, fine_structure, A, use_empirical_data, atom).copy()
-    # Shift diagonal by -En to center eigenvalues near 0, reducing the spectral norm.
-    # This improves the eigh solver's absolute resolution limit from ~1e-16 eV to ~1e-20 eV.
+    # Shift diagonal by -En to center eigenvalues near 0.  eigh's absolute error
+    # scales with the spectral norm, so shrinking the norm from ~|En| (eV) to the
+    # perturbation scale (~meV) proportionally improves the absolute resolution
+    # of the small Zeeman/fine-structure splittings.
     En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
     for i in range(H.shape[0]):
         H[i, i] -= En
