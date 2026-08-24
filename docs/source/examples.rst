@@ -30,8 +30,8 @@ figure(s).
        fine-structure → Zeeman-dominated progression
      - 1
    * - :doc:`examples/reproduce_fig1`
-     - Balmer-series profiles in the style of Ferri et al. (2022) Fig. 1
-     - 3
+     - Full Balmer-series spectrum in the style of Ferri et al. (2022) Fig. 1
+     - 1
    * - :doc:`examples/diag_halpha_satellites`
      - Convergence search for the :math:`\pm2\mu_B B` Stark-Zeeman satellite
        feature
