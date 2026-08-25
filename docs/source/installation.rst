@@ -40,13 +40,3 @@ Running the tests
     pytest tests/ -v
 
 All 332 tests should pass.
-
-Command-line interface
-----------------------
-
-After installation the ``starkzee`` command is available:
-
-.. code-block:: bash
-
-    starkzee --help
-    starkzee -Z 1 -B 5 --Ne 1e20 --Te 5 -o profile.txt -p profile.png
