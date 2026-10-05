@@ -28,6 +28,13 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Windows consoles default to cp1252; force UTF-8 so Unicode in printed
+# output (Greek letters, arrows, subscripts) doesn't raise UnicodeEncodeError.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 from starkzee.static_profile import calculate_static_profile
 from scipy.constants import e as E_CHARGE, m_e as M_E
 from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, A0
@@ -128,7 +135,7 @@ axes[-1].set_xlabel('Detuning from $E_0$ (meV)', fontsize=11)
 axes[-1].set_xlim(-210, 210)
 
 plt.tight_layout()
-out = 'halpha_satellites_convergence.png'
+out = os.path.join(os.path.dirname(__file__), 'halpha_satellites_convergence.png')
 plt.savefig(out, dpi=200, bbox_inches='tight')
 print(f"\nSaved {out}")
 
@@ -165,7 +172,7 @@ for col, (title, center_meV, hw_meV) in enumerate(windows):
         ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-out2 = 'halpha_satellites_zoom.png'
+out2 = os.path.join(os.path.dirname(__file__), 'halpha_satellites_zoom.png')
 plt.savefig(out2, dpi=200, bbox_inches='tight')
 print(f"Saved {out2}")
 

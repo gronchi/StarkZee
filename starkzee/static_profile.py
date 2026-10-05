@@ -3,20 +3,40 @@
 import warnings
 
 import numpy as np
+from scipy.special import voigt_profile
 from functools import lru_cache
 from starkzee.utils import A0, reduced_mass_rydberg_ev, wavenumber_cm_to_energy_ev, energy_ev_to_wavenumber_cm
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
 
-_SQRT_2PI = np.sqrt(2.0 * np.pi)
 
 from starkzee.radiator import (
     build_hamiltonian, build_basis, angular_dipole_element, radial_dipole,
-    _uncoupled_dipole_matrices, einstein_a,
+    _uncoupled_dipole_matrices, einstein_a, natural_decay_rates,
 )
 from starkzee.microfield import microfield_quadrature
+from starkzee.convolutions import uniform_energy_grid
 from starkzee.broadening import (
-    electron_impact_width, electron_impact_width_model, electron_impact_r2_scaling,
+    electron_impact_collision_coefficient, electron_impact_width_model,
+    electron_impact_r2_scaling,
 )
+from starkzee.collision import (
+    generalized_lorentzian_components, ppp_complex_sdts,
+)
+
+@lru_cache(maxsize=None)
+def line_reference_energy(n_u, n_l, Z=1, A=1, use_empirical_data=False, atom="H"):
+    """Fixed zero-field shell-trace reference [eV], or analytic gross energy.
+
+    Empirical means include fine structure and Lamb shifts; this is a defined
+    shell reference, not an intensity-weighted observed centroid.
+    """
+    if use_empirical_data:
+        upper = build_hamiltonian(n_u, Z, 0, True, True, A, True, atom)
+        lower = build_hamiltonian(n_l, Z, 0, True, True, A, True, atom)
+        return float(wavenumber_cm_to_energy_ev(np.trace(upper).real / len(upper)
+                                                - np.trace(lower).real / len(lower)))
+    return Z**2 * reduced_mass_rydberg_ev(Z, A) * (1 / n_l**2 - 1 / n_u**2)
+
 
 @lru_cache(maxsize=None)
 def _stark_templates(n, Z):
@@ -206,7 +226,15 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      frequency_dependent_width=True, A=1,
                                      Ti_ev=None, species='H', electron_model='pppb',
                                      electron_operator=False,
-                                     use_empirical_data=False, atom="H"):
+                                     electron_interference=False,
+                                     use_empirical_data=True, atom="H",
+                                     microfield_model=None,
+                                     force_frequency_dependent_width=False,
+                                     custom_table_path=None, charged=None,
+                                     emitter_charge=None, Z_bar=1.0,
+                                     apply_doppler=True, species_charges=None,
+                                     species_concentrations=None,
+                                     natural_width_mode='state_resolved'):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -232,13 +260,14 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     energies_ev : array-like
         Photon energies at which to evaluate the profile [eV].
     num_f : int, optional
-        Number of microfield quadrature points (default 20).  Ferri et al.
-        (2022) recommend ~50; 20 is sufficient for hydrogen but should be
-        increased for multi-electron atoms (future: set dynamically by atom type).
+        Number of microfield quadrature points (default 20). Converge it jointly
+        with ``max_beta`` for the requested transition, plasma conditions,
+        spectral window, and observable; the default is not a universal
+        accuracy guarantee.
     num_mu : int, optional
-        Number of Gauss-Legendre angle points (default 6).  Ferri et al.
-        (2022) recommend ~30; 6 is sufficient for hydrogen but should be
-        increased for multi-electron atoms (future: set dynamically by atom type).
+        Number of Gauss-Legendre angle points (default 6). Check convergence
+        for the requested field and polarization observable; the default is not
+        a universal accuracy guarantee.
     max_beta : float, optional
         Upper limit of the reduced-microfield grid β = F/F₀ (default 10).
         The Holtsmark tail beyond β = 10 carries ~3 % of the probability, which
@@ -246,7 +275,16 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         with ``num_f``) when the quasi-static far wings matter.  Forwarded to
         :func:`~starkzee.microfield.microfield_quadrature`.
     use_screening : bool, optional
-        Use Hooper screened microfield distribution (default True).
+        If True (default), use Potekhin when ``microfield_model`` is omitted;
+        a missing ``Ti_ev`` warns and assumes ``Ti_ev=Te_ev``. If False, use
+        Holtsmark. Ignored when an explicit model is given.
+    microfield_model : {None, 'holtsmark', 'hooper', 'potekhin', 'custom'}, optional
+        Explicit microfield-distribution selector, forwarded to
+        :func:`~starkzee.microfield.microfield_quadrature` (see there for the
+        full description of each model). With ``None``, screened calls select
+        Potekhin and unscreened calls select Holtsmark. Explicit ``'potekhin'``
+        requires ``Ti_ev``; the Hooper-like ansatz requires explicit
+        ``'hooper'`` selection and is not a validated distribution.
     quadratic_zeeman : bool, optional
         Include diamagnetic (quadratic) Zeeman term (default True).
     fine_structure : bool, optional
@@ -266,6 +304,24 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         (faster; valid when the profile extent ≪ ω_c).  Note the pointwise
         profile is not exactly area-normalized per component (the physical
         GBK non-Lorentzian shape isn't either).
+
+        The requested width is always honored. A frequency-dependent kernel
+        is not generally a unit-area Lorentzian and needs grid-convergence checks.
+    force_frequency_dependent_width : bool, optional
+        Compatibility no-op: frequency dependence is now honored unconditionally.
+    custom_table_path : str, optional
+        Two-column beta/density table, forwarded without silent fallback.
+    charged : bool or None, optional
+        Potekhin charged-point selector; ``None`` derives it from
+        ``emitter_charge``.
+    emitter_charge : float or None, optional
+        Net radiator charge in units of e. ``None`` infers ``Z-1`` for a
+        hydrogen-like radiator. Current analytic microfield fits distinguish
+        neutral from charged points but do not use the charge magnitude.
+    Z_bar : float, optional
+        Background ion charge, distinct from radiator nuclear charge (default 1).
+    apply_doppler : bool, optional
+        Set False to supply Ti_ev for microfield coupling without Doppler.
     Ti_ev : float, optional
         Ion temperature [eV].  When supplied, Doppler broadening is folded into
         the Lorentzian accumulation as a Voigt profile, eliminating the need for
@@ -286,19 +342,37 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         Stark-Zeeman dressed state gets a width scaled by its own ⟨k|r²|k⟩
         (:func:`~starkzee.broadening.electron_impact_r2_scaling`) instead of the
         shell-averaged scalar (default ``False``).  This is the **ZEST operator**
-        treatment with the off-diagonal / ``c_k`` set to zero.  The full PPPB
-        operator (off-diagonal → complex intensity ``a_k + i c_k``) and the
-        lower-manifold ``d†·d`` contribution are not yet implemented — see the
-        REVIEW note in :func:`~starkzee.broadening.electron_impact_r2_scaling`.
-        Currently applied in the in-loop Lorentzian path; with Doppler-dominant
-        grids (the post-FFT Lorentzian) the scalar resonance width is used.
+        treatment with the off-diagonal / ``c_k`` set to zero.  The lower-manifold
+        ``d†·d`` contribution **is** included: each transition width is
+        ``W_e(n_u) + W_e(n_l)`` (Ferri et al. 2022 Eq. 8; ZEST
+        ``w_init_eigen[i] + w_final_eigen[j]``), operator-diagonal per shell.
+        Applied in every accumulation path, including constant-width Voigt
+        kernels. The separate ``electron_interference`` option retains the
+        full off-diagonal PPP impact-limit operator instead.
+    electron_interference : bool, optional
+        Opt-in full PPP impact-limit collision operator (default ``False``).
+        When true, construct Appendix B Eq. (B1) of the 2024 PPP manual in the
+        optical-coherence basis, retain its upper--lower interference term,
+        diagonalize ``L_f - i Phi``, and evaluate the complex generalized SDT
+        intensities ``a_k + i c_k``. This implies the operator treatment and
+        requires ``frequency_dependent_width=False``: the manual's default
+        implementation evaluates ``G(0)`` before the non-Hermitian solve. The
+        Appendix-B coefficient is evaluated directly, so the ``pppb`` and
+        ``pppb-intra`` scalar radius selectors produce the same full operator.
+    natural_width_mode : {'state_resolved', 'shell_average'}, optional
+        Natural-damping treatment. ``'state_resolved'`` (default) rotates the
+        uncoupled E1 spontaneous-decay rates into each Stark–Zeeman eigenbasis
+        and applies ``ħ(Γ_u,i + Γ_l,j)/2`` to each transition. The compatibility
+        mode ``'shell_average'`` applies the historical common width obtained
+        by averaging each shell over all ``2n²`` substates.
     use_empirical_data : bool, optional
         Use NIST empirical level energies for the field-free Hamiltonian
         instead of the analytic Dirac (spin-orbit + MV + Darwin) formula
-        (default False); forwarded to :func:`~starkzee.radiator.build_hamiltonian`.
+        (default True); forwarded to :func:`~starkzee.radiator.build_hamiltonian`.
         The empirical levels include the Lamb shift, so the resulting profile
         centroid matches the measured NIST wavelength more closely than the
-        pure-Dirac default, which is Lamb-shift-free.  ``atomic_levels.json``
+        analytical model, which is Lamb-shift-free. Set this to False for
+        analytical energies or hydrogen-like ions with Z > 1. ``atomic_levels.json``
         tabulates H (n ≤ 8), D (n ≤ 6), and T (n ≤ 3) levels — pass the
         matching ``atom`` for the emitting *species*: the default ``atom="H"``
         combined with ``species='D'``/``'T'`` reproduces the plain-hydrogen
@@ -309,23 +383,18 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
 
     Notes on approximations
     -----------------------
-    **sigma_D**: the Doppler width is computed as
-    ``σ_D = E_mean × sqrt(Ti / mc²)`` where ``E_mean = mean(energies_ev)``.
-    Strictly, each transition at energy ``dE_i`` should use ``σ_D(dE_i)``, but
-    the fractional error is ``ΔE/E ≈ Δ_Zeeman/E0`` — about 0.03 % for H-alpha
-    at 10 T — and is negligible in practice.
+    All outputs are spectral densities per eV. Nonuniform monotonic input
+    grids are supported: when FFT Doppler convolution is needed, evaluate on
+    an increasing uniform energy grid at least as fine as the smallest input
+    spacing, then interpolate back. Vary spacing and window independently to
+    check interpolation, truncation and narrow-component errors.
 
-    **Lorentzian FFT step**: when Doppler is active and dominant (the
-    Gaussian-loop path), the post-loop Lorentzian convolution uses
-    ``w_resonance`` (the on-resonance GBK width) for both
-    ``frequency_dependent_width`` settings — an FFT convolution cannot carry a
-    frequency-dependent width.  The variation of ``w`` across the line is a few
-    % there and is negligible relative to ``σ_D``.
-
-    **Grid resolution**: in the Lorentzian-accumulation path (no Doppler, or
-    σ_D ≤ 2Δx), components narrower than the grid spacing are undersampled and
-    part of the integrated intensity is silently lost; a ``UserWarning`` is
-    emitted when ``w(0) < 2Δx``.  Supply ``Ti_ev`` or refine the grid.
+    Constant electron widths with Doppler use direct Voigt kernels (including
+    state-dependent operator widths). Frequency-dependent kernels are sampled
+    first and Gaussian-convolved afterward; unresolved Lorentzians still need
+    refinement. Finite output windows need not conserve the total line area.
+    State-resolved natural widths include all E1 decays to lower principal
+    shells. Fine-structure corrections to those radiative rates are neglected.
 
     Returns
     -------
@@ -349,9 +418,35 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     (both sin²θ and ½(1+cos²θ) average to ⅔ over the sphere; for the isotropic
     case I_π = I_σ± = I this gives I(θ) = 2I at every angle, as it must).
     """
+    energies_ev, restore_grid = uniform_energy_grid(
+        energies_ev, resample=apply_doppler and Ti_ev is not None and Ti_ev > 0
+        and frequency_dependent_width)
+    if electron_interference:
+        if frequency_dependent_width:
+            raise ValueError(
+                "electron_interference=True implements the PPP impact-limit "
+                "operator and requires frequency_dependent_width=False."
+            )
+        if electron_model.lower() not in ('pppb', 'ferri', 'pppb-intra', 'ferri-intra'):
+            raise ValueError(
+                "electron_interference=True currently supports only the PPPB/Ferri "
+                "electron models."
+            )
+    if emitter_charge is None:
+        emitter_charge = Z - 1
+    if not np.isfinite(emitter_charge) or emitter_charge < 0:
+        raise ValueError("emitter_charge must be finite and nonnegative.")
+    if charged is None:
+        charged = emitter_charge != 0
     # 1. Get microfield grid and weights
     fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f,
-                                              max_beta=max_beta, use_screening=use_screening)
+                                              max_beta=max_beta, use_screening=use_screening,
+                                              microfield_model=microfield_model, Ti_ev=Ti_ev,
+                                              custom_table_path=custom_table_path,
+                                              charged=charged, emitter_charge=emitter_charge,
+                                              Z_bar=Z_bar,
+                                              species_charges=species_charges,
+                                              species_concentrations=species_concentrations)
     
     # 2. Get angular integration points (Gauss-Legendre on mu = cos(theta) from 0 to 1)
     mu_points, mu_weights = np.polynomial.legendre.leggauss(num_mu)
@@ -401,33 +496,43 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     profile_sig_minus = np.zeros_like(energies_ev)
     
     sigma_D = None
-    if Ti_ev is not None:
+    if apply_doppler and Ti_ev is not None and Ti_ev > 0:
         from starkzee.utils import species_to_ZA
         _, A_species = species_to_ZA(species)
         mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
-        sigma_D = np.mean(energies_ev) * np.sqrt(Ti_ev / mc2_ev)
+        # Use the physical (analytic) gross-structure line center, not mean(energies_ev):
+        # the latter depends on the requested observation window (its offset and width),
+        # not on the emitter, so an asymmetric or shifted window would silently change the
+        # modeled Doppler width without changing the physics.
+        _E0_center_ev = line_reference_energy(n_u, n_l, Z, A, use_empirical_data, atom)
+        sigma_D = _E0_center_ev * np.sqrt(Ti_ev / mc2_ev)
 
-    # Grid spacing — drives the adaptive Doppler strategy.
+    # Direct Voigt evaluation preserves constant per-transition widths without
+    # sampling narrow Lorentzians or substituting a different physical model.
+    # force_frequency_dependent_width is retained as a compatibility no-op.
     _dx = abs(energies_ev[1] - energies_ev[0])
-    # σ_D > 2 dx → Gaussian is well-resolved on the grid: accumulate Gaussians
-    # in the loop and apply the Lorentzian via FFT after.  Correct even when
-    # w ≪ dx (avoids undersampled-Lorentzian amplitude errors at low density).
-    # σ_D ≤ 2 dx → Gaussian aliases → accumulate Lorentzians in the loop and
-    # apply the Gaussian via FFT after (needed for coarse grids / wide windows).
-    _gaussian_loop = sigma_D is not None and sigma_D > 2.0 * _dx
-    if _gaussian_loop:
-        _two_sigma2 = 2.0 * sigma_D**2
-        _gauss_norm = 1.0 / (sigma_D * _SQRT_2PI)
+    _voigt_loop = (sigma_D is not None and not frequency_dependent_width
+                   and not electron_interference)
 
-    # Natural linewidth: ħ(Γ_u + Γ_l)/2, summing Einstein A over all decay channels.
-    # This is the physically correct minimum Lorentzian half-width — it replaces
-    # the arbitrary numerical floor and ensures correct behavior at low Ne or high B.
-    gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
-    gamma_lower = sum(einstein_a(n_l, k, Z) for k in range(1, n_l)) if n_l > 1 else 0.0
-    w_natural_ev = _HBAR * (gamma_upper + gamma_lower) / 2.0 / _E_CHARGE
+    if natural_width_mode not in ('state_resolved', 'shell_average'):
+        raise ValueError(
+            "natural_width_mode must be 'state_resolved' or 'shell_average'.")
+    if natural_width_mode == 'state_resolved':
+        natural_rates_u_basis = natural_decay_rates(n_u, Z)
+        natural_rates_l_basis = natural_decay_rates(n_l, Z)
+        # Conservative scalar used only by the undersampling diagnostic below.
+        min_natural_ev = (_HBAR / (2.0 * _E_CHARGE)
+                          * (natural_rates_u_basis.min()
+                             + natural_rates_l_basis.min()))
+    else:
+        gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
+        gamma_lower = (sum(einstein_a(n_l, k, Z) for k in range(1, n_l))
+                       if n_l > 1 else 0.0)
+        shell_natural_ev = (_HBAR * (gamma_upper + gamma_lower)
+                            / (2.0 * _E_CHARGE))
+        min_natural_ev = shell_natural_ev
 
-    # Gross-structure line center — reference for transition energies and for
-    # the GBK detuning axis of the pointwise electron width.  Must equal
+    # Numerical reconstruction offset for transition energies. It must equal
     # En_u − En_l (the diagonal shift subtracted from H_atom_u/H_atom_l above)
     # so that dE_shifted + E0_line recovers the true absolute transition energy
     # regardless of which reference (analytic Rydberg or empirical-level mean)
@@ -439,31 +544,63 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     else:
         E0_line = (Z**2) * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
         _shift_to_ev = 1.0
+    # Keep physical damping separate from the B-dependent conditioning shift.
+    E0_physical = line_reference_energy(n_u, n_l, Z, A, use_empirical_data, atom)
 
     # On-resonance width — used for the FFT Lorentzian step (both paths when
     # Doppler is active) and as the scalar w for frequency_dependent_width=False.
-    # Keep the electron part separate so the operator path can rescale it per SDT.
-    w_resonance_e = electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_u,
-                                                electron_model=electron_model)
-    w_resonance = w_resonance_e + w_natural_ev
+    # Keep the upper- and lower-shell electron parts separate so the operator
+    # path can rescale each per Stark-Zeeman dressed state by its own ⟨r²⟩.
+    #
+    # Upper + lower level contributions: the electron-impact width of a line is
+    # φ(n_u) + φ(n_l) — Ferri, Peyrusse & Calisti (2022) Eq. (8) / ZEST, which
+    # keep both the upper- and lower-state d·d† terms and drop only the
+    # upper–lower *interference* term. The opt-in full PPP path below uses the
+    # common impact coefficient W0[C_nu + G_nu(0)] for all three Appendix-B
+    # terms instead of rescaling either scalar shell width.
+    # n_l = 1 (Lyman) has no intra-shell dipole channel, so its impact width is
+    # taken as 0 in the default diagonal approximation.
+    w_resonance_e_u = electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_u,
+                                                 electron_model=electron_model)
+    w_resonance_e_l = (electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_l,
+                                                  electron_model=electron_model)
+                       if n_l > 1 else 0.0)
+    w_resonance_e = w_resonance_e_u + w_resonance_e_l
+    w_resonance = w_resonance_e + min_natural_ev
+    ppp_impact_coefficient = None
+    if electron_interference:
+        ppp_impact_coefficient = electron_impact_collision_coefficient(
+            Ne_m3, Te_ev, B, Z, n=n_u)
+        # Use the selected-shell mean self-term scale for grid-resolution
+        # diagnostics. The scalar electron_model selector does not calibrate
+        # the full operator and therefore must not alter this warning.
+        r2_intra_u = 9.0 * n_u**2 * (n_u**2 - 1.0) / (8.0 * Z**2)
+        r2_intra_l = (9.0 * n_l**2 * (n_l**2 - 1.0) / (8.0 * Z**2)
+                      if n_l > 1 else 0.0)
+        w_resonance = (ppp_impact_coefficient * (r2_intra_u + r2_intra_l)
+                       + min_natural_ev)
 
     # Pointwise electron width w_e(E − E0) on the observation grid (PPPB Φ(Δω),
     # Ferri et al. 2022 Eq. 19: Δω is the detuning from line center).  Computed
     # once per profile call; shared by every quadrature point and transition.
-    if frequency_dependent_width and not _gaussian_loop:
-        _w_e_grid = electron_impact_width_model(
-            energies_ev - E0_line, Ne_m3, Te_ev, B, Z, n=n_u,
+    # Upper and lower shells kept separate (see the on-resonance block above).
+    if frequency_dependent_width:
+        _w_e_grid_u = electron_impact_width_model(
+            energies_ev - E0_physical, Ne_m3, Te_ev, B, Z, n=n_u,
             electron_model=electron_model)[:, np.newaxis]
+        _w_e_grid_l = (electron_impact_width_model(
+            energies_ev - E0_physical, Ne_m3, Te_ev, B, Z, n=n_l,
+            electron_model=electron_model)[:, np.newaxis] if n_l > 1 else 0.0)
 
     # Undersampled-Lorentzian guard: in the Lorentzian-accumulation path,
     # components narrower than the grid spacing lose integrated intensity
     # (trapezoid mass simply falls between grid points).
-    if not _gaussian_loop and w_resonance < 2.0 * _dx:
+    if not _voigt_loop and w_resonance < 2.0 * _dx:
         warnings.warn(
             f"Lorentzian half-width at line center ({w_resonance:.3e} eV) is below "
             f"twice the grid spacing (dx = {_dx:.3e} eV); part of the integrated "
-            "line intensity will be lost to undersampling. Supply Ti_ev (Doppler) "
-            "or refine the energy grid.",
+            "line intensity can be lost to undersampling. Refine the energy grid; "
+            "post-convolution Doppler cannot recover unresolved intrinsic components.",
             UserWarning, stacklevel=2)
 
     # Main integration loop
@@ -483,10 +620,28 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             sz_energies_u, sz_vectors_u = np.linalg.eigh(H_atom_u + Fz * M_z_u + Fx * M_x_u)
             sz_energies_l, sz_vectors_l = np.linalg.eigh(H_atom_l + Fz * M_z_l + Fx * M_x_l)
 
-            # Electron-impact operator diagonal: per-upper-state ⟨k|r²|k⟩/⟨r²⟩_avg
-            # (c_k = 0 → ZEST operator). Off-diagonal (→ PPPB c_k) not implemented.
+            if natural_width_mode == 'state_resolved':
+                natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
+                natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
+                natural_widths = (_HBAR / (2.0 * _E_CHARGE)
+                                  * (natural_rates_l[:, np.newaxis]
+                                     + natural_rates_u[np.newaxis, :]))
+
+            # Electron-impact operator diagonal: per-dressed-state ⟨k|r²|k⟩/⟨r²⟩_avg
+            # (c_k = 0 → ZEST operator), applied to the upper AND lower shell
+            # (ZEST: w_init_eigen[i] + w_final_eigen[j]). The opt-in full PPP
+            # branch below supersedes this diagonal approximation.
             if electron_operator:
-                r2_scale_u = electron_impact_r2_scaling(sz_vectors_u, n_u, Z)
+                # Keep the resolved operator consistent with the scalar model:
+                # historical PPPB/Ferri uses full closure, whereas PPPB-intra
+                # and every ZEST selector use the projected intra-shell sum.
+                r2_form = ('full' if electron_model.lower() in ('pppb', 'ferri')
+                           else 'intra')
+                r2_scale_u = electron_impact_r2_scaling(
+                    sz_vectors_u, n_u, Z, r2_form=r2_form)
+                r2_scale_l = (electron_impact_r2_scaling(
+                    sz_vectors_l, n_l, Z, r2_form=r2_form)
+                              if n_l > 1 else None)
             
             # Compute all three dipole intensity matrices; dE is shared across q.
             V_l_adj = sz_vectors_l.conj().T
@@ -501,30 +656,52 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
             I_sm = np.abs(V_l_adj @ D_q_uncoupled[ 1] @ sz_vectors_u)**2
 
+            if electron_interference:
+                natural_for_operator = (natural_widths
+                                        if natural_width_mode == 'state_resolved'
+                                        else shell_natural_ev)
+                frequencies, widths, complex_strengths = ppp_complex_sdts(
+                    dE, sz_vectors_u, sz_vectors_l, D_q_uncoupled,
+                    n_u, n_l, Z, ppp_impact_coefficient,
+                    natural_for_operator, electron_interference=True,
+                )
+                components = generalized_lorentzian_components(
+                    energies_ev, frequencies, widths, complex_strengths)
+                profile_pi += weight * components[0]
+                profile_sig_plus += weight * components[-1]
+                profile_sig_minus += weight * components[1]
+                continue
+
             # Union of active transitions — compute kernel once for all q.
             mask = (I_pi > 1e-12) | (I_sp > 1e-12) | (I_sm > 1e-12)
             if np.any(mask):
                 act_dE    = dE[mask]
                 detuning  = energies_ev[:, np.newaxis] - act_dE[np.newaxis, :]
 
-                if _gaussian_loop:
-                    kernel = np.exp(-detuning**2 / _two_sigma2) * _gauss_norm
+                if frequency_dependent_width:
+                    # Pointwise w(E − E0): column vector over the observation
+                    # grid, shared by all transitions (PPPB Φ(Δω) convention).
+                    w_e_u = _w_e_grid_u
+                    w_e_l = _w_e_grid_l
                 else:
-                    if frequency_dependent_width:
-                        # Pointwise w(E − E0): column vector over the observation
-                        # grid, shared by all transitions (PPPB Φ(Δω) convention).
-                        w_e = _w_e_grid
-                    else:
-                        w_e = w_resonance_e
-                    if electron_operator:
-                        # Rescale the electron width per SDT by its upper-state ⟨r²⟩.
-                        # r2_scale_u is per upper eigenstate (column of dE); broadcast over
-                        # the lower index (rows) then select the active transitions.
-                        # Broadcasting: (n_E, 1) or scalar × (n_act,) → per-point, per-SDT.
-                        scale = np.broadcast_to(r2_scale_u[np.newaxis, :], dE.shape)[mask]
-                        w_e = w_e * scale
-                    w = w_e + w_natural_ev
-                    kernel = (w / np.pi) / (detuning**2 + w**2)
+                    w_e_u = w_resonance_e_u
+                    w_e_l = w_resonance_e_l
+                if electron_operator:
+                    # Rescale each shell's width per SDT by its own ⟨r²⟩.
+                    # r2_scale_u is per upper eigenstate (columns of dE),
+                    # r2_scale_l per lower eigenstate (rows); broadcast to
+                    # dE.shape then select the active transitions.
+                    w_e_u = w_e_u * np.broadcast_to(
+                        r2_scale_u[np.newaxis, :], dE.shape)[mask]
+                    if r2_scale_l is not None:
+                        w_e_l = w_e_l * np.broadcast_to(
+                            r2_scale_l[:, np.newaxis], dE.shape)[mask]
+                natural_width = (natural_widths[mask]
+                                 if natural_width_mode == 'state_resolved'
+                                 else shell_natural_ev)
+                w = w_e_u + w_e_l + natural_width
+                kernel = (voigt_profile(detuning, sigma_D, w) if _voigt_loop
+                          else (w / np.pi) / (detuning**2 + w**2))
 
                 profile_pi        += weight * (kernel @ I_pi[mask])
                 profile_sig_plus  += weight * (kernel @ I_sp[mask])
@@ -535,14 +712,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # eliminating the periodic wrap-around that otherwise creates a DC floor in
     # the far wings (the long Lorentzian tail from one side of the grid
     # folds back onto the other in a naive N-point circular FFT).
-    if sigma_D is not None:
+    if sigma_D is not None and not _voigt_loop:
         N = len(energies_ev)
         N_pad = 2 * N
         k = np.fft.rfftfreq(N_pad, d=_dx)
-        if _gaussian_loop:
-            fft_filter = np.exp(-2.0 * np.pi * k * w_resonance)
-        else:
-            fft_filter = np.exp(-2.0 * np.pi**2 * sigma_D**2 * k**2)
+        fft_filter = np.exp(-2.0 * np.pi**2 * sigma_D**2 * k**2)
         _padded = np.zeros(N_pad)
         for prof in (profile_pi, profile_sig_plus, profile_sig_minus):
             _padded[:N] = prof
@@ -550,13 +724,13 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             conv = np.fft.irfft(np.fft.rfft(_padded) * fft_filter, n=N_pad)
             prof[:] = conv[:N]
 
-    return profile_pi, profile_sig_plus, profile_sig_minus
+    return tuple(restore_grid(p) for p in (profile_pi, profile_sig_plus, profile_sig_minus))
 
 
 def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
                          quadratic_zeeman=True, fine_structure=True,
                          min_strength=0.0, A=1, radial_method=None,
-                         use_empirical_data=False, atom="H"):
+                         use_empirical_data=True, atom="H"):
     """Return all discrete Stark-Zeeman dipole transitions at a single field configuration.
 
     Diagonalizes the Stark-Zeeman Hamiltonian for both shells and enumerates every
@@ -590,7 +764,7 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         (``"gordon"`` exact closed form by default; ``"quad"`` is the numerical
         fallback).  The two agree to ~1e-15.
     use_empirical_data : bool, optional
-        Use NIST empirical level energies (default False); forwarded to
+        Use NIST empirical level energies (default True); forwarded to
         :func:`solve_starkzee`.
     atom : str, optional
         Atom identifier for empirical data (default ``"H"``); forwarded to

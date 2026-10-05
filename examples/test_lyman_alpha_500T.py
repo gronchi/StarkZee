@@ -25,6 +25,13 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Windows consoles default to cp1252; force UTF-8 so Unicode in printed
+# output (Greek letters, arrows, subscripts) doesn't raise UnicodeEncodeError.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 from starkzee.utils import energy_ev_to_wavelength_nm, RYDBERG_EV
 from starkzee.static_profile import calculate_static_profile
 

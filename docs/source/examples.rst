@@ -32,19 +32,20 @@ figure(s).
    * - :doc:`examples/reproduce_fig1`
      - Full Balmer-series spectrum in the style of Ferri et al. (2022) Fig. 1
      - 1
-   * - :doc:`examples/diag_halpha_satellites`
-     - Convergence search for the :math:`\pm2\mu_B B` Stark-Zeeman satellite
-       feature
-     - 1
-   * - :doc:`examples/reproduce_halpha_wings`
-     - Quadratic-Zeeman-induced polarization wings at B = 500, 1000 T
-     - 1
+   * - :doc:`examples/pppb_paper`
+     - PPPB-paper Figure 1 qualitative spectrum and Figure 2 magnetic GBK
+       cutoff audit
+     - 2
    * - :doc:`examples/test_lyman_alpha`
      - H Ly-α from the intermediate-field to the Paschen-Back regime
        (100–1000 T)
      - 3
    * - :doc:`examples/model_comparison`
      - StarkZee (static + FFM) vs. all five built-in reference models
+     - 1
+   * - :doc:`examples/model_comparison_non_hermit`
+     - Full non-Hermitian PPP impact-limit collision operator vs. the built-in
+       reference models
      - 1
 
 .. toctree::
@@ -55,7 +56,7 @@ figure(s).
    examples/example_halpha
    examples/example_transitions
    examples/reproduce_fig1
-   examples/diag_halpha_satellites
-   examples/reproduce_halpha_wings
+   examples/pppb_paper
    examples/test_lyman_alpha
    examples/model_comparison
+   examples/model_comparison_non_hermit

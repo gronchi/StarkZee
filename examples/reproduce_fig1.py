@@ -24,6 +24,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Windows consoles default to cp1252; force UTF-8 so Unicode in printed
+# output (Greek letters, arrows, subscripts) doesn't raise UnicodeEncodeError.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 from starkzee.utils import wavelength_nm_to_energy_ev
 from starkzee.static_profile import calculate_static_profile
 from starkzee.radiator import line_strength
@@ -33,11 +40,11 @@ from starkzee.radiator import line_strength
 # Balmer line definitions
 # ---------------------------------------------------------------------------
 BALMER_LINES = [
-    (3, "Hα", r"H$\alpha$",   6563),
-    (4, "Hβ", r"H$\beta$",    4861),
-    (5, "Hγ", r"H$\gamma$",   4340),
-    (6, "Hδ", r"H$\delta$",   4102),
-    (7, "Hε", r"H$\epsilon$", 3970),
+    (3, "Ha", r"H$\alpha$",   6563),
+    (4, "Hb", r"H$\beta$",    4861),
+    (5, "Hg", r"H$\gamma$",   4340),
+    (6, "Hd", r"H$\delta$",   4102),
+    (7, "He", r"H$\epsilon$", 3970),
 ]
 
 # Standard Case B recombination relative intensities (relative to H-beta = 1)

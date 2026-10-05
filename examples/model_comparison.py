@@ -1,19 +1,20 @@
 """
 model_comparison.py — Compare StarkZee's static and FFM profiles against
-analytical and tabulated models.
+analytical and tabulated models for D-alpha and D-gamma.
 
-Edit the parameters block inside run() to change plasma conditions.
+Edit the parameters block inside _make_figure() to change plasma conditions.
 All models receive the same (Ti, Te, Ne, B, angle), so differences are
 purely due to the underlying physics model.
 
 Run directly::
 
     python examples/model_comparison.py                 # show interactively
-    python examples/model_comparison.py out/figure.png  # save to file
+    python examples/model_comparison.py out/figure.png  # save both figures
 """
 
 import time
 import traceback
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,9 +24,9 @@ from starkzee.convolutions import calculate_doppler_width_ev
 import starkzee.models as models
 
 
-def run(save_path=None):
+def _make_figure(n_u):
     # ── parameters ────────────────────────────────────────────────────────────
-    n_u, n_l       = 3, 2      # transition  (Hα)
+    n_l             = 2         # Balmer transition
     species        = 'D'       # emitting species: 'H', 'D', or 'T'
     Ne_m3          = 1e20      # electron density          [m⁻³]
     Te_ev          = 1       # electron temperature      [eV]  → Stark width
@@ -47,7 +48,8 @@ def run(save_path=None):
     # referenced to its actual line center (next).
     wl_sz_nm = np.linspace(lp.E0_wavelength_nm - half_width_nm,
                             lp.E0_wavelength_nm + half_width_nm, 3000)
-    print('--------\ntimings:\n--------')
+    line_name = {3: 'D-alpha', 5: 'D-gamma'}[n_u]
+    print(f'--------\n{line_name} timings:\n--------')
     t0 = time.time()
     lp.compute_static_profile(wl_sz_nm, grid_type='wavelength_nm',  num_f=60, num_mu=11, use_empirical_data=True, atom=species)
     print(f'starkzee (static): {time.time() - t0:.3g} sec')
@@ -79,6 +81,7 @@ def run(save_path=None):
     # ── figure ────────────────────────────────────────────────────────────────
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[12, 5])
     fig.suptitle(
+        f'{line_name} ($n={n_u}\\to2$)\n'
         f'$n_e = {Ne_m3:.2g}$ m$^{{-3}}$,  '
         f'$T_i = {Ti_ev:.3g}$ eV,  $T_e = {Te_ev:.3g}$ eV\n'
         f'$B = {B:.3g}$ T,  $\\theta = {view_angle_deg:.3g}$°'
@@ -101,8 +104,13 @@ def run(save_path=None):
                 view_angle_deg=view_angle_deg, species=species,
             )
             print(f'{name}: {time.time() - t0:.3g} sec')
-            ax1.plot(wl_cmp_nm, profile / profile.max(), label=name)
-            ax2.plot(wl_cmp_nm, profile / profile.max(), label=name)
+            profile_norm = profile / profile.max()
+            if name == 'rosato':
+                # Apply a cutoff only to this normalized plotting copy. The
+                # Rosato model and its source tables remain unmodified.
+                profile_norm = np.where(profile_norm >= 1e-6, profile_norm, np.nan)
+            ax1.plot(wl_cmp_nm, profile_norm, label=name)
+            ax2.plot(wl_cmp_nm, profile_norm, label=name)
         except Exception as exc:
             print(f'{name} failed: {exc}')
             traceback.print_exc()
@@ -124,11 +132,24 @@ def run(save_path=None):
     ax1.set_xlim(center_air_nm - 0.2, center_air_nm + 0.2)
     ax2.set_xlim(center_air_nm - 2, center_air_nm + 2)
     ax2.semilogy()
-    plt.tight_layout()
+    fig.tight_layout()
+
+    return fig
+
+
+def run(save_path=None):
+    """Generate separate D-alpha and D-gamma comparison figures."""
+    figures = [_make_figure(3), _make_figure(5)]
 
     if save_path:
-        fig.savefig(save_path, dpi=200)
-        print(f'saved figure to {save_path}')
+        alpha_path = Path(save_path)
+        gamma_path = alpha_path.with_name(
+            f'{alpha_path.stem}_dgamma{alpha_path.suffix}'
+        )
+        for fig, path in zip(figures, (alpha_path, gamma_path)):
+            fig.savefig(path, dpi=200)
+            print(f'saved figure to {path}')
+            plt.close(fig)
     else:
         plt.show()
 

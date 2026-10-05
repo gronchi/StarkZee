@@ -7,6 +7,7 @@ from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
 from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE, energy_ev_to_wavenumber_cm
+from starkzee.multielectron import wigner_3j, wigner_6j
 
 
 @dataclass(frozen=True)
@@ -172,8 +173,8 @@ def radial_r2_element(n, l1, l2, Z, method=None):
 # ── Radial-dipole backend selection ──────────────────────────────────────────
 # Both backends evaluate the same integral ∫ R_{n₁l₁}(r) r R_{n₂l₂}(r) r² dr:
 #   "gordon" — Gordon's (1929) exact closed form (default; no truncation, fast)
-#   "quad"   — scipy numerical integration to 150 a₀ (legacy reference)
-# They agree to ~1e-15 for n ≲ 10; "quad" is kept for validation/fallback.
+#   "quad"   — adaptive integration on an n²/Z-scaled semi-infinite domain.
+# Compare backends for the requested states; neither has universal machine-precision accuracy.
 RADIAL_DIPOLE_METHOD = "gordon"
 
 
@@ -265,6 +266,35 @@ def radial_dipole(n1, l1, n2, l2, Z, method=None):
     return _quad_radial_dipole(n1, l1, n2, l2, Z)
 
 
+def reduced_hydrogenic_dipole_j(n_bra, l_bra, j_bra,
+                                n_ket, l_ket, j_ket, Z, method=None):
+    r"""Return ``<(l s)j || r C^(1) || (l' s)j'>`` in atomic units.
+
+    The result uses ``s=1/2``, Condon--Shortley spherical harmonics and the
+    Cowan/Edmonds Wigner--Eckart convention used by Eq. (33) of the PPP manual.
+    Radial functions have the positive-near-origin phase used by
+    :func:`radial_wavefunction`.  Individual reduced-element signs may
+    therefore differ from an atomic-data table that independently rephases its
+    levels; products around closed dipole loops are phase invariant.
+    """
+    orbital_reduced = (
+        (-1.0)**l_bra
+        * math.sqrt((2 * l_bra + 1) * (2 * l_ket + 1))
+        * wigner_3j(l_bra, 1, l_ket, 0, 0, 0)
+    )
+    phase_exponent = l_bra + 0.5 + j_ket + 1.0
+    if not math.isclose(phase_exponent, round(phase_exponent), abs_tol=1e-12):
+        return 0.0
+    angular = (
+        (-1.0)**int(round(phase_exponent))
+        * math.sqrt((2 * j_bra + 1) * (2 * j_ket + 1))
+        * wigner_6j(l_bra, j_bra, 0.5, j_ket, l_ket, 1)
+        * orbital_reduced
+    )
+    return angular * radial_dipole(
+        n_bra, l_bra, n_ket, l_ket, Z, method=method)
+
+
 @lru_cache(maxsize=None)
 def _quad_radial_dipole(n1, l1, n2, l2, Z):
     """Return the radial transition matrix element ⟨n₁, l₁ | r | n₂, l₂⟩ [a₀].
@@ -302,12 +332,16 @@ def _quad_radial_dipole(n1, l1, n2, l2, Z):
 
     Notes
     -----
-    The upper integration limit is set to 150 a₀, which comfortably contains
-    the hydrogenic wavefunction for n ≤ 7 (the largest n used in practice).
+    Integrate a dimensionless coordinate scaled by max(n)^2/Z to infinity;
+    a fixed cutoff can truncate highly excited states and reverse the sign.
     """
     if abs(l1 - l2) != 1:
         return 0.0
-    val, _ = quad(lambda r: radial_wavefunction(r, n1, l1, Z) * radial_wavefunction(r, n2, l2, Z) * r**3, 0, 150)
+    scale = max(n1, n2)**2 / Z
+    val, _ = quad(lambda x: radial_wavefunction(x * scale, n1, l1, Z)
+                  * radial_wavefunction(x * scale, n2, l2, Z)
+                  * (x * scale)**3 * scale, 0, np.inf,
+                  epsabs=1e-10, epsrel=1e-10, limit=500)
     return val
 
 @lru_cache(maxsize=None)
@@ -514,6 +548,10 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                 H[i, i] += -A_fs * (n / (l + 0.5) - 0.75)
 
     if use_empirical_data:
+        if Z != 1:
+            raise ValueError(
+                "Bundled empirical levels cover only Z=1 (H, D, T); "
+                "set use_empirical_data=False for hydrogen-like ions with Z > 1.")
         # Load empirical energy levels for the specified atom. Values are stored
         # in cm⁻¹ (NIST convention) and kept in cm⁻¹ throughout this branch so
         # that callers can work entirely in wavenumber units. The Zeeman terms
@@ -521,6 +559,13 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
         from starkzee.atomic_data import load_levels
         emp_states = load_levels(atom, fine_structure=fine_structure)
         emp_energy_map = {}
+        if not fine_structure:
+            from starkzee.atomic_data import empirical_shell_energy_cm
+            shell_energy = empirical_shell_energy_cm(atom, n)
+            for l in range(n):
+                emp_energy_map[(l, l + 0.5)] = shell_energy
+                if l:
+                    emp_energy_map[(l, l - 0.5)] = shell_energy
         for st in emp_states:
             if st.n == n:
                 if st.l is not None and st.j is not None:
@@ -639,7 +684,13 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     Returns
     -------
     eigenvalues : ndarray, shape (2n²,)
-        Energy eigenvalues in ascending order [eV].
+        Energy eigenvalues in ascending order, in **eV** when
+        ``use_empirical_data=False`` (default) or in **cm⁻¹** (NIST
+        convention) when ``use_empirical_data=True`` -- :func:`build_hamiltonian`
+        switches its entire matrix to cm⁻¹ in that mode, and this function does
+        not convert back at this boundary. Callers that need a fixed unit
+        regardless of mode must convert explicitly (see
+        :func:`~starkzee.utils.wavenumber_cm_to_energy_ev`).
     eigenvectors : ndarray, shape (2n², 2n²)
         Columns are the corresponding orthonormal eigenstates expressed in the
         ``|n, l, m_l, m_s⟩`` basis of :func:`build_basis`.
@@ -648,8 +699,14 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     # Shift diagonal by -En to center eigenvalues near 0.  eigh's absolute error
     # scales with the spectral norm, so shrinking the norm from ~|En| (eV) to the
     # perturbation scale (~meV) proportionally improves the absolute resolution
-    # of the small Zeeman/fine-structure splittings.
+    # of the small Zeeman/fine-structure splittings. En itself must be in the same
+    # units as H -- cm⁻¹ when use_empirical_data=True, since build_hamiltonian
+    # switches its whole matrix to cm⁻¹ in that mode; using an eV-scale shift on a
+    # cm⁻¹-scale matrix would under-condition the eigensolve (a few eV is a
+    # negligible fraction of the ~10⁴ cm⁻¹ absolute level energy).
     En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
+    if use_empirical_data:
+        En = float(energy_ev_to_wavenumber_cm(En))
     for i in range(H.shape[0]):
         H[i, i] -= En
     eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -883,6 +940,73 @@ def einstein_a(n_u, n_l, Z):
     S = line_strength(n_u, n_l, Z)
     g_u = 2 * n_u**2
     return (4.0/3.0) * FINE_STRUCTURE**3 * delta_E_hartree**3 * S / g_u / tau_au
+
+
+@lru_cache(maxsize=None)
+def _einstein_a_substate_rates_cached(n_u, n_l, Z):
+    """Cached tuple of partial ``n_u``-substate rates for decay to ``n_l``."""
+    E_hartree = 2.0 * RYDBERG_EV
+    hbar_ev_s = HBAR / E_CHARGE
+    tau_au = hbar_ev_s / E_hartree
+    delta_E_hartree = (Z**2) * RYDBERG_EV * (
+        1.0 / n_l**2 - 1.0 / n_u**2) / E_hartree
+    prefactor = ((4.0 / 3.0) * FINE_STRUCTURE**3
+                 * delta_E_hartree**3 / tau_au)
+    D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
+    rates = np.zeros(2 * n_u**2, dtype=float)
+    for D in D_q.values():
+        rates += prefactor * np.sum(np.abs(D)**2, axis=0)
+    return tuple(rates)
+
+
+def einstein_a_substate_rates(n_u, n_l, Z):
+    """Return partial spontaneous-decay rates for every upper-shell substate.
+
+    Element ``i`` is the E1 rate from uncoupled basis state
+    ``build_basis(n_u)[i]`` into all substates and photon polarizations of
+    shell ``n_l``.  The arithmetic mean over the full upper shell equals
+    :func:`einstein_a`.
+
+    Returns
+    -------
+    ndarray, shape (2*n_u**2,)
+        Partial decay rates [s⁻¹].  A fresh array is returned so callers cannot
+        mutate the cached values.
+    """
+    if not (isinstance(n_u, (int, np.integer)) and
+            isinstance(n_l, (int, np.integer)) and 1 <= n_l < n_u):
+        raise ValueError("Require integer shells with 1 <= n_l < n_u.")
+    return np.asarray(_einstein_a_substate_rates_cached(
+        int(n_u), int(n_l), Z), dtype=float)
+
+
+@lru_cache(maxsize=None)
+def _natural_decay_rates_cached(n, Z):
+    rates = np.zeros(2 * n**2, dtype=float)
+    for n_l in range(1, n):
+        rates += einstein_a_substate_rates(n, n_l, Z)
+    return tuple(rates)
+
+
+def natural_decay_rates(n, Z):
+    """Return total E1 spontaneous-decay rates of all substates in shell ``n``.
+
+    Rates are summed over every lower principal shell, final magnetic/spin
+    substate, and photon polarization.  They are diagonal in the uncoupled
+    hydrogenic basis after the isotropic final-state/polarization sum.  For a
+    dressed-state eigenvector matrix ``V`` (eigenvectors in columns), its
+    state-resolved rates are ``abs(V)**2.T @ natural_decay_rates(n, Z)``.
+
+    The calculation uses analytic gross-structure transition energies, as did
+    the historical shell-average natural width; fine-structure corrections to
+    the radiative rates are outside this model.  These are E1-only rates.  In
+    particular, the returned 2s rate is zero because two-photon, M1, and other
+    non-E1 decay channels are not included; it does not imply an infinite
+    physical lifetime.
+    """
+    if not isinstance(n, (int, np.integer)) or n < 1:
+        raise ValueError("n must be a positive integer.")
+    return np.asarray(_natural_decay_rates_cached(int(n), Z), dtype=float)
 
 
 

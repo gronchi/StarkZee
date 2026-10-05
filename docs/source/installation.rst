@@ -39,4 +39,6 @@ Running the tests
 
     pytest tests/ -v
 
-All 332 tests should pass.
+The current test-suite snapshot contains 599 passing tests. It also reports
+90 warnings for documented fallbacks, domain checks, and optional
+dependency paths.

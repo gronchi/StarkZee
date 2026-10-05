@@ -17,6 +17,13 @@ import sys, os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Windows consoles default to cp1252; force UTF-8 so Unicode in printed
+# output (Greek letters, arrows, subscripts) doesn't raise UnicodeEncodeError.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 from starkzee.line_profile import LineProfile
 
 # ── Plasma conditions ─────────────────────────────────────────────────────────
@@ -103,7 +110,7 @@ for ax, (n_u, n_l, label, _) in zip(axes, LINES):
 axes[-1].set_xlabel(r"$\lambda - \lambda_0$  (nm)", fontsize=11)
 
 plt.tight_layout()
-out = "example_balmer_lineprofile.png"
+out = os.path.join(os.path.dirname(__file__), "example_balmer_lineprofile.png")
 plt.savefig(out, dpi=150, bbox_inches="tight")
 print(f"\nSaved {out}")
 plt.show()

@@ -1,27 +1,34 @@
 Physics Explanation of Use Cases and Operational Limits
 ===============================================================
 
-The High-Magnetic-Field Regime
---------------------------------------
+Magnetic fields
+---------------
 
-In laboratory magnetic confinement fusion devices (tokamaks, stellarators), the magnetic field reaches :math:`B \approx 1`--:math:`10` T:
+The normal-Zeeman component shift is 0.05788 meV per tesla. Its importance
+relative to fine structure and Stark mixing depends on the chosen transition,
+charge and microfield distribution. A field or density range alone does not
+establish a weak-Stark or isolated-triplet regime.
 
-- The Zeeman splitting :math:`\Delta E_Z \approx 0.1` meV is comparable to the fine-structure splitting of lower shells, requiring the full coupled Hamiltonian diagonalization.
+Quadratic Zeeman terms are retained within each principal shell only. Inter-shell
+configuration interaction and higher relativistic terms are absent. Numerical
+diagonalization of that finite matrix does not validate white-dwarf or neutron-star
+spectra. Compare neglected couplings to shell gaps and converge an extended
+atomic basis before claiming such applicability. See :doc:`manual_approximations`.
 
-- Typical microfield strengths :math:`F \sim 10^5`--:math:`10^6` V/m represent a weak-Stark regime where Stark broadening acts as a symmetric perturbation on the Zeeman triplet structure.
+Density and temperature
+-----------------------
 
-For astrophysical compact objects (magnetized white dwarfs with :math:`B \sim 10^3`--:math:`10^5` T, neutron stars with :math:`B \sim 10^8` T):
+At fixed temperature and charge, lowering density collapses the physical field
+scale toward zero; the reduced-field distribution need not become a delta.
+Doppler dominance additionally depends on ion temperature and radiative lifetime.
+At high density, compare Stark/diamagnetic couplings with shell gaps and atomic
+extent with perturber spacing. Separately compare ion fluctuation energy with
+component widths and splittings: high density alone does not imply breakdown
+of the quasi-static approximation.
 
-- The quadratic Zeeman term :math:`H_Z^{(2)} \propto B^2` dominates, causing significant blue-shifting and highly asymmetric splitting. The ``quadratic_zeeman=True`` flag enables exact numerical treatment of the :math:`\Delta l = \pm 2` coupling *within a single principal shell* (see the Radiator Hamiltonian section).
-
-- StarkZee's exact numerical computation of :math:`\langle n, l_1 | r^2 | n, l_2\rangle` avoids the geometric-mean overestimation of up to 41% for :math:`n=5`, but this is still an intra-shell (same-:math:`n`) matrix element — **inter-:math:`n` configuration-interaction mixing driven by the quadratic term is not included.** Ferri, Peyrusse & Calisti (2022) show this coupling is crucial precisely in this regime (:math:`B \sim 10^2`\ –\ :math:`10^3` T, white-dwarf-like conditions): it produces a red shift of the high-PQN Balmer lines that grows with the field, which StarkZee's intra-shell treatment cannot reproduce. See :doc:`manual_approximations` and TODO item 1 for details.
-
-Density Limits
-----------------------
-
-- **Low density** (:math:`N_e \lesssim 10^{18}` m\ :sup:`-3`): The profile is dominated by thermal Doppler broadening; microfield weights converge to a delta function at :math:`F=0`.
-
-- **High density** (:math:`N_e \gtrsim 10^{24}` m\ :sup:`-3`): The inter-particle spacing :math:`r_e` approaches the atomic radius :math:`\langle r\rangle_n`. The static and :math:`\Delta n = 0` approximations break down as the Stark shift exceeds the Rydberg shell spacing (Inglis-Teller limit).
+Use matched static/FFM inputs and independently refine spectral spacing,
+window, microfield cutoff, field resolution, angular quadrature and FFM binning.
+No universal safe defaults or physical error bounds are established.
 
 
 

@@ -1,16 +1,21 @@
 """
-model_comparison.py — Compare StarkZee's static profile against analytical 
-and tabulated models.
+compare_zest_starkzee.py — Compare StarkZee's line profile against ZEST for
+the same plasma conditions (Ne, Ti, Te, B, angle).
 
-Edit the parameters block inside run() to change plasma conditions.
-All models receive the same (Ti, Te, Ne, B, angle), so differences are
-purely due to the underlying physics model.
+Edit the parameters block inside run() to change plasma conditions. Both
+codes receive the same inputs, so differences are purely due to the
+underlying physics model.
+
+Requires the ZEST package (installed, or checked out at ../zest relative to
+StarkZee).
 
 Run directly::
 
-    python examples/model_comparison.py
+    python examples/compare_zest_starkzee.py
 """
 
+import os
+import sys
 import time
 import traceback
 
@@ -21,9 +26,19 @@ from starkzee.line_profile import LineProfile
 from starkzee.convolutions import calculate_doppler_width_ev
 import starkzee.models as models
 
-import sys
-sys.path.insert(0, '.')
-import zest
+# ZEST lives in a separate repo; try an installed copy first, then a sibling checkout.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+try:
+    import zest
+except ImportError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../zest")))
+    try:
+        import zest
+    except ImportError:
+        sys.exit(
+            "Error: could not import 'zest'. This comparison needs the ZEST "
+            "repository installed, or checked out at ../zest relative to StarkZee."
+        )
 
 def zest_wrapper(wl_cmp_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev, view_angle_deg, species):
     prof = zest.ZESTProfile(n_init=n_u, n_final=n_l, Z_c=1)
@@ -103,7 +118,7 @@ def run():
                              center_air_nm + half_width_nm, 1000)
 
     # ── figure ────────────────────────────────────────────────────────────────
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[12, 5], sharex=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[12, 5])
     fig.suptitle(
         f'$n_e = {Ne_m3:.2g}$ m$^{{-3}}$,  '
         f'$T_i = {Ti_ev:.3g}$ eV,  $T_e = {Te_ev:.3g}$ eV\n'
@@ -124,8 +139,8 @@ def run():
             )
             print(f'{name}: {time.time() - t0:.3g} sec')
             if name == 'zest':
-                ax1.plot(wl_cmp_nm, profile / profile.max(), ':', label=name)
-                ax2.plot(wl_cmp_nm, profile / profile.max(), ':', label=name)
+                ax1.plot(wl_cmp_nm, profile / profile.max(), label=name)
+                ax2.plot(wl_cmp_nm, profile / profile.max(), label=name)
             else:
                 ax1.plot(wl_cmp_nm, profile / profile.max(), label=name)
                 ax2.plot(wl_cmp_nm, profile / profile.max(), label=name)
@@ -144,9 +159,9 @@ def run():
     c_zest_sz = float(np.sum(lp_zest.wavelengths_air_nm * lp_zest.profile) / np.sum(lp_zest.profile))
     for ax in (ax1, ax2):
         ax.plot(lp.wavelengths_air_nm + (center_air_nm - c_pppb), y_pppb,
-                'k--', linewidth=2, label='starkzee (PPPB)')
+                '--', label='starkzee (PPPB)')
         ax.plot(lp_zest.wavelengths_air_nm + (center_air_nm - c_zest_sz), y_zest,
-                color='#d95f02', linewidth=2, label='starkzee (ZEST)')
+                '-.', label='starkzee (ZEST)')
 
     # ── formatting ────────────────────────────────────────────────────────────
     for ax in (ax1, ax2):
@@ -156,6 +171,7 @@ def run():
         ax.set_xlabel('wavelength (nm)', fontsize=10)
         ax.set_yticklabels([])
         ax.set_yticks([])
+    ax1.set_xlim(center_air_nm-0.25, center_air_nm+0.25)
 
     ax2.semilogy()
     plt.tight_layout()

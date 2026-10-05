@@ -23,14 +23,12 @@ producing coupled Stark-Zeeman energy levels and polarized π and σ± emission
 components.  **Ion dynamics** are optionally included via the **Frequency
 Fluctuation Model (FFM)**, which treats the microfield as a Markovian jump
 process between quasi-static configurations.  The static ion microfield
-distribution is evaluated using the analytical **Hooper screened distribution**,
-parametrized by the electron–ion screening factor *a* = *r*\ :sub:`e` / λ\ :sub:`D`
-(ratio of the mean inter-particle distance to the electron Debye length).
+distribution defaults to Potekhin fits when screening is enabled and Holtsmark otherwise. The legacy Hooper-like ansatz requires explicit selection and is not a validated probability distribution.
 
 The code computes emission line profiles of hydrogen-like ions in a magnetic
 field B, accounting for:
 
-- Quasi-static ion microfield broadening (Holtsmark / Hooper distributions)
+- Quasi-static ion microfield broadening (Potekhin / Holtsmark distributions)
 - Electron impact broadening (GBK model with Larmor-frequency cutoff)
 - Ion dynamics via the Frequency Fluctuation Model (FFM)
 - Spin-orbit coupling and the quadratic (diamagnetic) Zeeman term
@@ -57,6 +55,7 @@ field B, accounting for:
 
    installation
    quickstart
+   validation
 
 .. toctree::
    :maxdepth: 1

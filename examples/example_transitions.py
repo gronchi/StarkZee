@@ -20,6 +20,13 @@ import matplotlib.gridspec as gridspec
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Windows consoles default to cp1252; force UTF-8 so Unicode in printed
+# output (Greek letters, arrows, subscripts) doesn't raise UnicodeEncodeError.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 from starkzee.static_profile import discrete_transitions, calculate_static_profile
 from starkzee.radiator import line_strength, oscillator_strength, einstein_a
 from starkzee.utils import reduced_mass_rydberg_ev, energy_ev_to_wavelength_nm

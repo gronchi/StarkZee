@@ -1,0 +1,56 @@
+{
+  "registry_version": 1,
+  "scope": "Independent H I level-resolved E1 transition-rate benchmarks for the state-resolved natural-width implementation.",
+  "source": {
+    "citation": "W. L. Wiese and J. R. Fuhr, Accurate Atomic Transition Probabilities for Hydrogen, Helium, and Lithium, J. Phys. Chem. Ref. Data 38, 565-720 (2009).",
+    "doi": "10.1063/1.3077727",
+    "url": "https://www.nist.gov/document/jpcrd382009565ppdf",
+    "location": "Table 6",
+    "reported_rate_unit": "1e8 s^-1",
+    "accuracy_grade": "AAA"
+  },
+  "comparison": {
+    "quantity": "total E1 spontaneous-decay rate from an H I nl term",
+    "relative_tolerance": 0.001,
+    "note": "NIST's critically evaluated multiplet rates include reduced-mass and relativistic effects. StarkZee uses analytic nonrelativistic gross-structure gaps, so agreement is expected within the stated comparison tolerance rather than to numerical identity."
+  },
+  "benchmarks": [
+    {
+      "state": "2p",
+      "n": 2,
+      "l": 1,
+      "channels": [
+        {"lower_state": "1s", "rate_s_inv": 626490000.0}
+      ],
+      "total_rate_s_inv": 626490000.0
+    },
+    {
+      "state": "3s",
+      "n": 3,
+      "l": 0,
+      "channels": [
+        {"lower_state": "2p", "rate_s_inv": 6314300.0}
+      ],
+      "total_rate_s_inv": 6314300.0
+    },
+    {
+      "state": "3p",
+      "n": 3,
+      "l": 1,
+      "channels": [
+        {"lower_state": "1s", "rate_s_inv": 167250000.0},
+        {"lower_state": "2s", "rate_s_inv": 22448000.0}
+      ],
+      "total_rate_s_inv": 189698000.0
+    },
+    {
+      "state": "3d",
+      "n": 3,
+      "l": 2,
+      "channels": [
+        {"lower_state": "2p", "rate_s_inv": 64651000.0}
+      ],
+      "total_rate_s_inv": 64651000.0
+    }
+  ]
+}

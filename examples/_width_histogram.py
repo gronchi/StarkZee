@@ -51,6 +51,6 @@ for row, (Ne, Ne_label) in enumerate(NE_ROWS):
               f"min={w_min:.5f}, max={w_max:.5f}, variation={variation:.2f}%")
 
 plt.tight_layout()
+plt.savefig(os.path.join(os.path.dirname(__file__), "_width_histogram.png"), dpi=130, bbox_inches='tight')
 plt.show()
-plt.savefig("examples/_width_histogram.png", dpi=130, bbox_inches='tight')
 print("saved _width_histogram.png")

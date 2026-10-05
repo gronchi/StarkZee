@@ -1,0 +1,27 @@
+{
+  "registry_version": 1,
+  "established_on": "2026-09-30",
+  "scope": "Immutable repository identity of the standalone manual audited on 2026-09-07 and the implementation, figure, and runtime datasets present beside it. This establishes repository ancestry, not scientific accuracy or original external-data licensing.",
+  "repository": "https://github.com/gronchi/StarkZee",
+  "historical_commit": {
+    "sha": "24118d1fdee16d3c5aef98992809c5a0db2faea0",
+    "url": "https://github.com/gronchi/StarkZee/commit/24118d1fdee16d3c5aef98992809c5a0db2faea0",
+    "commit_date": "2026-08-23T22:26:08-07:00",
+    "describe": "v0.4.0-12-g24118d1",
+    "starkzee_tree": "0425365cc92c1b7125fd7e064bf66b5593a57b78",
+    "data_tree": "d87fe9c35e439019861900a40b0437c3e0df613a",
+    "models_tree": "ff4d36f7744822ce01e20af39cef7e836daf43c6"
+  },
+  "independently_recorded_manual_sha256": "dbfcb4766218bbb1d458982865bc22d6b5158b99e1359135908d4bf8f0ef89b6",
+  "match_basis": "The SHA-256 recorded independently during the 2026 manual audit exactly matches the historical docs/manual.tex bytes.",
+  "artifacts": [
+    {"role": "audited_manual_source", "path": "docs/manual.tex", "git_blob": "4b996496f92b23465b6ff7873aed62f039fe653f", "size_bytes": 71672, "sha256": "dbfcb4766218bbb1d458982865bc22d6b5158b99e1359135908d4bf8f0ef89b6", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/docs/manual.tex"},
+    {"role": "compiled_manual", "path": "docs/manual.pdf", "git_blob": "a5c74ba50c71eff2a86359115d1ebd8de0be7172", "size_bytes": 560599, "sha256": "15d36f921ba7e7d965f7d4f1b8fef33b32bfd8c204506d58d127473e6e3b8a23", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/docs/manual.pdf"},
+    {"role": "manual_figure", "path": "docs/figures/model_comparison.png", "git_blob": "dee0334fcf80c89eaa18b7b2d03acb967a645afc", "size_bytes": 274484, "sha256": "5a79d68922426853be1ab49fb2f10f07b11ab49546acdbdd3d0d89e7c1243416", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/docs/figures/model_comparison.png"},
+    {"role": "figure_generator", "path": "examples/model_comparison.py", "git_blob": "f8cc5612bd3ad20551d389f6ea9c62faed072597", "size_bytes": 6758, "sha256": "8890e7c410a306af3e3017fecae3e5442b014f752013d27db4b3d6f6294b29e0", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/examples/model_comparison.py"},
+    {"role": "atomic_levels_dataset", "path": "starkzee/data/atomic_levels.json", "git_blob": "170c05ebfed3ff5aaa600a25389e491b0a96893e", "size_bytes": 8073, "sha256": "ef8cd6452b84cc634398b4e7e4165ec003c31f1bd7753a97646a80ad8bdad21f", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/starkzee/data/atomic_levels.json", "current_bytes_identical": false, "difference_note": "The repaired working-tree registry separately hashes the current expanded file; this historical hash is retained for exact manual-era reproducibility."},
+    {"role": "rosato_dataset", "path": "starkzee/data/rosato_tables.nc", "git_blob": "408eb943efb19777669d9b12d1ce9011de4b8e7c", "size_bytes": 48000264, "sha256": "2934e2733a4fda60c5b4d5e904af438f7624aa681b54e205333e7678cc030e24", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/starkzee/data/rosato_tables.nc", "current_bytes_identical": true},
+    {"role": "stehle_dataset", "path": "starkzee/data/stehle_tables.nc", "git_blob": "649e1d34ac5257fe1cce1d126ddf823e94ed0ceb", "size_bytes": 15756344, "sha256": "77f821631a885dc8a469598c1fcd1c1e101fa1ff088a02b4ccfac6a0b2916d82", "url": "https://github.com/gronchi/StarkZee/blob/24118d1fdee16d3c5aef98992809c5a0db2faea0/starkzee/data/stehle_tables.nc", "current_bytes_identical": true}
+  ],
+  "external_dataset_lineage": "For the Rosato and Stehle files, the separate reference_tables.json registry continues the chain to pinned pystark commit 9a8782ae041493f7fce6728f2636ca20f26b0a0c, raw trees, conversion/reader artifacts, and explicit unknown license or acquisition fields. The historical commit link does not resolve those remaining external-source unknowns."
+}

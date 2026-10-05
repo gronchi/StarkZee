@@ -11,15 +11,18 @@ KEY BUG TESTS:
 import numpy as np
 import pytest
 import sys, os
+from pathlib import Path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.broadening import (
     electron_impact_width,
+    electron_impact_width_zest,
     calculate_electron_impact_prefactor,
     gbk_model,
     calculate_plasma_frequency,
     calculate_larmor_frequency,
     calculate_configuration_frequency,
+    _strong_collision_constant,
 )
 from starkzee.utils import RYDBERG_EV
 
@@ -44,16 +47,6 @@ def r2_avg_correct(n, Z, l_weights='statistical'):
         r2_nl = (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l * (l + 1.0))
         total += (2*l + 1) * r2_nl
     return total / n**2   # = ⟨r²⟩_n averaged
-
-
-def strong_collision_constant(n):
-    """Paper-specified Cn: 1.5 for n=2, 0.75 for n=3,4, 0.4 for n≥5."""
-    if n <= 2:
-        return 1.5
-    elif n <= 4:
-        return 0.75
-    else:
-        return 0.40
 
 
 # ── 1. Document the r2_avg bug ────────────────────────────────────────────────
@@ -93,7 +86,7 @@ def test_r2_avg_n2_reasonable():
 def test_strong_collision_constant_fixed():
     """
     Verify that electron_impact_width() uses n-dependent C values.
-    For n=5, correct value is 0.40 (paper Table 1).
+    For n=5, the correct value is 0.50 (prose following Ferri Eq. 19).
     """
     Ne, Te, B = 2e25, 10.0, 0.0
     w2 = electron_impact_width(0.0, Ne, Te, B, Z=4, n=2)
@@ -101,8 +94,8 @@ def test_strong_collision_constant_fixed():
 
     r2_2 = r2_avg_correct(2, 4)
     r2_5 = r2_avg_correct(5, 4)
-    C2   = strong_collision_constant(2)
-    C5   = strong_collision_constant(5)
+    C2   = _strong_collision_constant(2)
+    C5   = _strong_collision_constant(5)
 
     r2_ratio_correct = r2_5 / r2_2
     
@@ -114,6 +107,45 @@ def test_strong_collision_constant_fixed():
     assert w5 / w2 > expected_ratio_lower_bound, (
         f"w(n=5)/w(n=2) = {w5/w2:.4f}, expected >= {expected_ratio_lower_bound:.4f}"
     )
+
+
+@pytest.mark.parametrize("n, expected", [
+    (2, 1.50),
+    (3, 1.00),
+    (4, 0.75),
+    (5, 0.50),
+    (6, 0.40),
+    (12, 0.40),
+])
+def test_strong_collision_constants_match_ferri_eq19_prose(n, expected):
+    """Check the exact Cn sequence printed immediately after Ferri Eq. (19)."""
+    assert _strong_collision_constant(n) == expected
+
+
+def test_strong_collision_constant_rejects_nonradiative_upper_state():
+    """The upper state of a radiative transition cannot have n=1."""
+    with pytest.raises(ValueError, match="at least 2"):
+        _strong_collision_constant(1)
+    with pytest.raises(ValueError, match="at least 2"):
+        electron_impact_width(0.0, 1e20, 1.0, 0.0, Z=1, n=1)
+    with pytest.raises(ValueError, match="at least 2"):
+        electron_impact_width_zest(0.0, 1e20, 1.0, Z=1, n=1)
+
+
+def test_strong_collision_source_lineage_is_explicit():
+    """Record ZEST/Griem origins and Ferri's later restatement separately."""
+    root = Path(__file__).resolve().parents[1]
+    rst = (root / "docs/source/manual_formulation.rst").read_text(encoding="utf-8")
+    tex = (root / "docs/manual.tex").read_text(encoding="utf-8")
+    references = (root / "docs/source/manual_references.rst").read_text(
+        encoding="utf-8"
+    )
+    assert "ZEST Section 2.2" in rst
+    assert "paper's Table I compares" in rst
+    assert "following\nEq. (19); Ferri Table 1" in rst
+    assert "ZEST Section~2.2" in tex
+    assert "10.3390/atoms6010011" in references
+    assert "10.1103/PhysRevA.19.2421" in references
 
 
 # ── 2. Width is positive and finite ──────────────────────────────────────────

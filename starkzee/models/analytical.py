@@ -1,7 +1,7 @@
 """
 Analytical Stark-Zeeman Doppler lineshape models.
 
-Implements lomanowski, stehle_param, and voigt directly.
+Implements the lomanowski, stehle_param, and voigt comparison models.
 
 All functions share the same signature::
 
@@ -170,14 +170,21 @@ def _freq_to_wl_norm(freq_axis, profile_freq, wavelengths_nm):
 
 def lomanowski(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                view_angle_deg=90.0, species='H'):
-    """Lomanowski pseudo-Voigt Stark-Zeeman-Doppler profile."""
+    """StarkZee pseudo-mixture using Lomanowski's fitted Stark widths.
+
+    Only the transition coefficients and power-law Stark FWHM are transcribed
+    from Lomanowski et al. (2015), Eq. (1) and Table 1. The common-width
+    modified-Lorentzian/Gaussian mixture below is a StarkZee-specific
+    sensitivity approximation, not the profile prescribed by that paper or a
+    ``pystark`` model. See ``reference_provenance.json``.
+    """
     _, A = species_to_ZA(species)
     lambda0_nm = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
 
     fwhm_l = _fwhm_stark_loman_nm(n_u, n_l, Ne_m3, Te_ev)
     fwhm_g = _fwhm_doppler_nm(lambda0_nm, Ti_ev, A)
 
-    # Pseudo-Voigt FWHM combining formula (Lomanowski 2015)
+    # StarkZee-specific pseudo-mixture FWHM approximation.
     if fwhm_g <= fwhm_l:
         r = fwhm_g / fwhm_l
         cf = [1., 0., 0.57575, 0.37902, -0.42519, -0.31525, 0.31718]
@@ -199,9 +206,9 @@ def lomanowski(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
         eta_l = np.exp(sum(lci * np.log(rl)**i for i, lci in enumerate(lc)))
         eta_g = 1.0 - eta_l
 
-    # Build the pseudo-Voigt in frequency space (pystark.make_lomanowski): the FWHM
-    # combination and Lorentzian weight above are unitless/in nm, but the profile itself
-    # must be evaluated on the frequency grid to match the reference.
+    # Build the pseudo-mixture in frequency space. The FWHM combination and
+    # Lorentzian weight above are unitless/in nm; the profile itself is
+    # evaluated on the frequency grid for coordinate-consistent convolution.
     freq_center = C / (lambda0_nm * 1e-9)
     fwhm_hz = fwhm * 1e-9 * C / (lambda0_nm * 1e-9)**2
     freq_axis = _build_freq_axis(wavelengths_nm, freq_center)
@@ -224,6 +231,8 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                  view_angle_deg=90.0, species='H'):
     """Parameterized Stehle Stark-Zeeman-Doppler profile (FFT convolution).
 
+    The FWHM power law, transition coefficients and modified Lorentzian are
+    Lomanowski et al. (2015), Eq. (1), Table 1 and Eq. (2), respectively.
     Mirrors pystark.make_stehle_param: the modified-Lorentzian Stark profile is
     built in wavelength, converted to the internal frequency axis, then convolved
     with the Doppler Gaussian *in frequency space* (a frequency-symmetric Gaussian

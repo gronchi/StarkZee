@@ -6,6 +6,7 @@ docs/_build/
 docs/_build/html/
 
 # Python
+starkzee/_version.py
 __pycache__/
 *.py[cod]
 *.pyo

@@ -1,0 +1,176 @@
+{
+  "registry_version": 2,
+  "scope": "Case-specific numerical convergence criteria for the experimental multi-shell CI; these are not universal safe cutoffs or external physical validation.",
+  "cases": [
+    {
+      "id": "hbeta_b500_ne1e23_f0",
+      "description": "H beta at one fixed Holtsmark normal field under a condition drawn from the B=500 T, Ne=1e23 m^-3 Ferri-style example.",
+      "target_n": 4,
+      "lower_n": 2,
+      "Z": 1,
+      "B_T": 500.0,
+      "Ne_m3": 1e23,
+      "beta_F0": 1.0,
+      "field_definition": "calculate_normal_field(Ne_m3, Z_bar=1)[0]",
+      "F_V_per_m": 8061407.450458215,
+      "half_window_ev": 0.2,
+      "angles_deg": [0.0, 45.0, 90.0],
+      "reference_padding": {
+        "lower": 1,
+        "upper": 3,
+        "shells": [3, 4, 5, 6, 7]
+      },
+      "tolerances": {
+        "tracked_energy_abs_ev": 1e-5,
+        "gf_target_and_total_relative": 0.001
+      },
+      "minimum_tested_passing_padding": {
+        "lower": 1,
+        "upper": 2,
+        "shells": [3, 4, 5, 6]
+      },
+      "limitations": [
+        "The calculation uses one fixed electric-field magnitude rather than a microfield distribution.",
+        "The lower n=2 space is separate and is excluded from the upper CI basis.",
+        "Passing is relative to the stated finite reference basis, not an infinite-basis proof.",
+        "No comparison with the Ferri profile or another external calculation is made."
+      ]
+    },
+    {
+      "id": "hbeta_b100_ne1e23_beta0",
+      "description": "H beta at the low magnetic-field boundary and zero fixed electric microfield.",
+      "target_n": 4,
+      "lower_n": 2,
+      "Z": 1,
+      "B_T": 100.0,
+      "Ne_m3": 1e23,
+      "beta_F0": 0.0,
+      "field_definition": "beta_F0 * calculate_normal_field(Ne_m3, Z_bar=1)[0]",
+      "F_V_per_m": 0.0,
+      "half_window_ev": 0.2,
+      "angles_deg": [0.0, 45.0, 90.0],
+      "reference_padding": {
+        "lower": 1,
+        "upper": 3,
+        "shells": [3, 4, 5, 6, 7]
+      },
+      "tolerances": {
+        "tracked_energy_abs_ev": 1e-5,
+        "gf_target_and_total_relative": 0.001
+      },
+      "minimum_tested_passing_padding": {
+        "lower": 0,
+        "upper": 0,
+        "shells": [4]
+      },
+      "limitations": [
+        "This is a zero-electric-field endpoint, not a microfield average.",
+        "The lower n=2 space is separate and is excluded from the upper CI basis.",
+        "Passing is relative to the stated finite reference basis, not an infinite-basis proof.",
+        "No comparison with an external line profile or calculation is made."
+      ]
+    },
+    {
+      "id": "hbeta_b100_ne1e23_beta3",
+      "description": "H beta at the low magnetic-field boundary and a fixed electric microfield of three Holtsmark normal fields.",
+      "target_n": 4,
+      "lower_n": 2,
+      "Z": 1,
+      "B_T": 100.0,
+      "Ne_m3": 1e23,
+      "beta_F0": 3.0,
+      "field_definition": "beta_F0 * calculate_normal_field(Ne_m3, Z_bar=1)[0]",
+      "F_V_per_m": 24184222.351374645,
+      "half_window_ev": 0.2,
+      "angles_deg": [0.0, 45.0, 90.0],
+      "reference_padding": {
+        "lower": 1,
+        "upper": 3,
+        "shells": [3, 4, 5, 6, 7]
+      },
+      "tolerances": {
+        "tracked_energy_abs_ev": 1e-5,
+        "gf_target_and_total_relative": 0.001
+      },
+      "minimum_tested_passing_padding": {
+        "lower": 1,
+        "upper": 2,
+        "shells": [3, 4, 5, 6]
+      },
+      "limitations": [
+        "The calculation uses one fixed electric-field magnitude rather than a microfield distribution.",
+        "The lower n=2 space is separate and is excluded from the upper CI basis.",
+        "Passing is relative to the stated finite reference basis, not an infinite-basis proof.",
+        "No comparison with an external line profile or calculation is made."
+      ]
+    },
+    {
+      "id": "hbeta_b1000_ne1e23_beta0",
+      "description": "H beta at the high magnetic-field boundary and zero fixed electric microfield.",
+      "target_n": 4,
+      "lower_n": 2,
+      "Z": 1,
+      "B_T": 1000.0,
+      "Ne_m3": 1e23,
+      "beta_F0": 0.0,
+      "field_definition": "beta_F0 * calculate_normal_field(Ne_m3, Z_bar=1)[0]",
+      "F_V_per_m": 0.0,
+      "half_window_ev": 0.2,
+      "angles_deg": [0.0, 45.0, 90.0],
+      "reference_padding": {
+        "lower": 1,
+        "upper": 4,
+        "shells": [3, 4, 5, 6, 7, 8]
+      },
+      "tolerances": {
+        "tracked_energy_abs_ev": 1e-5,
+        "gf_target_and_total_relative": 0.001
+      },
+      "minimum_tested_passing_padding": {
+        "lower": 1,
+        "upper": 3,
+        "shells": [3, 4, 5, 6, 7]
+      },
+      "limitations": [
+        "This is a zero-electric-field endpoint, not a microfield average.",
+        "The lower n=2 space is separate and is excluded from the upper CI basis.",
+        "Passing is relative to the stated finite reference basis, not an infinite-basis proof.",
+        "No comparison with an external line profile or calculation is made."
+      ]
+    },
+    {
+      "id": "hbeta_b1000_ne1e23_beta3",
+      "description": "H beta at the high magnetic-field boundary and a fixed electric microfield of three Holtsmark normal fields.",
+      "target_n": 4,
+      "lower_n": 2,
+      "Z": 1,
+      "B_T": 1000.0,
+      "Ne_m3": 1e23,
+      "beta_F0": 3.0,
+      "field_definition": "beta_F0 * calculate_normal_field(Ne_m3, Z_bar=1)[0]",
+      "F_V_per_m": 24184222.351374645,
+      "half_window_ev": 0.2,
+      "angles_deg": [0.0, 45.0, 90.0],
+      "reference_padding": {
+        "lower": 1,
+        "upper": 5,
+        "shells": [3, 4, 5, 6, 7, 8, 9]
+      },
+      "tolerances": {
+        "tracked_energy_abs_ev": 1e-5,
+        "gf_target_and_total_relative": 0.001
+      },
+      "minimum_tested_passing_padding": {
+        "lower": 1,
+        "upper": 4,
+        "shells": [3, 4, 5, 6, 7, 8]
+      },
+      "limitations": [
+        "The calculation uses one fixed electric-field magnitude rather than a microfield distribution.",
+        "The lower n=2 space is separate and is excluded from the upper CI basis.",
+        "Passing is relative to the stated finite reference basis, not an infinite-basis proof.",
+        "No comparison with an external line profile or calculation is made."
+      ]
+    }
+  ]
+}

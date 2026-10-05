@@ -122,5 +122,5 @@ fig.suptitle(
     f"  $T_e = T_i$ = {Te_ev:.1f} eV",
     fontsize=13
 )
-plt.savefig("example_halpha.png", dpi=150, bbox_inches="tight")
+plt.savefig(os.path.join(os.path.dirname(__file__), "example_halpha.png"), dpi=150, bbox_inches="tight")
 plt.show()

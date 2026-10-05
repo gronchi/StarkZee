@@ -418,6 +418,29 @@ def dufty_model(delta_omega_ev, Ne_m3, Te_ev, Z, n=2):
     return float(result[0]) if scalar else result
 
 
+def _strong_collision_constant(n):
+    """Return the principal-shell strong-collision constant.
+
+    Gilleron & Pain (2018), Section 2.2, print C2=1.5, C3=1.0, C4=0.75,
+    C5=0.5, and Cn=0.4 for n>5 and attribute the strong-collision term to
+    Griem, Blaha & Kepple (1979). Ferri, Peyrusse & Calisti (2022) repeat the
+    same sequence in the prose immediately following Eq. (19).
+    Here n is the radiative upper-state principal quantum number and must be at
+    least 2.
+    """
+    if n < 2:
+        raise ValueError("n must be at least 2 for a radiative upper state.")
+    if n == 2:
+        return 1.5
+    if n == 3:
+        return 1.0
+    if n == 4:
+        return 0.75
+    if n == 5:
+        return 0.5
+    return 0.4
+
+
 def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full'):
     """Return the total electron-impact half-width W_e(Δω) [eV].
 
@@ -455,13 +478,15 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full
     solvers) for the projected reading.  To be settled against digitized Ferri
     width data.
 
-    **Strong-collision constant C_n** (Ferri, Peyrusse & Calisti,
-    Matter Radiat. Extremes 7, 015901 (2022), Table 1):
+    **Strong-collision constant C_n** (Gilleron & Pain, Atoms 6, 11 (2018),
+    Section 2.2, citing Griem, Blaha & Kepple, Phys. Rev. A 19, 2421 (1979);
+    repeated by Ferri, Peyrusse & Calisti, Matter Radiat. Extremes 7, 015901
+    (2022), prose following Eq. 19):
 
     =========  ======
     n          C_n
     =========  ======
-    ≤ 2        1.50
+    2          1.50
     3          1.00
     4          0.75
     5          0.50
@@ -490,7 +515,8 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full
     Z : int
         Nuclear charge of the radiating ion (1 for hydrogen).
     n : int, optional
-        Principal quantum number of the *upper* level (default 2).
+        Principal quantum number of the *upper* level (default 2); must be at
+        least 2.
         The width uses the upper-level operator only.  **This is an
         approximation, not part of the reference models**: PPPB and ZEST both
         include the lower-level (d†·d) contribution — and PPPB additionally the
@@ -512,6 +538,7 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full
     value, which also serves as the physical width floor at very low density;
     the raw value returned here is the bare electron-impact width.
     """
+    Cn = _strong_collision_constant(n)
     prefactor = calculate_electron_impact_prefactor(Ne_m3, Te_ev)
 
     if r2_form == 'intra':
@@ -523,17 +550,6 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full
         ) / n**2
     else:
         raise ValueError(f"Unknown r2_form {r2_form!r}; choose 'full' or 'intra'.")
-
-    if n <= 2:
-        Cn = 1.5
-    elif n == 3:
-        Cn = 1.0
-    elif n == 4:
-        Cn = 0.75
-    elif n == 5:
-        Cn = 0.5
-    else:
-        Cn = 0.40
 
     omega_p = calculate_plasma_frequency(Ne_m3)
     omega_L = calculate_larmor_frequency(B)
@@ -555,6 +571,40 @@ def electron_impact_width(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2, r2_form='full
 
     width_ev = prefactor * r2_avg * (Cn + g_val)
     return width_ev
+
+
+def electron_impact_collision_coefficient(Ne_m3, Te_ev, B, Z, n=2):
+    r"""Return the PPP impact-limit coefficient multiplying Eq. (B1) [eV/a0²].
+
+    In the PPP manual Appendix B, the impact approximation replaces every
+    occurrence of the collision function in Eq. (B1) by the same ``G(0)``.
+    With StarkZee's positive-damping convention, the resulting coefficient is
+
+    .. math::
+
+        A_n = W_0 [C_n + G_n(0)].
+
+    This coefficient is independent of any scalar full-shell versus
+    intra-shell ``r²`` average. The finite operator closure is supplied by the
+    dipole matrices in :func:`starkzee.collision.build_ppp_collision_operator`.
+    For the current selected-shell closure, multiplying ``A_n`` by the mean
+    intra-shell dipole sum recovers ``electron_impact_width(...,
+    r2_form='intra')`` exactly.
+
+    The cutoff and strong-collision conventions are the same as
+    :func:`electron_impact_width`, with ``n`` referring to the radiating upper
+    manifold as in the manual's Appendix-B cutoff expression.
+    """
+    Cn = _strong_collision_constant(n)
+    prefactor = calculate_electron_impact_prefactor(Ne_m3, Te_ev)
+    omega_c_rad = max(
+        calculate_plasma_frequency(Ne_m3),
+        calculate_larmor_frequency(B),
+        calculate_configuration_frequency(Ne_m3, Te_ev),
+        0.0,  # omega_aa_prime placeholder for hydrogen
+    )
+    omega_c_ev = omega_c_rad * HBAR / E_CHARGE
+    return prefactor * (Cn + gbk_model(0.0, omega_c_ev, Te_ev, Z, n=n))
 
 
 def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'):
@@ -603,7 +653,8 @@ def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'
     Z : int
         Nuclear charge.
     n : int, optional
-        Principal quantum number of the upper level (default 2).
+        Principal quantum number of the upper level (default 2); must be at
+        least 2.
     model : {'gbk', 'lee', 'dufty'}, optional
         G-function approximation: ``'gbk'`` → :func:`gbk_zest_model`,
         ``'lee'`` → :func:`lee_model`, ``'dufty'`` → :func:`dufty_model`.
@@ -617,6 +668,7 @@ def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'
     --------
     electron_impact_width : StarkZee/Ferri GBK with fixed ρ_min and ω_e, ω_L cutoffs.
     """
+    Gn = _strong_collision_constant(n)
     v_th = np.sqrt(Te_ev * E_CHARGE / M_E)
     const_factor = (E_CHARGE**2 * A_BOHR / (4.0 * np.pi * EPSILON_0 * HBAR))**2
     prefactor = (
@@ -632,17 +684,6 @@ def electron_impact_width_zest(delta_omega_ev, Ne_m3, Te_ev, Z, n=2, model='gbk'
     # factors C(l, l+1) = (l+1)/(2l+1), C(l, l-1) = l/(2l+1), giving
     # r2_intra_l = (9n^2/4Z^2)*(n^2 - l(l+1) - 1) and shell average (9n^2/8Z^2)*(n^2-1).
     r2_intra_avg = (9.0 * n**2 * (n**2 - 1)) / (8.0 * Z**2)
-
-    if n <= 2:
-        Gn = 1.5
-    elif n == 3:
-        Gn = 1.0
-    elif n == 4:
-        Gn = 0.75
-    elif n == 5:
-        Gn = 0.5
-    else:
-        Gn = 0.4
 
     if model == 'lee':
         g_val = lee_model(delta_omega_ev, Ne_m3, Te_ev, Z, n)
@@ -728,7 +769,7 @@ def electron_impact_width_model(delta_omega_ev, Ne_m3, Te_ev, B, Z, n=2,
     )
 
 
-def electron_impact_r2_scaling(eigenvectors, n, Z):
+def electron_impact_r2_scaling(eigenvectors, n, Z, r2_form='full'):
     r"""Per-eigenstate ⟨k|r²|k⟩ / ⟨r²⟩_avg — the electron-impact **operator** diagonal.
 
     The semi-classical electron-impact width is linear in the upper-state
@@ -742,18 +783,25 @@ def electron_impact_r2_scaling(eigenvectors, n, Z):
 
     i.e. the scalar width times the factor returned here.
 
-    ``r²`` is purely radial, so in the ``|n, l, m_l, m_s⟩`` basis it is diagonal
-    with value ``⟨r²⟩_{n,l} = (n²/2Z²)[5n²+1−3l(l+1)]``; the Stark-Zeeman
-    eigenstates mix l, so ⟨k|r²|k⟩ varies from state to state.  The factor
-    averages to 1 over the shell (trace preserved), redistributing width among
-    components.
+    ``r²`` is purely radial, so both supported closures are diagonal in the
+    ``|n, l, m_l, m_s⟩`` basis. ``r2_form='full'`` uses
+
+        ``⟨r²⟩_{n,l} = (n²/2Z²)[5n²+1−3l(l+1)]``,
+
+    while ``r2_form='intra'`` uses the shell-projected dipole sum
+
+        ``⟨r²_intra⟩_{n,l} = (9n²/4Z²)[n²−l(l+1)−1]``.
+
+    The Stark-Zeeman eigenstates mix l, so ⟨k|r²|k⟩ varies from state to
+    state. In either closure the returned factor averages to 1 over the shell
+    (trace preserved), redistributing width among components without changing
+    the corresponding scalar shell average.
 
     **This is the diagonal of the broadening operator.**  Keeping the diagonal
     only (and discarding off-diagonal ⟨k|r²|k'⟩) is exactly the ``c_k = 0``
-    approximation that recovers the **ZEST operator**.  The off-diagonal part is
-    what generates the complex SDT intensity ``a_k + i c_k`` of the full **PPPB**
-    operator (non-Hermitian Liouvillian) — *not yet implemented*; see the
-    REVIEW note below.
+    approximation that recovers the **ZEST operator**. The optional full PPP
+    path in :mod:`starkzee.collision` retains the off-diagonal part and obtains
+    the complex SDT intensity ``a_k + i c_k`` from the non-Hermitian generator.
 
     Parameters
     ----------
@@ -764,6 +812,10 @@ def electron_impact_r2_scaling(eigenvectors, n, Z):
         Principal quantum number of the shell these eigenvectors belong to.
     Z : int
         Nuclear charge.
+    r2_form : {'full', 'intra'}, optional
+        Radial closure to resolve. Use ``'full'`` with the historical
+        ``pppb``/``ferri`` scalar model and ``'intra'`` with ``pppb-intra`` or
+        the ZEST models. Default ``'full'`` preserves the historical API.
 
     Returns
     -------
@@ -772,17 +824,28 @@ def electron_impact_r2_scaling(eigenvectors, n, Z):
 
     Notes
     -----
-    REVIEW (future): only the operator **diagonal** is used (``c_k = 0`` →
-    ZEST).  The full PPPB operator keeps the off-diagonal ⟨k|r²|k'⟩, builds the
-    non-Hermitian Liouvillian, and yields the complex intensity ``a_k + i c_k``
-    (estimated ~1–2 % asymmetry for Hβ at 1 kT).  Implementing it also calls for
-    the lower-manifold ``d†·d`` piece (currently neglected, as in the scalar
-    model).  See ``FFM_implementation_plan.md``.
+    This helper itself returns only the operator **diagonal** (``c_k = 0`` →
+    ZEST). The static and FFM solvers use :mod:`starkzee.collision` instead when
+    ``electron_interference=True``; that path keeps the upper/lower self terms,
+    their interference term, and the off-diagonal coherence coupling. See
+    ``FFM_implementation_plan.md`` for the scope and remaining validation work.
     """
     from starkzee.radiator import build_basis
     basis = build_basis(n)
-    r2_diag = np.array(
-        [(n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * s.l * (s.l + 1.0)) for s in basis]
-    )
+    if r2_form == 'full':
+        r2_diag = np.array([
+            (n**2 / (2.0 * Z**2))
+            * (5.0 * n**2 + 1.0 - 3.0 * s.l * (s.l + 1.0))
+            for s in basis
+        ])
+    elif r2_form == 'intra':
+        r2_diag = np.array([
+            (9.0 * n**2 / (4.0 * Z**2))
+            * (n**2 - s.l * (s.l + 1.0) - 1.0)
+            for s in basis
+        ])
+    else:
+        raise ValueError(
+            f"Unknown r2_form {r2_form!r}; choose 'full' or 'intra'.")
     r2_avg = r2_diag.mean()
     return (np.abs(eigenvectors)**2).T @ r2_diag / r2_avg

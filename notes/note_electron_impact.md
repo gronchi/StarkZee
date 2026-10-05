@@ -1,5 +1,10 @@
 # GBK Electron Impact Broadening: StarkZee vs ZEST / PPPB
 
+Updated 3 October 2026. This note describes the **scalar width models**. The
+opt-in non-Hermitian PPP operator is documented separately in
+[`FFM_implementation_plan.md`](FFM_implementation_plan.md) and is not calibrated
+by either scalar radius average below.
+
 This note summarizes the key physical parameters, formulas, and differences in the electron-impact broadening implementations in StarkZee, ZEST, and PPPB.
 
 ## 1. Core Formalism & G-Function
@@ -72,3 +77,13 @@ In PPPB (Ferri et al. 2022), the thermal cutoff frequency $\omega_e = 1/\tau_e$ 
 2. **$y$ argument:** Uses $2\pi\omega_e \approx 290\text{ meV}$ inside the $E_1(y)$ function to fit their plotted G-function curves.
 
 StarkZee avoids this code-fitting artifact by consistently using the physical rate $\omega_e = 1/\tau_e = 46\text{ meV}$ in both places.
+
+## 5. Current operator distinction
+
+`electron_model='pppb'` and `'pppb-intra'` retain the scalar radius choices
+above for the default diagonal-width calculation. With
+`electron_interference=True`, StarkZee instead builds Appendix-B `Phi` from
+the selected-shell Cartesian dipoles and the direct common coefficient
+`W0 [C_nu + G_nu(0)]`. It does not rescale that matrix to reproduce either
+scalar shell average. External PPP component output and convergence of the
+intermediate-state closure remain required.
