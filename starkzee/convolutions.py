@@ -1,8 +1,32 @@
 # Convolutions module for Doppler and instrument broadening in starkzee
 
 import numpy as np
-from scipy.fft import fft, ifft, fftshift
+from scipy.fft import fft, ifft, ifftshift
 from scipy.constants import c as C_LIGHT, e as E_CHARGE, m_p as _M_P
+
+
+def uniform_energy_grid(grid, resample=True):
+    """Return an increasing uniform work grid and an output interpolation function.
+
+    Nonuniform inputs are evaluated at no worse than their smallest spacing.
+    Interpolation returns energy densities, not densities in the input coordinate.
+    """
+    original = np.asarray(grid, dtype=float)
+    if original.ndim != 1 or len(original) < 2 or not np.all(np.isfinite(original)):
+        raise ValueError("Energy grid must contain at least two finite points.")
+    delta = np.diff(original)
+    if not (np.all(delta > 0) or np.all(delta < 0)):
+        raise ValueError("Energy grid must be strictly monotonic.")
+    ordered = original if delta[0] > 0 else original[::-1]
+    steps = np.diff(ordered)
+    if not resample or np.allclose(steps, steps[0], rtol=1e-8, atol=0):
+        work = ordered
+    else:
+        count = int(np.ceil((ordered[-1] - ordered[0]) / steps.min())) + 1
+        if count > 1000000:
+            raise ValueError("Nonuniform grid requires over one million work points; resample explicitly.")
+        work = np.linspace(ordered[0], ordered[-1], count)
+    return work, lambda values: np.interp(original, work, values)
 
 
 
@@ -60,20 +84,23 @@ def convolve_fft(grid, profile, kernel):
 
     The input arrays are zero-padded by half their length on each side to
     suppress the wrap-around artefacts of the circular FFT convolution.  The
-    kernel is area-normalized before application so that the integrated
-    intensity of the profile is conserved.
+    kernel is discretely normalized. Cropping to the output window can lose
+    area; enlarge the window to check convergence. No renormalization of the
+    returned spectrum is performed.
 
     Parameters
     ----------
     grid : array-like, shape (N,)
         Uniform coordinate grid (wavelengths or energies).  Used only to
-        determine array length; the actual coordinate values are not used.
+        validate spacing; ascending and descending grids are accepted.
     profile : array-like, shape (N,)
         Spectral profile to be convolved.
     kernel : array-like, shape (N,)
         Broadening kernel (not necessarily normalized).  Its center must
-        coincide with the center of ``grid``; ``fftshift`` is applied
-        internally to place the peak at the origin for correct phase.
+        coincide with index ``N//2`` (zero lag, not the physical line center); ``ifftshift`` is applied
+        internally to place the peak at index 0 (the origin) for correct
+        phase -- this is the inverse of the padding/centering ``fftshift``
+        would undo, and for odd-length arrays the two differ by one sample.
 
     Returns
     -------
@@ -82,13 +109,22 @@ def convolve_fft(grid, profile, kernel):
 
     Notes
     -----
-    Edge-padding (``mode='edge'``) is used for the profile to reduce ringing
-    at the spectrum boundaries.  Zero-padding is used for the kernel because
-    the kernel is assumed to be compact relative to the grid.
+    Both arrays are zero-extended. Boundary intensity is not extended into
+    an artificial pedestal outside the observation window.
     """
+    grid = np.asarray(grid, dtype=float)
+    profile = np.asarray(profile, dtype=float)
+    kernel = np.asarray(kernel, dtype=float)
     n = len(grid)
+    if n < 2 or grid.ndim != 1 or profile.shape != grid.shape or kernel.shape != grid.shape:
+        raise ValueError("grid, profile and kernel must be one-dimensional arrays of equal length >= 2.")
+    steps = np.diff(grid)
+    if not np.all(np.isfinite(grid)) or steps[0] == 0 or not np.allclose(steps, steps[0], rtol=1e-8, atol=0):
+        raise ValueError("Convolution requires a uniform, strictly monotonic grid.")
+    if not np.all(np.isfinite(profile)) or not np.all(np.isfinite(kernel)) or kernel.sum() <= 0:
+        raise ValueError("Profile and kernel must be finite and kernel must have positive mass.")
     pad_len = n // 2
-    profile_padded = np.pad(profile, pad_len, mode='edge')
+    profile_padded = np.pad(profile, pad_len, mode='constant')
     kernel_padded = np.pad(kernel, pad_len, mode='constant', constant_values=0.0)
 
     total_area = np.sum(kernel_padded)
@@ -96,22 +132,22 @@ def convolve_fft(grid, profile, kernel):
         kernel_padded /= total_area
 
     F_prof = fft(profile_padded)
-    F_kern = fft(fftshift(kernel_padded))
+    F_kern = fft(ifftshift(kernel_padded))
 
     convoluted_padded = np.real(ifft(F_prof * F_kern))
 
     return convoluted_padded[pad_len:-pad_len]
 
 
-def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H'):
+def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H', lambda0_nm=None):
     """Apply thermal Doppler broadening to a spectrum on a uniform wavelength grid.
 
     Constructs a Gaussian kernel with 1/e width
 
         Δλ_D = λ₀ × v_th / c,   v_th = √(2 T_i / m c²)
 
-    centered at the grid midpoint λ₀ = mean(wavelengths_nm), and convolves it
-    with ``profile`` via :func:`convolve_fft`.
+    centered at zero lag (index N//2), and convolves it with ``profile`` via
+    :func:`convolve_fft`.
 
     Parameters
     ----------
@@ -124,6 +160,14 @@ def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H'):
     species : str, optional
         Emitting species: ``'H'`` / ``'hydrogen'``, ``'D'`` / ``'deuterium'``,
         or ``'T'`` / ``'tritium'``.  Default is ``'H'``.
+    lambda0_nm : float, optional
+        The physical line-center wavelength [nm] to use for the Doppler-width
+        scale. When omitted (default), falls back to ``mean(wavelengths_nm)``,
+        which is only a good proxy for the true line center when the grid is
+        narrow and centered on the line; for a wide or off-center window,
+        pass the actual transition wavelength explicitly so the modeled
+        Doppler width doesn't silently depend on the observation window
+        instead of the emitter.
 
     Returns
     -------
@@ -136,14 +180,21 @@ def apply_doppler_broadening(wavelengths_nm, profile, Ti_ev, species='H'):
     non-uniform, resample before calling this function.
     """
     from starkzee.utils import species_to_ZA
+    wavelengths_nm = np.asarray(wavelengths_nm, dtype=float)
+    if not np.isfinite(Ti_ev) or Ti_ev < 0:
+        raise ValueError("Ti_ev must be finite and nonnegative.")
+    if Ti_ev == 0:
+        return np.array(profile, dtype=float, copy=True)
     _, A = species_to_ZA(species)
     mc2_ev = (A * _M_P) * (C_LIGHT ** 2) / E_CHARGE
     v_th_over_c = np.sqrt(2.0 * Ti_ev / mc2_ev)
 
-    lambda0_nm = np.mean(wavelengths_nm)
+    lambda0_nm = np.mean(wavelengths_nm) if lambda0_nm is None else lambda0_nm
     w_doppler_nm = lambda0_nm * v_th_over_c
 
-    x = wavelengths_nm - lambda0_nm
+    if not np.isfinite(lambda0_nm) or lambda0_nm <= 0:
+        raise ValueError("lambda0_nm must be finite and positive.")
+    x = wavelengths_nm - wavelengths_nm[len(wavelengths_nm) // 2]
     kernel = np.exp(-x**2 / (w_doppler_nm**2))
 
     return convolve_fft(wavelengths_nm, profile, kernel)
@@ -178,7 +229,8 @@ def apply_instrument_broadening(wavelengths_nm, profile, fwhm_nm):
 
     sigma = fwhm_nm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 
-    x = wavelengths_nm - np.mean(wavelengths_nm)
+    wavelengths_nm = np.asarray(wavelengths_nm, dtype=float)
+    x = wavelengths_nm - wavelengths_nm[len(wavelengths_nm) // 2]
     kernel = np.exp(-x**2 / (2.0 * sigma**2))
 
     return convolve_fft(wavelengths_nm, profile, kernel)

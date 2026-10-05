@@ -1,5 +1,16 @@
 # StarkZee Code Equations — As Implemented
 
+Implementation snapshot updated 4 October 2026. Function links are preferred
+over the historical line numbers below because active repairs move source
+locations.
+
+Profile and discrete-transition APIs default to `use_empirical_data=True`
+for bundled H/D/T levels. `False` selects analytical energies and is required
+for `Z > 1` or uncovered shells. Low-level Hamiltonian functions retain their
+analytical default. Empirical Hamiltonians use cm⁻¹ internally; profile and
+discrete-transition energies are converted to eV. Missing shell-average rows
+are derived from complete fine-structure data with weights `2j+1`.
+
 Reference model: Ferri, Peyrusse & Calisti, *"Stark–Zeeman line-shape model for
 multi-charged ion emission in a magnetized plasma"*, Matter Radiat. Extremes **7**,
 015901 (2022). FFM: Calisti et al., Phys. Rev. A **42**, 5433 (1990).
@@ -55,7 +66,8 @@ N_{nl} = \sqrt{\left(\tfrac{2Z}{n}\right)^3 \frac{(n-l-1)!}{2n\,(n+l)!}}$$
 ### 2.2. Unperturbed energy (diagonal, degenerate over the shell)
 $$E_n = -\frac{Z^2 R_\text{atom}(Z,A)}{n^2}$$
 - **Code**: [lines 470–476](starkzee/radiator.py#L470). Uses the reduced-mass
-  Rydberg → absolute energies match NIST.
+  Rydberg. This improves isotope line centers but is not a general NIST/QED
+  match for hydrogen-like ions.
 
 ### 2.3. Spin-orbit coupling
 $$V_\text{SO} = \xi_{nl}\,\vec L\cdot\vec S,\qquad
@@ -64,12 +76,16 @@ with $\vec L\cdot\vec S = L_z S_z + \tfrac12(L_+S_- + L_-S_+)$.
 - **Code**: [lines 477–493](starkzee/radiator.py#L477). Off-diagonal in
   (m_l, m_s); the ladder terms couple $|m_l{+}1, m_s{-}1\rangle \leftrightarrow |m_l, m_s\rangle$.
 
-### 2.4. Mass-velocity + Darwin (completes Dirac fine structure)
+### 2.4. Mass-velocity + Darwin (leading Dirac fine structure)
 $$\Delta E_{l=0} = -A_\text{fs}\,(n - \tfrac34),\qquad
 \Delta E_{l>0} = -A_\text{fs}\!\left(\frac{n}{l+\tfrac12} - \tfrac34\right),\qquad
 A_\text{fs} = \frac{Z^4\alpha^2 R_\infty}{n^4}$$
 - **Code**: [lines 495–503](starkzee/radiator.py#L495). Together with
-  V_SO restores the Dirac degeneracy 2s₁/₂ = 2p₁/₂. Toggle: `fine_structure`.
+  V_SO this reproduces the leading `O((Z alpha)^4)` Dirac expansion and restores
+  2s₁/₂ = 2p₁/₂ degeneracy. It is not the exact Dirac energy and has no Lamb/QED
+  shift. At Ar XVII the 2p interval is within 2% of the PPP manual, absolute
+  excitations are about 0.9--1.0 eV high, and the manual's 0.167725 eV
+  2s₁/₂--2p₁/₂ splitting is absent. Toggle: `fine_structure`.
 
 ### 2.5. Linear (paramagnetic) Zeeman
 $$H_Z^{(1)} = \mu_B B\,(m_l + g_s m_s),\qquad g_s = |g_e|_\text{CODATA} \approx 2.00231930436$$
@@ -96,9 +112,26 @@ $$q=\pm1:\ \langle\,\cdot\,|T_{\pm1}|\,\cdot\,\rangle = \mp\sqrt{\frac{(l\mp m)(
 
 ### 2.8. Radial dipole element
 $$\langle n_1 l_1|r|n_2 l_2\rangle = \int_0^\infty R_{n_1 l_1}(r)\,r\,R_{n_2 l_2}(r)\,r^2\,dr$$
-- **Code**: [`radial_dipole`](starkzee/radiator.py#L230) (numerical, |Δl|=1).
+- **Code**: `radiator.radial_dipole`. Inter-shell elements use Gordon's exact
+  closed form by default; same-shell elements and the optional `quad` backend
+  use adaptive integration on an `n²/Z`-scaled semi-infinite coordinate.
+  Values retain the radial-function sign and vanish unless |Δl|=1.
 
-### 2.9. Diagonalization & dipole rotation
+### 2.9. J-coupled reduced hydrogenic dipole
+For `s=1/2`, the Cowan/Edmonds convention is
+$$\langle(l s)j||rC^{(1)}||(l' s)j'\rangle =
+(-1)^{l+s+j'+1}\sqrt{(2j+1)(2j'+1)}
+\begin{Bmatrix}l&j&s\\j'&l'&1\end{Bmatrix}
+\langle l||C^{(1)}||l'\rangle R_{nl,n'l'},$$
+$$\langle l||C^{(1)}||l'\rangle=(-1)^l
+\sqrt{(2l+1)(2l'+1)}
+\begin{pmatrix}l&1&l'\\0&0&0\end{pmatrix}.$$
+- **Code**: `radiator.reduced_hydrogenic_dipole_j`, with the dependency-free
+  `multielectron.wigner_6j`. The four Ar XVII manual values agree within 2%
+  after one consistent 2s-level rephasing; individual signs are phase
+  conventional and the closed-loop product is invariant.
+
+### 2.10. Diagonalization & dipole rotation
 $$H_A\,|\psi_k\rangle = E_k\,|\psi_k\rangle,\qquad
 d_q[i,j] = \langle\psi_l^j|\,r_q\,|\psi_u^i\rangle = \sum_{k_l,k_u}
 U_l^{*}[k_l,j]\,U_u[k_u,i]\,(-R\,\text{ang}_q)$$
@@ -106,7 +139,7 @@ U_l^{*}[k_l,j]\,U_u[k_u,i]\,(-R\,\text{ang}_q)$$
   [`dipole_matrix_elements`](starkzee/radiator.py#L640),
   [`_uncoupled_dipole_matrices`](starkzee/radiator.py#L720) (units a₀).
 
-### 2.10. Line strength, oscillator strength, Einstein A
+### 2.11. Line strength, oscillator strength, Einstein A
 $$S_{ul} = \sum_{q,i,j}\big|\langle l_j|r_q|u_i\rangle\big|^2\ [a_0^2]$$
 $$gf = \frac{2}{3}\frac{\Delta E}{E_h}\,S_{ul},\qquad
 A_{ul} = \frac{4\alpha^3}{3}\left(\frac{\Delta E}{E_h}\right)^3 \frac{S_{ul}}{2n_u^2\,\tau_\text{au}},\quad E_h = 2R_\infty$$
@@ -181,8 +214,10 @@ Enumerate every (i, j, q) with $|d_q(i\to j)|^2 > $ threshold at a single (F_z, 
 ## 4. Microfield Distribution (`microfield.py`)
 
 ### 4.1. Holtsmark normal field & mean spacing
-$$r_e = \left(\frac{3}{4\pi N_e}\right)^{1/3},\qquad
-F_0 = \frac{e}{4\pi\varepsilon_0\, r_e^2}$$
+For background perturber charge `Z_bar`, quasi-neutrality gives
+$$N_i=\frac{N_e}{\bar Z},\qquad
+r_i = \left(\frac{3\bar Z}{4\pi N_e}\right)^{1/3},\qquad
+F_0 = \frac{\bar Z e}{4\pi\varepsilon_0\, r_i^2}.$$
 - **Code**: [`calculate_normal_field`](starkzee/microfield.py#L11).
 
 ### 4.2. Debye length (classical)
@@ -198,7 +233,8 @@ $$W(\beta) = \frac{2\beta}{\pi}\int_0^\infty y\,\sin(\beta y)\,e^{-y^{3/2}}\,dy$
 ### 4.4. Hooper screened distribution
 $$W(\beta,a) = \frac{2\beta}{\pi}\int_0^\infty y\,\sin(\beta y)\,e^{-y^{3/2} S(y,a)}\,dy,\quad
 S(y,a) = \left(1 + \frac{f_\text{emit}\,a^2}{y^2}\right)^{-3/4},\quad a = \frac{r_e}{\lambda_D}$$
-where $f_\text{emit} = 1.5$ for a charged radiator (ion emitter, default `charged=True`), and $f_\text{emit} = 1.0$ for a neutral radiator (atom emitter, `charged=False`).
+where $f_\text{emit} = 1.5$ for a charged radiator and
+$f_\text{emit} = 1.0$ for a neutral radiator.
 $a \to 0$ recovers Holtsmark.
 - **Code**: [`hooper_distribution`](starkzee/microfield.py#L196).
 - **NOTE**: depends on the screening parameter `a` and emitter charging `charged`; there is **no ion-coupling
@@ -230,6 +266,13 @@ Uniform β grid; W normalized so $\sum_i W_i\,\Delta\beta = 1$; returns
 $\text{fields} = \beta F_0$, $\text{weights} = W\,\Delta\beta$.
 - **Code**: [`_microfield_quadrature_impl`](starkzee/microfield.py#L569).
 
+### 4.7. Radiator and background charges
+The solvers expose the net emitter charge `z_e` separately from the background
+perturber charge `Z_bar`. For a hydrogen-like ion, `z_e=Z-1` by default and
+determines neutral versus charged-point selection. The current Potekhin fit
+uses only that binary status: it does **not** vary with the magnitude of
+`z_e/Z_bar`. A traceable APEX/MD table is required for that dependence.
+
 ---
 
 ## 5. Electron-Impact Broadening (`broadening.py`)
@@ -239,7 +282,7 @@ GBK (Griem-Baranger-Kolb) semi-classical model with a magnetic cutoff.
 ### 5.1. Characteristic frequencies
 $$\omega_p = \sqrt{\frac{N_e e^2}{\varepsilon_0 m_e}},\qquad
 \omega_L = \frac{eB}{m_e},\qquad
-\omega_e = \frac{2\pi}{\tau_e},\ \ \tau_e = \frac{r_e}{\sqrt{T_e e/m_e}}$$
+\omega_e = \frac{1}{\tau_e},\ \ \tau_e = \frac{r_e}{\sqrt{T_e e/m_e}}$$
 - **Code**: [`calculate_plasma_frequency`](starkzee/broadening.py#L9),
   [`calculate_larmor_frequency`](starkzee/broadening.py#L32),
   [`calculate_configuration_frequency`](starkzee/broadening.py#L57).
@@ -324,14 +367,38 @@ function, capturing plasma-wave corrections beyond the GBK binary-collision pict
 - **Code**: [`electron_impact_width_zest`](starkzee/broadening.py#L527).
   Activated by `electron_model='zest'`/`'zest-gbk'`/`'zest-lee'`/`'zest-dufty'`.
 
+### 5.6. Full PPP impact-limit collision operator (opt-in)
+For optical coherences in upper/lower product space, the selected-shell
+Appendix-B operator is
+$$\Phi=A\sum_{c=x,y,z}\left[R_{u,c}^2\otimes I
++I\otimes(R_{l,c}^2)^T-2R_{u,c}\otimes R_{l,c}^T\right],$$
+$$A=W_0[C_\nu+G_\nu(0)].$$
+The non-Hermitian generator `K=L-i Phi` produces poles
+`omega_k-i gamma_k` and residues `a_k+i c_k`. The generalized static component
+is
+$$I(E)=\frac1\pi\sum_k\frac{a_k\gamma_k+c_k(E-\omega_k)}
+{(E-\omega_k)^2+\gamma_k^2}.$$
+- **Code**: `collision.build_ppp_collision_operator` and
+  `collision.ppp_complex_sdts`, enabled by `electron_interference=True`.
+  The direct coefficient is independent of the scalar full/intra-shell radius
+  selector. The finite-ion FFM uses the documented StarkZee closure
+  `p_k=|a_k|/sum(|a|)` while retaining signed complex residues in the numerator.
+  External PPP parity and closure convergence remain open.
+
 ---
 
 ## 6. Frequency Fluctuation Model — ion dynamics (`ffm.py`)
 
 ### 6.1. Ion fluctuation (jump) rate
-$$N_i = \frac{N_e}{Z},\quad r_i = \left(\frac{3}{4\pi N_i}\right)^{1/3},\quad
-v_\text{th} = \sqrt{\frac{2 T_i e}{A m_p}},\qquad
-\nu_i = \frac{v_\text{th}}{r_i}\cdot\frac{\hbar}{e}\ [\text{eV}]$$
+$$N_i = \frac{N_e}{Z_p},\quad r_i = \left(\frac{3}{4\pi N_i}\right)^{1/3},\qquad
+\nu_i = \frac{v_\text{th}}{r_i}\frac{\hbar}{e}\ [\text{eV}].$$
+The default ZEST convention is
+$$v_\text{th}^{\rm ZEST}=\sqrt{\frac{2T_i e}{A_p m_p}},$$
+while `fluctuation_rate_model='ppp'` implements PPP manual Eq. (C5),
+$$v_\text{th}^{\rm PPP}=\sqrt{\frac{T_i e}{\mu}},\qquad
+\mu=\frac{A_eA_p}{A_e+A_p}m_p.$$
+They coincide for equal emitter and perturber masses. `A_ion` is the emitter
+mass in the profile API; optional `A_perturber` defaults to it.
 - **Code**: [`calculate_ion_fluctuation_rate`](starkzee/ffm.py#L10).
 
 ### 6.2. Stark-dressed transitions (SDTs)
@@ -394,15 +461,22 @@ Area-normalized kernel; edge-padded profile, zero-padded kernel.
 
 - **Hydrogenic radiator** (one active electron, charge Z); no quantum defects.
 - **Intra-shell linear Stark only** — quadratic / inter-n Stark neglected.
-- Full magnetic Hamiltonian: spin-orbit + Dirac fine structure + linear and
+- Full magnetic Hamiltonian: spin-orbit + leading perturbative Dirac fine structure + linear and
   **quadratic (diamagnetic) Zeeman** simultaneously diagonalized with the Stark term.
-- **Microfield**: Holtsmark / Hooper-screened (classical Debye, neutral-point), plus native implementations of the Zest-compatible Potekhin (2002) model (incorporating ion-coupling $\Gamma$ and screened/unscreened, neutral/charged points).
+- **High-Z energy boundary**: no exact Dirac spectrum or sourced Lamb/QED
+  correction yet; the Ar XVII limitation is quantified by regression.
+- **Microfield**: Holtsmark / explicitly selected unvalidated Hooper-like
+  ansatz, plus the default screened Potekhin (2002) fit. Emitter and background
+  charges are separate, but Potekhin currently uses only neutral/charged status.
 - **Electron broadening**: Two models — (1) default PPPB/Ferri: GBK semi-classical,
   frequency-dependent, magnetic (Larmor) cutoff, full shell-averaged ⟨r²⟩_n;
   (2) ZEST model (`electron_model='zest'`/`'zest-gbk'`/`'zest-lee'`/`'zest-dufty'`):
   intra-shell ⟨r²_intra⟩_n = (9n²/8Z²)(n²−1), κ_m-based G-function, ω_p cutoff
   only (Δn = 0 / Layzer complex restriction).
-- **Ion dynamics**: quasi-static + optional FFM (Sherman-Morrison or full inversion).
+- **Ion dynamics**: quasi-static + optional FFM. The default diagonal path has
+  analytically equivalent Sherman-Morrison and dense rank-one inversion forms;
+  the full PPP complex-residue path uses the analytical form only. ZEST and
+  PPP-manual fluctuation-rate conventions are selectable.
 - **Doppler**: inside `calculate_ffm_profile` by default (`apply_doppler=True`,
   zero-padded FFT); also available via `convolutions.py` for post-processing.
 - **Instrumental**: post-processing FFT convolution via `convolutions.py`.

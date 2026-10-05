@@ -140,7 +140,7 @@ for row, B in enumerate([500.0, 1000.0]):
         ax.set_ylim(-0.02, None)
 
 plt.tight_layout()
-out = "halpha_wings.png"
+out = os.path.join(os.path.dirname(__file__), "halpha_wings.png")
 plt.savefig(out, dpi=200, bbox_inches='tight')
 print(f"\nSaved {out}")
 plt.show()

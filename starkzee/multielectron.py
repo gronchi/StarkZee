@@ -87,6 +87,70 @@ def wigner_3j(j1, j2, j3, m1, m2, m3):
         return 0.0
 
 
+def wigner_6j(j1, j2, j3, j4, j5, j6):
+    """Return a Wigner 6-j symbol using the Racah sum formula.
+
+    Integer and half-integer arguments are supported.  Invalid angular-
+    momentum triangles return zero, following the convention used by
+    :func:`wigner_3j`.  The implementation is intentionally dependency-free so
+    the J-coupled hydrogenic and future multi-electron paths use the same
+    Condon--Shortley angular convention.
+    """
+    values = (j1, j2, j3, j4, j5, j6)
+    if any(value < 0 or not math.isclose(2.0 * value, round(2.0 * value),
+                                         abs_tol=1e-12)
+           for value in values):
+        return 0.0
+
+    def triangle(a, b, c):
+        return (a + b >= c and a + c >= b and b + c >= a
+                and math.isclose(a + b + c, round(a + b + c),
+                                 abs_tol=1e-12))
+
+    triangles = ((j1, j2, j3), (j1, j5, j6),
+                 (j4, j2, j6), (j4, j5, j3))
+    if not all(triangle(*triple) for triple in triangles):
+        return 0.0
+
+    def factorial(value):
+        nearest = round(value)
+        if value < -1e-12 or not math.isclose(value, nearest, abs_tol=1e-12):
+            raise ValueError("factorial argument is not a non-negative integer")
+        return math.factorial(int(nearest))
+
+    def delta(a, b, c):
+        return math.sqrt(
+            factorial(a + b - c)
+            * factorial(a - b + c)
+            * factorial(-a + b + c)
+            / factorial(a + b + c + 1.0)
+        )
+
+    lower = max(j1 + j2 + j3, j1 + j5 + j6,
+                j4 + j2 + j6, j4 + j5 + j3)
+    upper = min(j1 + j2 + j4 + j5, j1 + j3 + j4 + j6,
+                j2 + j3 + j5 + j6)
+    z_min = int(round(lower))
+    z_max = int(round(upper))
+    if z_min > z_max:
+        return 0.0
+
+    total = 0.0
+    for z in range(z_min, z_max + 1):
+        denominator = (
+            factorial(z - j1 - j2 - j3)
+            * factorial(z - j1 - j5 - j6)
+            * factorial(z - j4 - j2 - j6)
+            * factorial(z - j4 - j5 - j3)
+            * factorial(j1 + j2 + j4 + j5 - z)
+            * factorial(j1 + j3 + j4 + j6 - z)
+            * factorial(j2 + j3 + j5 + j6 - z)
+        )
+        total += (-1.0)**z * factorial(z + 1.0) / denominator
+
+    return math.prod(delta(*triple) for triple in triangles) * total
+
+
 @dataclass(frozen=True)
 class MultiElectronState:
     """Basis state |level_idx, J, M_J⟩ for a multi-electron (quantum-defect) system."""

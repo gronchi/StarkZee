@@ -21,7 +21,7 @@ from starkzee.broadening import (
     electron_impact_r2_scaling,
     ELECTRON_MODELS,
 )
-from starkzee.radiator import build_hamiltonian
+from starkzee.radiator import build_basis, build_hamiltonian
 from starkzee.static_profile import calculate_static_profile
 from starkzee.ffm import calculate_ffm_profile
 from starkzee.line_profile import LineProfile
@@ -120,6 +120,32 @@ def test_r2_scaling_no_field_is_unit_per_l():
     s = electron_impact_r2_scaling(V, n=2, Z=1)
     assert abs(s.mean() - 1.0) < 1e-9
     assert np.all(s > 0)
+
+
+@pytest.mark.parametrize("n", [2, 3, 5])
+def test_r2_scaling_matches_exact_full_and_intrashell_diagonals(n):
+    basis = build_basis(n)
+    identity = np.eye(len(basis))
+    degeneracy = np.array([state.l for state in basis])
+
+    full = (n**2 / 2.0) * (
+        5.0 * n**2 + 1.0 - 3.0 * degeneracy * (degeneracy + 1.0))
+    intra = (9.0 * n**2 / 4.0) * (
+        n**2 - degeneracy * (degeneracy + 1.0) - 1.0)
+
+    assert np.allclose(
+        electron_impact_r2_scaling(identity, n, 1, r2_form='full'),
+        full / full.mean(),
+    )
+    assert np.allclose(
+        electron_impact_r2_scaling(identity, n, 1, r2_form='intra'),
+        intra / intra.mean(),
+    )
+
+
+def test_r2_scaling_rejects_unknown_closure():
+    with pytest.raises(ValueError, match="r2_form"):
+        electron_impact_r2_scaling(np.eye(8), 2, 1, r2_form='other')
 
 
 def test_operator_default_off():

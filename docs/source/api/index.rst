@@ -8,9 +8,12 @@ API reference
    static_profile
    ffm
    radiator
+   multishell
    microfield
    broadening
+   collision
    convolutions
+   validation
    utils
    atomic_data
 
@@ -32,12 +35,17 @@ Module overview
    * - :mod:`starkzee.radiator`
      - Basis states, Hamiltonian construction, dipole matrix elements,
        oscillator strengths, Einstein A coefficients
+   * - :mod:`starkzee.multishell`
+     - Experimental multi-shell CI basis, signed radial integrals, and
+       inter-shell Stark and diamagnetic matrices
    * - :mod:`starkzee.microfield`
      - Holtsmark and Hooper microfield distributions, quadrature grid builder
    * - :mod:`starkzee.broadening`
      - GBK electron impact broadening with magnetic-field cutoff
    * - :mod:`starkzee.convolutions`
      - Standalone wavelength-space FFT Doppler and instrumental broadening helpers
+   * - :mod:`starkzee.validation`
+     - Profile area, centroid, overlap coverage, and convergence-error metrics
    * - :mod:`starkzee.utils`
      - Physical constants (via scipy.constants) and unit conversions
    * - :mod:`starkzee.atomic_data`

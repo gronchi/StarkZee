@@ -37,6 +37,17 @@ Typical usage::
     lp.profile_transverse   # π + 0.5*(σ+ + σ-)  (90° observation)
     lp.profile_parallel     # σ+ + σ-             (0° observation)
 
+    # use_empirical_data=True also populates the NIST-based counterpart of E0
+    # (self.E0 itself stays on the analytic reference for backward
+    # compatibility -- see D08/C05 in StarkZee_audit_response.md):
+    lp.compute_profile(np.linspace(620, 660, 2000), grid_type='wavelength_nm',
+                       use_empirical_data=True, atom='H')
+    lp.E0_empirical              # empirical gross-structure line center [eV]
+    lp.E0_empirical_wavelength_nm
+    lp.E0_empirical_wavelength_air_nm
+    lp.E0_empirical_frequency_thz
+    lp.E0_empirical_wavenumber_cm
+
     # Discrete transitions at a single field configuration
     lp.compute_discrete(Fz=0.0, Fx=1e8)
     lp.discrete.energy_ev    # transition energies [eV]
@@ -65,6 +76,24 @@ from starkzee.static_profile import (
     discrete_transitions,
 )
 from starkzee.ffm import calculate_ffm_profile
+
+
+def _empirical_gross_structure_energy_ev(n_u, n_l, atom):
+    """Return the empirical (NIST, shell-averaged) gross-structure transition
+    energy [eV] for n_u -> n_l.
+
+    Unlike the B-dependent conditioning reference used internally by
+    :func:`~starkzee.static_profile.calculate_static_profile` (which folds in
+    the diagonal quadratic-Zeeman shift at the requested B for numerical
+    conditioning, and is not itself meant to be a physically meaningful line
+    center), this is the plain zero-field shell-averaged NIST energy
+    difference -- independent of B and quadratic_zeeman, directly comparable
+    to the analytic :attr:`LineProfile.E0`.
+    """
+    from starkzee.atomic_data import empirical_shell_energy_cm
+    wavenumber_cm = (empirical_shell_energy_cm(atom, n_u)
+                     - empirical_shell_energy_cm(atom, n_l))
+    return wavenumber_cm_to_energy_ev(wavenumber_cm)
 
 
 class DiscreteTransitions:
@@ -169,6 +198,21 @@ class LineProfile:
         self.E0_wavelength_air_nm = vacuum_to_air_wavelength_nm(self.E0_wavelength_nm)
         self.E0_frequency_thz     = energy_ev_to_frequency_thz(self.E0)
         self.E0_wavenumber_cm     = energy_ev_to_wavenumber_cm(self.E0)
+        self.reference_energy_ev = self.E0
+        self.result_metadata = None
+
+        # Empirical (NIST) counterpart of E0 -- populated by compute_profile()/
+        # compute_static_profile()/compute_ffm_profile() only when called with
+        # use_empirical_data=True (the default); None after analytical calls.
+        # self.E0 above is NOT updated
+        # in that case (kept as the analytic reference for backward
+        # compatibility) -- use E0_empirical explicitly when you need the
+        # measured value. See D08/C05 in StarkZee_audit_response.md.
+        self.E0_empirical                  = None
+        self.E0_empirical_wavelength_nm     = None
+        self.E0_empirical_wavelength_air_nm = None
+        self.E0_empirical_frequency_thz     = None
+        self.E0_empirical_wavenumber_cm     = None
 
         # Profile results — set by compute_profile()
         self.energies_ev       = None
@@ -237,6 +281,9 @@ class LineProfile:
             :func:`~starkzee.static_profile.calculate_static_profile`
             (``num_f``, ``num_mu``, ``use_screening``, ``quadratic_zeeman``,
             ``fine_structure``, ``frequency_dependent_width``).
+            ``natural_width_mode`` selects state-resolved (default) or legacy
+            shell-average radiative damping. ``electron_interference=True``
+            selects the opt-in full PPP impact-limit collision operator.
 
         Returns
         -------
@@ -251,6 +298,7 @@ class LineProfile:
         ``wavenumbers_cm``, and the corresponding ``detuning_*`` arrays.
         """
         energies_ev = self._to_energy_ev(grid, grid_type)
+        kwargs.setdefault('atom', {1: 'H', 2: 'D', 3: 'T'}.get(self.A, self.species))
 
         pi, sp, sm = calculate_static_profile(
             n_u=self.n_u, n_l=self.n_l, Z=self.Z,
@@ -261,6 +309,7 @@ class LineProfile:
             species=self.species,
             **kwargs,
         )
+        self._maybe_set_empirical_reference(kwargs)
         self._store_profile(energies_ev, pi, sp, sm, view_angle_deg)
         return self
 
@@ -277,8 +326,8 @@ class LineProfile:
 
         Runs :func:`~starkzee.ffm.calculate_ffm_profile` with this profile's
         stored plasma parameters (``Ti_ev`` is required — set it in the
-        constructor; ``A`` is used as both emitter and perturber mass under the
-        same-species assumption) and stores the results in the same attributes
+        constructor; ``A`` is the emitter mass and remains the perturber mass
+        only when ``A_perturber`` is omitted) and stores the results in the same attributes
         as :meth:`compute_profile` (``profile_pi``, ``profile_sig_plus``,
         ``profile_sig_minus``, ``profile``, and every spectral-axis /
         ``detuning_*`` array).
@@ -292,7 +341,15 @@ class LineProfile:
             (``num_f``, ``num_mu``, ``max_beta``, ``use_screening``,
             ``quadratic_zeeman``, ``fine_structure``, ``numerical_inversion``,
             ``use_empirical_data``, ``atom``, ``electron_model``,
-            ``parallel_stark``, ``apply_doppler``, ``sdt_bin_tol``).
+            ``parallel_stark``, ``apply_doppler``, ``sdt_bin_tol``,
+            ``sdt_frequency_dependent_width``, ``natural_width_mode``,
+            ``interference_diagnostics``,
+            ``interference_group_tolerance_ev``,
+            ``interference_group_width_tolerance_ev``, and
+            ``interference_group_profile_rtol``, ``emitter_charge``,
+            ``A_perturber``, and ``fluctuation_rate_model``).
+            ``electron_interference=True`` passes the complex PPP SDTs into
+            the analytical FFM.
 
         Returns
         -------
@@ -304,6 +361,7 @@ class LineProfile:
                 "compute_ffm_profile requires Ti_ev (ion temperature); "
                 "pass it to the LineProfile constructor.")
         energies_ev = self._to_energy_ev(grid, grid_type)
+        kwargs.setdefault('atom', {1: 'H', 2: 'D', 3: 'T'}.get(self.A, self.species))
 
         pi, sp, sm = calculate_ffm_profile(
             n_u=self.n_u, n_l=self.n_l, Z=self.Z, B=self.B,
@@ -311,20 +369,56 @@ class LineProfile:
             A_ion=self.A, energies_ev=energies_ev,
             **kwargs,
         )
+        self._maybe_set_empirical_reference(kwargs)
         self._store_profile(energies_ev, pi, sp, sm, view_angle_deg)
         return self
+
+    def _maybe_set_empirical_reference(self, kwargs):
+        """Populate E0_empirical (and its derived units) when the caller
+        uses empirical energies (the default); clear stale values otherwise.
+
+        Reads use_empirical_data/atom from the same kwargs dict that gets
+        forwarded to the solver, so it always reflects what that specific
+        call actually asked for.
+        """
+        from starkzee.static_profile import line_reference_energy
+        self.reference_energy_ev = line_reference_energy(
+            self.n_u, self.n_l, self.Z, self.A,
+            kwargs.get('use_empirical_data', True), kwargs.get('atom', self.species))
+        self.result_metadata = dict(
+            reference_energy_ev=self.reference_energy_ev,
+            use_empirical_data=kwargs.get('use_empirical_data', True),
+            atom=kwargs.get('atom', self.species), density_unit='per eV',
+            electron_interference=kwargs.get('electron_interference', False),
+            microfield_model=('custom' if kwargs.get('custom_table_path') else kwargs.get('microfield_model')) or
+                ('potekhin' if kwargs.get('use_screening', True) else 'holtsmark'),
+            charged=kwargs.get('charged', kwargs.get('emitter_charge', self.Z - 1) != 0),
+            emitter_charge=kwargs.get('emitter_charge', self.Z - 1),
+            Z_bar=kwargs.get('Z_bar', 1.0),
+            A_perturber=kwargs.get('A_perturber', self.A),
+            fluctuation_rate_model=kwargs.get('fluctuation_rate_model', 'zest'))
+        if not kwargs.get('use_empirical_data', True):
+            for suffix in ('', '_wavelength_nm', '_wavelength_air_nm', '_frequency_thz', '_wavenumber_cm'):
+                setattr(self, 'E0_empirical' + suffix, None)
+            return
+        atom = kwargs.get('atom', 'H')
+        self.E0_empirical = _empirical_gross_structure_energy_ev(self.n_u, self.n_l, atom)
+        self.E0_empirical_wavelength_nm = energy_ev_to_wavelength_nm(self.E0_empirical)
+        self.E0_empirical_wavelength_air_nm = vacuum_to_air_wavelength_nm(self.E0_empirical_wavelength_nm)
+        self.E0_empirical_frequency_thz = energy_ev_to_frequency_thz(self.E0_empirical)
+        self.E0_empirical_wavenumber_cm = energy_ev_to_wavenumber_cm(self.E0_empirical)
 
     def _store_profile(self, energies_ev, pi, sp, sm, view_angle_deg=None):
         """Store solver output and populate every spectral-axis attribute."""
         self.energies_ev      = energies_ev
-        self.detuning_ev      = energies_ev - self.E0
+        self.detuning_ev      = energies_ev - self.reference_energy_ev
         self.wavelengths_nm   = energy_ev_to_wavelength_nm(energies_ev)
         self.wavelengths_air_nm = vacuum_to_air_wavelength_nm(self.wavelengths_nm)
-        self.detuning_nm      = self.wavelengths_nm - self.E0_wavelength_nm
+        self.detuning_nm      = self.wavelengths_nm - energy_ev_to_wavelength_nm(self.reference_energy_ev)
         self.frequencies_thz = energy_ev_to_frequency_thz(energies_ev)
-        self.detuning_thz    = self.frequencies_thz - self.E0_frequency_thz
+        self.detuning_thz    = self.frequencies_thz - energy_ev_to_frequency_thz(self.reference_energy_ev)
         self.wavenumbers_cm  = energy_ev_to_wavenumber_cm(energies_ev)
-        self.detuning_cm     = self.wavenumbers_cm - self.E0_wavenumber_cm
+        self.detuning_cm     = self.wavenumbers_cm - energy_ev_to_wavenumber_cm(self.reference_energy_ev)
 
         self.profile_pi        = pi
         self.profile_sig_plus  = sp
@@ -345,22 +439,46 @@ class LineProfile:
         Returns *self* to allow method chaining.
         """
         kwargs.setdefault('A', self.A)
+        kwargs.setdefault('atom', {1: 'H', 2: 'D', 3: 'T'}.get(self.A, self.species))
         raw = discrete_transitions(
             n_u=self.n_u, n_l=self.n_l, Z=self.Z,
             B=self.B, Fz=Fz, Fx=Fx,
             **kwargs,
         )
+        from starkzee.static_profile import line_reference_energy
+        reference = line_reference_energy(self.n_u, self.n_l, self.Z, kwargs['A'],
+                                         kwargs.get('use_empirical_data', True), kwargs['atom'])
         self.discrete = DiscreteTransitions(
             energy_ev  = raw['energy_ev'],
             q          = raw['q'],
             strength   = raw['strength'],
             upper_idx  = raw['upper_idx'],
             lower_idx  = raw['lower_idx'],
-            E0         = self.E0,
+            E0         = reference,
         )
         return self
 
     # ── Derived profile observables ──────────────────────────────────────────
+
+    def spectral_density(self, grid_type='energy_ev', theta_deg=None):
+        """Return (coordinate, intensity per coordinate unit), with Jacobian.
+
+        Stored profile arrays remain per eV for compatibility. Wavelengths
+        here are vacuum nm; reference wrappers use air wavelengths per metre
+        and must be converted before comparing absolute densities.
+        """
+        if self.profile is None:
+            raise ValueError('Compute a profile first.')
+        values = self.profile if theta_deg is None else self.profile_at_angle(theta_deg)
+        if grid_type == 'energy_ev':
+            return self.energies_ev.copy(), values.copy()
+        if grid_type == 'wavelength_nm':
+            return self.wavelengths_nm.copy(), values * self.energies_ev / self.wavelengths_nm
+        if grid_type == 'frequency_thz':
+            return self.frequencies_thz.copy(), values * self.energies_ev / self.frequencies_thz
+        if grid_type == 'wavenumber_cm':
+            return self.wavenumbers_cm.copy(), values * self.energies_ev / self.wavenumbers_cm
+        raise ValueError('Choose energy_ev, wavelength_nm, frequency_thz or wavenumber_cm.')
 
     @property
     def profile_transverse(self):

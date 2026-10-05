@@ -83,6 +83,20 @@ def load_levels(atom: str, fine_structure: bool) -> List[AtomicState]:
     return states
 
 
+def empirical_shell_energy_cm(atom: str, n: int) -> float:
+    """Tabulated shell energy, or a degeneracy-weighted complete fine shell."""
+    for state in load_levels(atom, fine_structure=False):
+        if state.n == n:
+            return state.energy
+    states = {(s.l, s.j): s for s in load_levels(atom, fine_structure=True)
+              if s.n == n}
+    expected = {(0, 0.5)} | {(l, j) for l in range(1, n)
+                             for j in (l - 0.5, l + 0.5)}
+    if set(states) != expected:
+        raise ValueError(f"No empirical complete shell for n={n} under atom={atom!r}.")
+    return sum((2 * j + 1) * states[l, j].energy for l, j in expected) / (2 * n**2)
+
+
 def calculate_wavenumber(upper_state: AtomicState, lower_state: AtomicState, lambda_shift: float = 0.0) -> float:
     r"""Compute the transition wavenumber between two atomic states.
 

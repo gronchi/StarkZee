@@ -3,12 +3,25 @@ Simulate and reproduce Figure 3 of the ZEST paper.
 Plots microfield distributions at a charged emitter for different Gamma and U (s).
 """
 
+import os
 import sys
-sys.path.insert(0, '.')
 
 import numpy as np
 import matplotlib.pyplot as plt
-import zest
+
+# ZEST lives in a separate repo; try an installed copy first, then a sibling checkout.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+try:
+    import zest
+except ImportError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../zest")))
+    try:
+        import zest
+    except ImportError:
+        sys.exit(
+            "Error: could not import 'zest'. This comparison needs the ZEST "
+            "repository installed, or checked out at ../zest relative to StarkZee."
+        )
 import zest.microfield as mf
 
 from starkzee.microfield import (
@@ -98,7 +111,7 @@ if __name__ == '__main__':
     
     plt.suptitle("Figure 3: Charged Emitter Microfield Distributions (ZEST vs StarkZee)", fontsize=13, fontweight='bold', y=0.98)
     plt.tight_layout()
-    plt.savefig("examples/microfield_comparison_fig3.png", dpi=150)
+    plt.savefig(os.path.join(os.path.dirname(__file__), "microfield_comparison_fig3.png"), dpi=150)
     # plt.show()
     plt.close()
     
@@ -145,7 +158,7 @@ if __name__ == '__main__':
     
     plt.suptitle("Figure 3 Residuals: ZEST - StarkZee Differences", fontsize=13, fontweight='bold', y=0.98)
     plt.tight_layout()
-    plt.savefig("examples/microfield_residuals_fig3.png", dpi=150)
+    plt.savefig(os.path.join(os.path.dirname(__file__), "microfield_residuals_fig3.png"), dpi=150)
     # plt.show()
     plt.close()
 

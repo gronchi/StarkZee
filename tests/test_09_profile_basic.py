@@ -33,7 +33,7 @@ def make_profile(n_u, n_l, Z, B, Ne, Te, detuning_range=0.2, npts=300,
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=num_f, num_mu=num_mu,
         use_screening=True, quadratic_zeeman=False, fine_structure=False,
-        frequency_dependent_width=False
+        frequency_dependent_width=False, use_empirical_data=False
     )
     sigma = sp + sm
     return det, pi, sigma

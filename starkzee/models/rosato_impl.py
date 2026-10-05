@@ -5,6 +5,7 @@ Based on pystark package (https://github.com/jsallcock/pystark).
 """
 
 import os
+import warnings
 import numpy as np
 from scipy.constants import c as C, e as E, h as H, m_e as M_E
 try:
@@ -41,28 +42,22 @@ def _load_file(filepath):
 
 
 def _set_bounds(dens_cm3, temp_ev, bfield):
-    d = int(np.searchsorted(density_val, dens_cm3, side='right')) + 1
-    t = int(np.searchsorted(temperature_val, temp_ev, side='right')) + 1
-    b = int(np.searchsorted(B_val, bfield, side='right')) + 1
-    if d <= 1 or d >= 11 or t <= 1 or t >= 6 or b <= 1 or b >= 7:
+    if any(not np.isfinite(x) or x < nodes[0] or x > nodes[-1]
+           for x, nodes in ((dens_cm3, density_val), (temp_ev, temperature_val), (bfield, B_val))):
         raise ValueError(
             f"Rosato: parameters out of range "
             f"(Ne={dens_cm3:.2g} cm⁻³, T={temp_ev:.2g} eV, B={bfield:.2g} T)"
         )
-    return d, t, b
+    return tuple(int(np.clip(np.searchsorted(nodes, x, side='right'), 1, len(nodes)-1)) + 1
+                 for x, nodes in ((dens_cm3, density_val), (temp_ev, temperature_val), (bfield, B_val)))
 
 
 def _set_name_file(n_upper, d_idx, t_idx, b_idx, angle_idx):
     names = []
     for d in range(2):
         for t in range(2):
-            if d * t == 1:
-                continue
             for b in range(2):
-                if d_idx == 10:
-                    names.append(f"ls10{t_idx-1+t}{b_idx-1+b}{angle_idx}.txt")
-                else:
-                    names.append(f"ls0{d_idx-1+d}{t_idx-1+t}{b_idx-1+b}{angle_idx}.txt")
+                names.append(f"ls{d_idx-1+d:02d}{t_idx-1+t}{b_idx-1+b}{angle_idx}.txt")
     return "".join(names)
 
 
@@ -70,7 +65,7 @@ _LINE_NAMES = ['D_alpha', 'D_beta', 'D_gamma', 'D_delta', 'D_epsilon']
 
 
 def _read_file(dir_path, names_str):
-    names = [names_str[i:i+11] for i in range(0, 66, 11)]
+    names = [names_str[i:i+11] for i in range(0, len(names_str), 11)]
     w_arr  = np.zeros((2, 2, 2, 1000))
     ls_arr = np.zeros((2, 2, 2, 1000))
 
@@ -81,8 +76,6 @@ def _read_file(dir_path, names_str):
             idx = 0
             for d in range(2):
                 for t in range(2):
-                    if d * t == 1:
-                        break
                     for b in range(2):
                         fn = names[idx]; idx += 1
                         di = int(fn[2:4]) - 1
@@ -98,8 +91,6 @@ def _read_file(dir_path, names_str):
     idx = 0
     for d in range(2):
         for t in range(2):
-            if d * t == 1:
-                break
             for b in range(2):
                 w_arr[d, t, b, :], ls_arr[d, t, b, :] = _load_file(
                     os.path.join(dir_path, names[idx]))
@@ -108,7 +99,25 @@ def _read_file(dir_path, names_str):
 
 
 def _ls_interpol(dens_cm3, temp_ev, bfield, wmax, npts,
-                 w_arr, ls_arr, d_idx, t_idx, b_idx):
+                 w_arr, ls_arr, d_idx, t_idx, b_idx, negative_table_policy='warn'):
+    if negative_table_policy not in ('warn', 'raise', 'clip'):
+        raise ValueError("negative_table_policy must be 'warn', 'raise' or 'clip'.")
+    if not np.all(np.isfinite(ls_arr)) or not np.all(np.isfinite(w_arr)):
+        raise ValueError('Rosato table contains nonfinite values.')
+    if np.any(ls_arr < 0):
+        if negative_table_policy == 'raise':
+            raise ValueError("Rosato source table contains negative intensities; "
+                             "use negative_table_policy='warn' to preserve them, "
+                             "or 'clip' to explicitly project them to zero.")
+        if negative_table_policy == 'clip':
+            warnings.warn('Rosato: projecting negative source-table intensities to zero; '
+                          'this is a data approximation, not validated table repair.',
+                          UserWarning, stacklevel=2)
+            ls_arr = np.maximum(ls_arr, 0.0)
+        else:
+            warnings.warn('Rosato source table contains negative intensities; '
+                          'preserving signed values through interpolation and broadening.',
+                          UserWarning, stacklevel=2)
     det = np.linspace(-wmax, wmax, npts)
     arr2 = np.zeros((2, 2, 2, npts))
     arr3 = np.zeros((2, 2, npts))
@@ -116,8 +125,6 @@ def _ls_interpol(dens_cm3, temp_ev, bfield, wmax, npts,
     if b_idx != 2:  # B >= 1 T
         for d in range(2):
             for t in range(2):
-                if d * t == 1:
-                    continue
                 for b in range(2):
                     sc = B_val[b_idx - 2 + b] / bfield
                     arr2[d, t, b] = np.interp(det * sc, w_arr[d, t, b], ls_arr[d, t, b],
@@ -127,49 +134,31 @@ def _ls_interpol(dens_cm3, temp_ev, bfield, wmax, npts,
         w0 = ((B_val[b_idx - 1] - bfield) / denom) * (B_val[b_idx - 2] / bfield)
         for d in range(2):
             for t in range(2):
-                if d * t == 1:
-                    continue
                 arr3[d, t] = w1 * arr2[d, t, 1] + w0 * arr2[d, t, 0]
 
     elif bfield == 0.:
         for d in range(2):
             for t in range(2):
-                if d * t == 1:
-                    continue
                 arr3[d, t] = np.interp(det, w_arr[d, t, 0], ls_arr[d, t, 0],
                                         left=0., right=0.)
     else:  # 0 < B < 1 T
         for d in range(2):
             for t in range(2):
-                if d * t == 1:
-                    continue
                 arr2[d, t, 0] = np.interp(det, w_arr[d, t, 0], ls_arr[d, t, 0],
                                             left=0., right=0.)
                 arr2[d, t, 1] = np.interp(det * (B_val[1] / bfield), w_arr[d, t, 1],
                                             ls_arr[d, t, 1], left=0., right=0.)
         for d in range(2):
             for t in range(2):
-                if d * t == 1:
-                    continue
                 arr3[d, t] = arr2[d, t, 1] + (1. - bfield) * arr2[d, t, 0]
 
-    u = 3. * np.log10(dens_cm3  / density_val    [d_idx - 2])
-    v = 2. * np.log10(temp_ev   / temperature_val[t_idx - 2])
-    ls = u * arr3[1, 0] + v * arr3[0, 1] + (1. - u - v) * arr3[0, 0]
+    u = np.log(dens_cm3 / density_val[d_idx-2]) / np.log(density_val[d_idx-1] / density_val[d_idx-2])
+    v = np.log(temp_ev / temperature_val[t_idx-2]) / np.log(temperature_val[t_idx-1] / temperature_val[t_idx-2])
+    ls = ((1-u)*(1-v)*arr3[0, 0] + u*(1-v)*arr3[1, 0]
+          + (1-u)*v*arr3[0, 1] + u*v*arr3[1, 1])
 
-    # Zero out points where any interpolation corner leaves its table range
-    wmax_safe = wmax
-    for d, t in [(0, 0), (1, 0), (0, 1)]:
-        if b_idx != 2:
-            for b in range(2):
-                sc = B_val[b_idx - 2 + b] / bfield
-                wmax_safe = min(wmax_safe, float(w_arr[d, t, b, -1]) / sc)
-        elif bfield == 0.:
-            wmax_safe = min(wmax_safe, float(w_arr[d, t, 0, -1]))
-        else:
-            wmax_safe = min(wmax_safe, float(w_arr[d, t, 0, -1]))
-            wmax_safe = min(wmax_safe, float(w_arr[d, t, 1, -1]) / (B_val[1] / bfield))
-    ls[np.abs(det) > wmax_safe] = 0.
+    # Each corner is zero-extended at its own boundary. A corner with zero
+    # interpolation weight must not truncate the selected node's support.
 
     return ls
 
@@ -191,20 +180,39 @@ def _estimate_fwhm_hz(n_u, Ne_m3, Ti_ev, B, A, lambda0_nm):
 
 
 def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
-           view_angle_deg=90.0, species='H'):
+           view_angle_deg=90.0, species='H', negative_table_policy='warn'):
     """Rosato Stark-Zeeman-Doppler profile using local tabulated data.
 
-    Faithfully mirrors pystark's pipeline (make_rosato + StarkLineshape): the
-    Stark-Zeeman tables are interpolated exactly as pystark's rosato_pure, then
-    the Doppler convolution and frequency→wavelength conversion are performed in
-    *frequency* space. Doing the convolution in frequency space matters — a
-    Gaussian that is symmetric in frequency is slightly asymmetric in wavelength,
-    so convolving in the wrong domain introduces an antisymmetric error in the
-    line shoulders. Matches the reference to ~1e-6.
+    Supports H/D Balmer transitions n_u=3..7 to n_l=2. Density is in
+    m^-3 at this API; the table uses 1e13..1e16 cm^-3. The temperature axis
+    is Ti_ev for D and 2*Ti_ev for the approximate H isotope mapping, with
+    effective temperature 0.316..31.6 eV. Te_ev is accepted for signature
+    compatibility and is not a table coordinate. B is in [0, 5] T; all
+    endpoints are included. Temperature/isotope mapping is an approximation.
+
+    Density and temperature interpolation uses all four corners with exact
+    logarithmic cell fractions. Magnetic interpolation retains the scaled
+    reference scheme. Doppler is applied in frequency space with zero-extended
+    input support and retained output tails. Returns density per wavelength
+    metre on air-centered coordinates, renormalized over the requested window.
+    This corrected interpolation is not bit-for-bit pystark reproduction.
+    Negative source intensities are preserved with a warning by default,
+    including through Doppler convolution and signed-area normalization.
+    negative_table_policy='raise' rejects affected cells; 'clip' projects
+    source values to zero with a warning. No policy alters the database.
     """
     from starkzee.utils import species_to_ZA
     from starkzee.models.analytical import _fwhm_doppler_nm, _SIGMA2FWHM, _nist_center_air_nm
 
+    if species.lower() not in ('h', 'hydrogen', 'd', 'deuterium'):
+        raise ValueError("Rosato supports H and D Balmer lines only.")
+    if n_l != 2 or not isinstance(n_u, (int, np.integer)) or n_u not in range(3, 8):
+        raise ValueError("Rosato requires n_l=2 and integer n_u from 3 through 7.")
+    wavelengths_nm = np.asarray(wavelengths_nm, dtype=float)
+    if (wavelengths_nm.ndim != 1 or len(wavelengths_nm) < 2
+            or not np.all(np.isfinite(wavelengths_nm)) or np.any(wavelengths_nm <= 0)
+            or not (np.all(np.diff(wavelengths_nm) > 0) or np.all(np.diff(wavelengths_nm) < 0))):
+        raise ValueError("Wavelengths must be positive, finite and strictly monotonic.")
     _, A = species_to_ZA(species)
     # Isotope fudge: Rosato tables are for D; doubling T approximates halving mass (H)
     cc = 2 if A == 1 else 1
@@ -234,14 +242,14 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
         names_str = _set_name_file(n_u, d_idx, t_idx, b_idx, angle_idx)
         w_arr, ls_arr = _read_file(data_dir, names_str)
         lss[:, angle_idx] = _ls_interpol(dens_cm3, temp_eff, B, wmax_ev, npts,
-                                          w_arr, ls_arr, d_idx, t_idx, b_idx)
+                                          w_arr, ls_arr, d_idx, t_idx, b_idx, negative_table_policy)
 
     theta = np.deg2rad(view_angle_deg)
     ls_sz = lss[:, 0] * np.sin(theta)**2 + lss[:, 1] * np.cos(theta)**2
 
     # Detuning (eV) → absolute frequency [Hz]; intensity 1/eV → 1/Hz; area-normalize.
     freqs    = E * det_ev / H + freq_ctr
-    ls_sz_hz = ls_sz * E / H
+    ls_sz_hz = ls_sz * H / E
     ls_sz_hz /= trapz(ls_sz_hz, freqs)
 
     # Uniform internal frequency axis covering the output grid (+5 % margin), as in
@@ -251,7 +259,6 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     half_hz   = max_dfreq * 1.05
     freq_axis = np.linspace(freq_ctr - half_hz, freq_ctr + half_hz, npts)
     ls_sz_fa  = np.interp(freq_axis, freqs, ls_sz_hz, left=0., right=0.)
-    rosato_support = ls_sz_fa > 0
 
     # Doppler convolution in FREQUENCY space (Doppler kernel symmetric in ν).
     extra     = 1000
@@ -265,9 +272,11 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     ls_d     /= ls_d.sum()
 
     ls_szd = fftconvolve(ls_sz_fa, ls_d, 'same')
-    # Zero points outside the Rosato table support: the FFT convolution spreads the
-    # profile via Gaussian tails into that region, so force it back to the boundary.
-    ls_szd[~rosato_support] = 0.
+    # Finite input support is zero-extended before convolution. Retain the
+    # physically generated Doppler tails and signed fluctuations. Clipping is
+    # opt-in: otherwise a positivity projection would bias the noisy data.
+    if negative_table_policy == 'clip':
+        ls_szd = np.maximum(ls_szd, 0.0)
     ls_szd /= trapz(ls_szd, freq_axis)
 
     # Convert frequency → wavelength: I(λ) = I(ν) · c/λ²; interpolate onto output grid.
@@ -278,7 +287,7 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
                        left=0., right=0.)
 
     # Area-normalize in wavelength [m]
-    area = trapz(ls_out, wavelengths_nm * 1e-9)
+    area = abs(trapz(ls_out, wavelengths_nm * 1e-9))
     if area > 0:
         ls_out /= area
 

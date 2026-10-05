@@ -1,6 +1,11 @@
 # Report: Thermal Motional Stark Effect (TMSE) Line Broadening Relevance
 
-This report evaluates when the **Thermal Motional Stark Effect (TMSE)** is relevant for spectral line shape modeling in magnetized plasmas and whether it should be implemented in **StarkZee**. This analysis is based on the paper *"Stark broadening by Lorentz fields in magnetically confined plasmas"* (J. Rosato, Y. Marandet, R. Stamm, 2014) located in the workspace ([Lorentz.html](file:///c:/Users/ronchig/Documents/StarkZee/Lorentz.html)).
+> **Status, 3 October 2026:** this is a standalone implementation proposal,
+> not a description of current StarkZee behavior. TMSE remains unimplemented.
+> The production API now separates emitter and perturber masses, which removes
+> one future interface ambiguity, but no `v × B` field quadrature is present.
+
+This report evaluates when the **Thermal Motional Stark Effect (TMSE)** is relevant for spectral line shape modeling in magnetized plasmas and whether it should be implemented in **StarkZee**. It was originally based on *"Stark broadening by Lorentz fields in magnetically confined plasmas"* (J. Rosato, Y. Marandet, R. Stamm, 2014). The referenced local HTML copy is not present in the current workspace, so numerical claims in this proposal must be rechecked against a stable primary source before implementation.
 
 ---
 

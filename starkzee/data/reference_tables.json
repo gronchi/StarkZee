@@ -1,0 +1,121 @@
+{
+  "registry_version": 1,
+  "generated_on": "2026-09-29",
+  "scope": "Bundled runtime reference-data files; this registry is metadata and is not itself a reference table.",
+  "hash_algorithm": "sha256",
+  "tables": [
+    {
+      "id": "atomic_levels",
+      "path": "starkzee/data/atomic_levels.json",
+      "size_bytes": 8232,
+      "sha256": "1369d53fa14a12aacc0c5b61d76f868d893b724ecfe04cadfab3329a3e2de8c1",
+      "git_blob": "170c05ebfed3ff5aaa600a25389e491b0a96893e",
+      "introduced_in_starkzee": {
+        "commit": "d03a222eaa553dfa6926b693765db6afdf75218a",
+        "date": "2026-06-09T17:22:52-07:00",
+        "author": "G. Ronchi",
+        "subject": "calculation from empirical data"
+      },
+      "source": {
+        "name": "NIST Atomic Spectra Database levels query",
+        "url": "https://physics.nist.gov/PhysRefData/ASD/levels_form.html",
+        "release_for_archived_D_T_queries": "5.12 (2024); current on the recorded 2026-07-13 download dates",
+        "release_for_H": "unknown",
+        "refresh_script": "scripts/update_nist_levels.py",
+        "embedded_metadata": "Per-species query URL and acquisition timestamp are present for D and T; the H section has no embedded metadata.",
+        "license": "unknown",
+        "uncertainty": "NIST uncertainty markers are parsed by the refresh script but are not retained as fields in the normalized runtime table."
+      },
+      "units": {
+        "energy": "cm^-1 above the ground state"
+      },
+      "reproduction_status": "D and T are query-addressable from embedded metadata; H provenance is stated as NIST in project documentation but lacks an archived query URL and acquisition timestamp."
+    },
+    {
+      "id": "rosato_tables",
+      "path": "starkzee/data/rosato_tables.nc",
+      "size_bytes": 48000264,
+      "sha256": "2934e2733a4fda60c5b4d5e904af438f7624aa681b54e205333e7678cc030e24",
+      "git_blob": "408eb943efb19777669d9b12d1ce9011de4b8e7c",
+      "introduced_in_starkzee": {
+        "commit": "00cfedc8ed0cea841b2a8e275b4d037c26ed9ebf",
+        "date": "2026-06-01T12:10:22-07:00",
+        "author": "G. Ronchi",
+        "subject": "+ analytical and tabulated models"
+      },
+      "source": {
+        "nearest_archived_source": "https://github.com/jsallcock/pystark",
+        "pinned_commit": "9a8782ae041493f7fce6728f2636ca20f26b0a0c",
+        "pinned_commit_date": "2021-05-29T12:27:34+01:00",
+        "raw_path": "tabulated_data/rosato/database",
+        "raw_git_tree": "4a0817d831137239b87ed7554b4a6579aab147bd",
+        "raw_file_count": 3000,
+        "raw_total_bytes": 96000000,
+        "raw_canonical_tree_sha256": "b57403bf8e3ff99382aa065f6f33460455985540c28a2536e3be8d40dffaf4e8",
+        "reader_path": "tabulated_data/rosato/LS_DATA_read.f90",
+        "reader_sha256": "ecdc48d051fe642e499d88766a476b547cfc54f6a6bf59e782abf729a2c591eb",
+        "paper": "J. Rosato, Y. Marandet, and R. Stamm, A new table of Balmer line shapes for the diagnostic of magnetic fusion plasmas, JQSRT 187 (2017) 333-337.",
+        "paper_doi": "10.1016/j.jqsrt.2016.10.005",
+        "original_database_acquisition_url": "unknown",
+        "original_database_acquisition_date": "unknown",
+        "license": "unknown",
+        "uncertainty": "No per-node or aggregate uncertainty metadata were found in the NetCDF, raw text files, or archived reader."
+      },
+      "units": {
+        "electron_density": "cm^-3",
+        "temperature": "eV",
+        "magnetic_field": "T",
+        "detuning": "eV",
+        "intensity": "Interpreted as eV^-1 from the reader's area-normalized line-shape convention; not explicitly declared in the archived files."
+      },
+      "axes": {
+        "transitions": ["D_alpha", "D_beta", "D_gamma", "D_delta", "D_epsilon"],
+        "electron_density_nodes": 10,
+        "temperature_nodes": 5,
+        "magnetic_field_nodes": 6,
+        "viewing_angle_nodes": 2,
+        "points_per_profile": 1000
+      },
+      "reproduction_status": "All 3,000,000 detuning values and all 3,000,000 intensity values are exactly equal to the 3,000 pinned raw text files after numeric parsing. The historical text-to-NetCDF conversion program is not archived."
+    },
+    {
+      "id": "stehle_tables",
+      "path": "starkzee/data/stehle_tables.nc",
+      "size_bytes": 15756344,
+      "sha256": "77f821631a885dc8a469598c1fcd1c1e101fa1ff088a02b4ccfac6a0b2916d82",
+      "git_blob": "649e1d34ac5257fe1cce1d126ddf823e94ed0ceb",
+      "introduced_in_starkzee": {
+        "commit": "00cfedc8ed0cea841b2a8e275b4d037c26ed9ebf",
+        "date": "2026-06-01T12:10:22-07:00",
+        "author": "G. Ronchi",
+        "subject": "+ analytical and tabulated models"
+      },
+      "source": {
+        "nearest_archived_source": "https://github.com/jsallcock/pystark",
+        "pinned_commit": "9a8782ae041493f7fce6728f2636ca20f26b0a0c",
+        "pinned_commit_date": "2021-05-29T12:27:34+01:00",
+        "netcdf_path": "tabulated_data/stehle/stehle_tables.nc",
+        "netcdf_git_blob": "649e1d34ac5257fe1cce1d126ddf823e94ed0ceb",
+        "raw_path": "tabulated_data/stehle/raw",
+        "raw_git_tree": "4737f44ae0948b82d10dbb322112a272cc42dd17",
+        "conversion_script": "tabulated_data/stehle/save_raw_data_to_netcdf.py",
+        "conversion_script_sha256": "6abfb12e38cee25ed7664fa7006c89481dbd78c39c55163795b4859e57c36845",
+        "catalog": "CDS/VizieR VI/98A",
+        "catalog_url": "https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=VI/98A",
+        "paper": "C. Stehle and R. Hutcheon, Extensive tabulations of Stark broadened hydrogen line profiles, A&AS 140 (1999) 93-97.",
+        "paper_doi": "10.1051/aas:1999118",
+        "license": "unknown",
+        "uncertainty": "No per-profile numerical uncertainty field is declared in the bundled NetCDF or CDS ReadMe."
+      },
+      "units": {
+        "line_center": "0.1 nm",
+        "electron_density": "cm^-3",
+        "temperature": "K",
+        "normal_field": "30 kV/m",
+        "reduced_detuning": "dimensionless Dalpha = Dlambda/E0",
+        "profile": "inverse reduced detuning"
+      },
+      "reproduction_status": "The bundled NetCDF is byte-for-byte identical to the pinned pystark NetCDF, whose repository includes the CDS VI/98A raw files and the conversion script."
+    }
+  ]
+}

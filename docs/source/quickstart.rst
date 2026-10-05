@@ -5,6 +5,14 @@ The recommended entry point is the :class:`~starkzee.line_profile.LineProfile`
 class.  It wraps all solver calls, stores results as attributes, and provides
 convenience properties for common observation geometries.
 
+Static, FFM, and discrete calculations default to ``use_empirical_data=True``.
+``LineProfile`` selects H, D, or T data from the emitting isotope. Direct
+solver calls must supply the matching ``atom``. Set ``use_empirical_data=False``
+for analytical energies, shells outside the bundled tables, or ions with
+``Z > 1``. Fine-structure tables cover H through n=8, D through n=6, and T
+through n=3. Missing levels raise an error rather than silently changing models.
+Low-level Hamiltonian functions retain their analytical default and eV units.
+
 Choosing static, FFM, or discrete output
 -----------------------------------------
 
@@ -69,8 +77,16 @@ the same ``num_f``, ``num_mu``, ``max_beta``, microfield distribution,
 electron model, and Doppler setting.  For the closest implementation-level
 comparison, set ``frequency_dependent_width=False`` on the static solver,
 because the FFM currently uses one resonance electron-impact width for all
-Stark-dressed transitions.  In the theoretical limit ``ν_i -> 0``, the FFM
-reduces to the static profile.
+Stark-dressed transitions by default. The optional FFM setting
+``sdt_frequency_dependent_width=True`` instead evaluates the electron width at
+each SDT center; this is not identical to the static solver's pointwise
+observation-frequency width. In the theoretical limit ``ν_i -> 0``, the FFM
+reduces to the corresponding static SDT sum when all other settings match.
+
+Both solvers use state-resolved natural damping by default. To reproduce older
+StarkZee results that assigned one shell-average radiative lifetime to every
+component, pass ``natural_width_mode='shell_average'``. This compatibility
+setting affects natural damping only, not the electron-impact-width options.
 
 Basic profile
 -------------
@@ -191,9 +207,10 @@ broadening by default:
     plt.plot(lp_ffm.wavelengths_nm, lp_ffm.profile_transverse)
 
 ``sdt_bin_tol`` (eV) merges Stark-dressed transitions closer together than
-this tolerance before the Markov solve — often a 10-100x speedup with
-negligible accuracy loss; omit it (default ``None``) for the exact,
-unbinned calculation.
+this tolerance before the Markov solve. It can substantially reduce runtime,
+but it is approximate and has no universal safe nonzero value. Compare the
+requested observable against ``None`` while decreasing the tolerance; omit it
+for the unbinned calculation.
 
 The lower-level :func:`~starkzee.ffm.calculate_ffm_profile` can also be
 called directly for more control:
@@ -208,6 +225,21 @@ called directly for more control:
         A_ion=1, energies_ev=energies,
         num_f=30, num_mu=8, sdt_bin_tol=1e-5,
     )
+
+``A_ion`` is the emitter mass. If the background ions have another mass, set
+``A_perturber`` explicitly. The default ``fluctuation_rate_model='zest'`` uses
+the most-probable perturber speed. ``fluctuation_rate_model='ppp'`` instead
+uses the PPP-manual relative speed with the emitter--perturber reduced mass.
+The formulae coincide for equal masses. For hydrogen-like ions,
+``emitter_charge`` defaults to ``Z-1`` and is distinct from background
+``Z_bar``. The current Potekhin fit uses neutral/charged status but not the
+charge magnitude.
+
+For example, Ar XVII in a proton background can request the PPP convention
+with ``use_empirical_data=False``, ``A_ion=40``, ``A_perturber=1``, ``emitter_charge=17``, and
+``fluctuation_rate_model='ppp'``. This selects the intended kinematics; it does
+not supply the still-missing charge-magnitude-dependent APEX microfield or
+Lamb/QED level correction.
 
 Doppler and instrumental broadening
 ------------------------------------

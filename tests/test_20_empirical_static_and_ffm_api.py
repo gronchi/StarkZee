@@ -56,7 +56,7 @@ def test_calculate_static_profile_empirical_vs_analytic_close():
                  energies_ev=energies_ev, num_f=8, num_mu=4)
 
     pi_e, sp_e, sm_e = calculate_static_profile(**kwargs, use_empirical_data=True, atom='H')
-    pi_a, sp_a, sm_a = calculate_static_profile(**kwargs)
+    pi_a, sp_a, sm_a = calculate_static_profile(**kwargs, use_empirical_data=False)
 
     def centroid(pi, sp, sm):
         tot = pi + sp + sm

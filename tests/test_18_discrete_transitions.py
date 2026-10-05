@@ -48,7 +48,8 @@ def test_return_structure():
 ])
 def test_strength_sum_equals_line_strength(n_u, n_l, Z, B):
     """Σ|d_q|² over all transitions must equal line_strength() (unitary invariance)."""
-    tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=B)
+    tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=B,
+                              use_empirical_data=False)
     S_got = tr['strength'].sum()
     S_ref = line_strength(n_u, n_l, Z)
     assert relerr(S_got, S_ref) < 1e-10, (
@@ -66,7 +67,7 @@ def test_strength_sum_equals_line_strength(n_u, n_l, Z, B):
 def test_centroid_at_zero_field(n_u, n_l, Z):
     """Intensity-weighted centroid must equal the Bohr energy at B=0, F=0."""
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=0.0, Fz=0.0, Fx=0.0,
-                               fine_structure=False)
+                               fine_structure=False, use_empirical_data=False)
     E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
     centroid = np.sum(tr['energy_ev'] * tr['strength']) / np.sum(tr['strength'])
     assert relerr(centroid, E0) < 1e-8, (

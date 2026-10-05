@@ -37,7 +37,7 @@ def static_profile_b0(n_u, n_l, Z, Ne, Te, detuning_range=0.05, npts=200,
         n_u=n_u, n_l=n_l, Z=Z, B=B, Ne_m3=Ne, Te_ev=Te,
         energies_ev=energies, num_f=num_f, num_mu=num_mu,
         use_screening=True, quadratic_zeeman=False, fine_structure=True,
-        frequency_dependent_width=False
+        frequency_dependent_width=False, use_empirical_data=False
     )
 
 

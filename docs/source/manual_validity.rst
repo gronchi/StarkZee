@@ -12,10 +12,10 @@ Physical Approximations and Domains of Validity
    * - **Within-Shell Isolation** (:math:`\Delta n = 0`)
      - :math:`V_E = \mathrm{diag}_n(V_E)`, no :math:`n \to n\!\pm\!1` coupling
      - Stark shift :math:`\ll` shell spacing :math:`2Z^2\mathrm{Ry}/n^3`
-     - Quadratic Stark; Inglis-Teller merging at :math:`N_e \gtrsim 10^{24}` m\ :sup:`-3`.
+     - Inter-shell mixing or level merging; the threshold depends on n, charge and field statistics, not density alone.
    * - **Quasi-Static Ion Microfields**
      - :math:`\vec{F}_\mathrm{ion} = \mathrm{const}`
-     - Fluctuation rate :math:`\nu_i \ll` Stark width :math:`\Delta E_S`
+     - Fluctuation energy :math:`\hbar\nu_i \ll \Delta E_S` (convert both to eV for code comparisons)
      - Ion dynamics / motional narrowing; use FFM.
    * - **Semi-Classical Electron Impact**
      - Lorentzian with GBK width :math:`\gamma_e`

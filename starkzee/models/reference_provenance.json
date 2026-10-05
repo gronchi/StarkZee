@@ -1,0 +1,61 @@
+{
+  "registry_version": 1,
+  "generated_on": "2026-09-29",
+  "scope": "Source mapping for the five distinct comparison-model implementations in starkzee.models; the public griem name is an alias of voigt.",
+  "models": {
+    "stehle": {
+      "implementation": "starkzee/models/stehle_impl.py",
+      "classification": "tabulated source plus StarkZee wrapper operations",
+      "primary_source": {
+        "citation": "C. Stehle and R. Hutcheon, Extensive tabulations of Stark broadened hydrogen line profiles, A&AS 140 (1999) 93-97",
+        "doi": "10.1051/aas:1999118",
+        "catalog": "CDS/VizieR VI/98A",
+        "catalog_url": "https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=VI/98A"
+      },
+      "directly_sourced": "The field-free profile arrays and their coordinate metadata come from the catalog-derived NetCDF recorded in starkzee/data/reference_tables.json.",
+      "starkzee_specific": "Interpolation choices, finite-window normalization, Doppler convolution, isotope line-center/mass selection, and the separable normal-Zeeman triplet are wrapper operations, not additional fields contained in VI/98A."
+    },
+    "rosato": {
+      "implementation": "starkzee/models/rosato_impl.py",
+      "classification": "tabulated source plus corrected interpolation and wrapper operations",
+      "primary_source": {
+        "citation": "J. Rosato, Y. Marandet, and R. Stamm, A new table of Balmer line shapes for the diagnostic of magnetic fusion plasmas, JQSRT 187 (2017) 333-337",
+        "doi": "10.1016/j.jqsrt.2016.10.005"
+      },
+      "directly_sourced": "The detuning and intensity arrays exactly match the pinned 3,000-file archive recorded in starkzee/data/reference_tables.json.",
+      "starkzee_specific": "Four-corner logarithmic interpolation repairs the historical reader; Doppler convolution, output normalization, the H isotope approximation, and negative-value policies are wrapper behavior."
+    },
+    "stehle_param": {
+      "implementation": "starkzee/models/analytical.py:stehle_param",
+      "classification": "published parameterization plus wrapper operations",
+      "primary_source": {
+        "citation": "B. A. Lomanowski et al., Inferring divertor plasma properties from hydrogen Balmer and Paschen series spectroscopy in JET-ILW, Nuclear Fusion 55 (2015) 123028",
+        "doi": "10.1088/0029-5515/55/12/123028",
+        "source_locations": ["Equation (1)", "Equation (2)", "Table 1"]
+      },
+      "directly_sourced": "The transition coefficients, power-law FWHM, and absolute-detuning-to-the-5/2 modified Lorentzian are direct transcriptions of Eq. (1), Eq. (2), and Table 1.",
+      "starkzee_specific": "Frequency-domain Doppler convolution, NIST-centered isotope handling, finite-grid normalization, and the separable normal-Zeeman triplet are implementation operations."
+    },
+    "lomanowski": {
+      "implementation": "starkzee/models/analytical.py:lomanowski",
+      "classification": "StarkZee-specific sensitivity approximation using published widths",
+      "primary_source": {
+        "citation": "B. A. Lomanowski et al., Inferring divertor plasma properties from hydrogen Balmer and Paschen series spectroscopy in JET-ILW, Nuclear Fusion 55 (2015) 123028",
+        "doi": "10.1088/0029-5515/55/12/123028",
+        "source_locations": ["Equation (1)", "Table 1"]
+      },
+      "directly_sourced": "Only the transition coefficients and power-law Stark FWHM are transcribed from Eq. (1) and Table 1.",
+      "starkzee_specific": "The common-width modified-Lorentzian/Gaussian pseudo-mixture is not the profile prescribed by the cited paper or by pystark; the historical provenance of its mixing polynomials is unknown. It must be treated as a sensitivity model."
+    },
+    "voigt": {
+      "implementation": "starkzee/models/analytical.py:voigt",
+      "classification": "Griem-scaled engineering approximation",
+      "primary_source": {
+        "citation": "H. R. Griem, Principles of Plasma Spectroscopy, Cambridge University Press (1997)",
+        "doi": "10.1017/CBO9780511524578"
+      },
+      "directly_sourced": "The density-to-the-2/3 Stark-width scaling and alpha_12 coefficient convention are attributed to Griem.",
+      "starkzee_specific": "The exact page/table provenance of every bundled alpha_12 number has not been recovered. StarkZee evaluates a Faddeeva Voigt, adds a separable normal-Zeeman triplet, and normalizes on the requested finite grid."
+    }
+  }
+}
