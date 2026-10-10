@@ -1,6 +1,6 @@
 # StarkZee notes index
 
-Updated 4 October 2026. These notes supplement the public documentation; the
+Updated 7 October 2026. These notes supplement the public documentation; the
 live backlog remains `TODO.md` and completed repair evidence remains in
 `StarkZee_repair_status.md`.
 
@@ -34,6 +34,12 @@ complete fine-structure tables using degeneracy weights.
   both rate formulae, while structured multispecies plasma data and a
   charge-magnitude-dependent APEX/MD microfield remain pending. The next atomic
   task is exact Dirac plus sourced Lamb/QED energies.
+
+## Repository comparisons
+
+- [`arc_vs_starkzee.md`](arc_vs_starkzee.md): atomic-model overlap with ARC,
+  numerical angular-factor checks, H/D magnetic-field validity estimates,
+  and proposed applications to emission modeling from UV through near-IR.
 
 ## Standalone proposal
 

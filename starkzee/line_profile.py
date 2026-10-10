@@ -120,9 +120,17 @@ class DiscreteTransitions:
         Upper eigenstate index (0 … 2n_u²−1).
     lower_idx : ndarray of int
         Lower eigenstate index (0 … 2n_l²−1).
+    einstein_a_s : ndarray
+        Lazily evaluated Einstein A coefficient of every dressed transition
+        [s⁻¹].
+    upper_partial_decay_rate_s : ndarray
+        Lazily evaluated E1 decay rate from every upper eigenstate into this
+        object's lower principal shell [s⁻¹]. Other lower shells and non-E1
+        decay channels are excluded.
     """
 
-    def __init__(self, energy_ev, q, strength, upper_idx, lower_idx, E0):
+    def __init__(self, energy_ev, q, strength, upper_idx, lower_idx, E0,
+                 upper_dimension=None):
         self.energy_ev     = energy_ev
         self.detuning_ev   = energy_ev - E0
         self.wavelength_nm = energy_ev_to_wavelength_nm(energy_ev)
@@ -135,6 +143,39 @@ class DiscreteTransitions:
         self.strength      = strength
         self.upper_idx     = upper_idx
         self.lower_idx     = lower_idx
+        self.upper_dimension = upper_dimension
+        self._einstein_a_s = None
+        self._upper_partial_decay_rate_s = None
+
+    @property
+    def einstein_a_s(self):
+        """Einstein A coefficient of every dressed transition [s^-1].
+
+        Values use each field-shifted transition energy and dressed dipole
+        strength. They are evaluated lazily and do not affect profile-solver
+        runtime.
+        """
+        if self._einstein_a_s is None:
+            from starkzee.atomic import einstein_a_from_strength
+            self._einstein_a_s = einstein_a_from_strength(
+                self.energy_ev, self.strength)
+        return self._einstein_a_s
+
+    @property
+    def upper_partial_decay_rate_s(self):
+        """Rate from each upper eigenstate into this lower shell [s^-1].
+
+        This is a partial E1 decay rate. Other lower principal shells and
+        non-E1 channels are not included.
+        """
+        if self._upper_partial_decay_rate_s is None:
+            dimension = self.upper_dimension
+            if dimension is None:
+                dimension = int(self.upper_idx.max()) + 1 if self.upper_idx.size else 0
+            self._upper_partial_decay_rate_s = np.bincount(
+                self.upper_idx, weights=self.einstein_a_s,
+                minlength=dimension).astype(float, copy=False)
+        return self._upper_partial_decay_rate_s
 
     def __repr__(self):
         qs = np.unique(self.q).tolist()
@@ -231,6 +272,41 @@ class LineProfile:
 
         # Discrete transitions — set by compute_discrete()
         self.discrete = None
+
+    # ── Field-free atomic conveniences ──────────────────────────────────────
+
+    def radial_wavefunction(self, r_a0, l, shell='upper'):
+        r"""Return a field-free radial basis function for this line.
+
+        Parameters
+        ----------
+        r_a0 : float or array-like
+            Radius in Bohr radii.
+        l : int
+            Orbital angular momentum.
+        shell : {'upper', 'lower'}, optional
+            Select ``n_u`` or ``n_l`` (default ``'upper'``).
+        """
+        if shell == 'upper':
+            n = self.n_u
+        elif shell == 'lower':
+            n = self.n_l
+        else:
+            raise ValueError("shell must be 'upper' or 'lower'")
+        from starkzee.atomic import radial_wavefunction
+        return radial_wavefunction(r_a0, n, l, self.Z)
+
+    def radial_dipole(self, l_u, l_l, method=None):
+        r"""Return this line's signed field-free radial dipole integral [a0]."""
+        from starkzee.atomic import radial_dipole
+        return radial_dipole(
+            self.n_u, l_u, self.n_l, l_l, self.Z, method=method)
+
+    @property
+    def field_free_einstein_a_s(self):
+        """Isotope-aware field-free shell-averaged Einstein A [s^-1]."""
+        from starkzee.atomic import einstein_a
+        return einstein_a(self.n_u, self.n_l, self.Z, A=self.A)
 
     # ── Profile computation ──────────────────────────────────────────────────
 
@@ -455,6 +531,7 @@ class LineProfile:
             upper_idx  = raw['upper_idx'],
             lower_idx  = raw['lower_idx'],
             E0         = reference,
+            upper_dimension = 2 * self.n_u**2,
         )
         return self
 

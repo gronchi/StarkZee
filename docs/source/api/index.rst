@@ -5,6 +5,7 @@ API reference
    :maxdepth: 1
 
    line_profile
+   atomic
    static_profile
    ffm
    radiator
@@ -28,6 +29,8 @@ Module overview
      - Contents
    * - :mod:`starkzee.line_profile`
      - High-level :class:`LineProfile` class and :class:`DiscreteTransitions`
+   * - :mod:`starkzee.atomic`
+     - Public field-free wavefunctions, dipoles, strengths, and radiative rates
    * - :mod:`starkzee.static_profile`
      - Static Stark-Zeeman profile solver and discrete-transition enumerator
    * - :mod:`starkzee.ffm`
