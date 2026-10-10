@@ -911,8 +911,52 @@ def oscillator_strength(n_u, n_l, Z):
     return (2.0/3.0) * (delta_E_ev / E_hartree) * S
 
 
+def einstein_a_from_strength(energy_ev, strength_a0_squared):
+    r"""Return spontaneous E1 rates from photon energies and dipole strengths.
+
+    This is the shared conversion used for both field-free shell averages and
+    individual Stark-Zeeman transitions:
+
+    .. math::
+
+        A = \frac{4\alpha^3}{3\tau_\mathrm{au}}
+            \left(\frac{\Delta E}{E_\mathrm{h}}\right)^3 |d|^2.
+
+    Parameters
+    ----------
+    energy_ev : float or array-like
+        Positive photon transition energy [eV].
+    strength_a0_squared : float or array-like
+        Squared electric-dipole matrix element [a0^2]. Inputs are broadcast
+        together using NumPy rules.
+
+    Returns
+    -------
+    float or ndarray
+        Spontaneous-emission rate [s^-1]. A scalar is returned when both
+        broadcast inputs are scalar.
+    """
+    energy_ev, strength_a0_squared = np.broadcast_arrays(
+        np.asarray(energy_ev, dtype=float),
+        np.asarray(strength_a0_squared, dtype=float),
+    )
+    if (np.any(~np.isfinite(energy_ev))
+            or np.any(~np.isfinite(strength_a0_squared))):
+        raise ValueError("energy and dipole strength must be finite")
+    if np.any(energy_ev < 0.0):
+        raise ValueError("photon transition energy must be non-negative")
+    if np.any(strength_a0_squared < 0.0):
+        raise ValueError("dipole strength must be non-negative")
+
+    E_hartree = 2.0 * RYDBERG_EV
+    tau_au = (HBAR / E_CHARGE) / E_hartree
+    rates = ((4.0 / 3.0) * FINE_STRUCTURE**3 / tau_au
+             * (energy_ev / E_hartree)**3 * strength_a0_squared)
+    return float(rates) if rates.ndim == 0 else rates
+
+
 @lru_cache(maxsize=None)
-def einstein_a(n_u, n_l, Z):
+def einstein_a(n_u, n_l, Z, A=None):
     """Compute the Einstein A coefficient for spontaneous emission, in s⁻¹.
 
     Uses the atomic-unit formula:
@@ -930,28 +974,34 @@ def einstein_a(n_u, n_l, Z):
     (e.g. A(2p→1s) using g_k = 6), multiply by 2n_u² / g_participating, where
     g_participating = Σ_{l_u that have an allowed lower state} 2(2l_u+1).
 
+    Parameters
+    ----------
+    n_u, n_l : int
+        Upper and lower principal shells.
+    Z : int
+        Nuclear charge.
+    A : int, optional
+        Emitter mass number. When supplied, use the reduced-mass Rydberg for
+        the photon energy. The default ``None`` preserves the historical
+        infinite-nuclear-mass result.
+
     Returns:
         A_ul (float): spontaneous emission rate in s⁻¹
     """
-    E_hartree = 2.0 * RYDBERG_EV
-    hbar_ev_s = HBAR / E_CHARGE
-    tau_au = hbar_ev_s / E_hartree
-    delta_E_hartree = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2) / E_hartree
+    rydberg_ev = (RYDBERG_EV if A is None
+                  else reduced_mass_rydberg_ev(Z, A))
+    delta_E_ev = (Z**2) * rydberg_ev * (1.0/n_l**2 - 1.0/n_u**2)
     S = line_strength(n_u, n_l, Z)
     g_u = 2 * n_u**2
-    return (4.0/3.0) * FINE_STRUCTURE**3 * delta_E_hartree**3 * S / g_u / tau_au
+    return einstein_a_from_strength(delta_E_ev, S / g_u)
 
 
 @lru_cache(maxsize=None)
 def _einstein_a_substate_rates_cached(n_u, n_l, Z):
     """Cached tuple of partial ``n_u``-substate rates for decay to ``n_l``."""
-    E_hartree = 2.0 * RYDBERG_EV
-    hbar_ev_s = HBAR / E_CHARGE
-    tau_au = hbar_ev_s / E_hartree
-    delta_E_hartree = (Z**2) * RYDBERG_EV * (
-        1.0 / n_l**2 - 1.0 / n_u**2) / E_hartree
-    prefactor = ((4.0 / 3.0) * FINE_STRUCTURE**3
-                 * delta_E_hartree**3 / tau_au)
+    delta_E_ev = (Z**2) * RYDBERG_EV * (
+        1.0 / n_l**2 - 1.0 / n_u**2)
+    prefactor = einstein_a_from_strength(delta_E_ev, 1.0)
     D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
     rates = np.zeros(2 * n_u**2, dtype=float)
     for D in D_q.values():
@@ -1007,6 +1057,4 @@ def natural_decay_rates(n, Z):
     if not isinstance(n, (int, np.integer)) or n < 1:
         raise ValueError("n must be a positive integer.")
     return np.asarray(_natural_decay_rates_cached(int(n), Z), dtype=float)
-
-
 
