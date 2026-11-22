@@ -153,6 +153,62 @@ def reduced_element(term_a, electron_a, term_b, electron_b, Z_core=1.0, mass_amu
     return one_electron_reduced(electron_a.l, term_a.L, electron_b.l, term_b.L, electron_a.L_parent, r)
 
 
+def ls_level_data(upper_terms, lower_terms, couplings, g_L=1.0, g_s=G_S):
+    """Express LS terms as a J-level :class:`~starkzee.level_data.LevelData`.
+
+    Every (term, J) becomes a level (energy in eV) with its LS g_J; the elements of
+    g_L L + g_s S between the J levels of a term become magnetic elements, and the
+    LS couplings give the E1 elements <(L S)J||d||(L' S)J'>. Returns
+    (data, upper indices, lower indices); with these,
+    :class:`~starkzee.jlevel_radiator.JLevelTransition` reproduces
+    :class:`LSTransition`.
+    """
+    from starkzee.level_data import E1Element, JLevel, LevelData, MagneticElement
+
+    levels, index, terms = {}, {}, {}
+    upper, lower = [], []
+    for side, group in (("u", upper_terms), ("l", lower_terms)):
+        for term in group:
+            terms[term.label] = term
+            for J in sorted(term.energies_cm):
+                k = len(levels)
+                index[(term.label, J)] = k
+                L, S = term.L, term.S
+                g = 0.0 if J == 0 else (g_L * (J*(J+1) - S*(S+1) + L*(L+1))
+                                        + g_s * (J*(J+1) + S*(S+1) - L*(L+1))) / (2*J*(J+1))
+                levels[k] = JLevel(k, term.energies_cm[J] * _CM_TO_EV, int(round(2 * J)), term.parity,
+                                   configuration=term.label, label=f"{term.label} J={J:g}", g_J=g,
+                                   decay_rate_s=term.rate(J))
+                (upper if side == "u" else lower).append(k)
+    magnetic = []
+    for term in terms.values():
+        Js = sorted(term.energies_cm)
+        L, S = term.L, term.S
+        for J, J2 in zip(Js, Js[1:]):
+            root = np.sqrt((2 * J + 1) * (2 * J2 + 1))
+            red_L = (_phase(L + S + J2 + 1) * root * wigner_6j(L, J, S, J2, L, 1)
+                     * np.sqrt(L * (L + 1) * (2 * L + 1)))
+            red_S = (_phase(L + S + J + 1) * root * wigner_6j(S, J, L, J2, S, 1)
+                     * np.sqrt(S * (S + 1) * (2 * S + 1)))
+            magnetic.append(MagneticElement(index[(term.label, J)], index[(term.label, J2)],
+                                            g_L * red_L + g_s * red_S))
+    e1 = []
+    for (a, b), reduced_LS in couplings.items():
+        ta, tb = terms[a], terms[b]
+        for J in sorted(ta.energies_cm):
+            for J2 in sorted(tb.energies_cm):
+                red = (_phase(ta.L + ta.S + J2 + 1) * np.sqrt((2 * J + 1) * (2 * J2 + 1))
+                       * wigner_6j(ta.L, J, ta.S, J2, tb.L, 1) * reduced_LS)       # <a J||d||b J2>
+                if red == 0.0:
+                    continue
+                ia, ib = index[(a, J)], index[(b, J2)]
+                lo, up = (ia, ib) if levels[ia].energy_ev <= levels[ib].energy_ev else (ib, ia)
+                if (lo, up) != (ia, ib):                  # store <lower||d||upper>
+                    red *= _phase(J - J2)
+                e1.append(E1Element(lo, up, float(red), True))
+    return LevelData(levels, e1, magnetic, source="LS terms"), upper, lower
+
+
 # ---------------------------------------------------------------- radiator
 @dataclass
 class _Basis:

@@ -36,10 +36,23 @@ class JLevel:
     n_valence: Optional[int] = None
     l_valence: Optional[int] = None
     nele: Optional[int] = None
+    g_J: Optional[float] = None          # Lande factor (diagonal Zeeman element)
+    decay_rate_s: Optional[float] = None  # total E1 decay rate to all lower levels [s^-1]
 
     @property
     def J(self):
         return self.two_j / 2
+
+
+@dataclass(frozen=True)
+class MagneticElement:
+    """Off-diagonal reduced element <a||L + g_s S||b> [mu_B] between levels of equal parity.
+
+    The diagonal elements come from the levels' g_J: <a||..||a> = g_J sqrt(J(J+1)(2J+1)).
+    """
+    a: int
+    b: int
+    reduced: float
 
 
 @dataclass(frozen=True)
@@ -58,6 +71,7 @@ class E1Element:
 class LevelData:
     levels: dict                        # index -> JLevel
     e1: list = field(default_factory=list)
+    magnetic: list = field(default_factory=list)   # MagneticElement, off-diagonal only
     source: str = ""
     Z: Optional[float] = None
     reference_energy_ev: Optional[float] = None   # absolute energy of the zero of energy_ev, if known
@@ -72,6 +86,29 @@ class LevelData:
                 la, lb = self.levels[a], self.levels[b]
                 return (-1.0 if ((la.two_j - lb.two_j) // 2) % 2 else 1.0) * t.reduced
         return None
+
+    def magnetic_element(self, a, b):
+        """<a||L + g_s S||b> [mu_B] in either orientation; diagonal from g_J (None if unknown)."""
+        if a == b:
+            lv = self.levels[a]
+            if lv.g_J is None:
+                return None
+            J = lv.J
+            return lv.g_J * float(np.sqrt(J * (J + 1) * (2 * J + 1)))
+        for t in self.magnetic:
+            if (t.a, t.b) == (a, b):
+                return t.reduced
+            if (t.a, t.b) == (b, a):
+                la, lb = self.levels[a], self.levels[b]
+                return (-1.0 if ((la.two_j - lb.two_j) // 2) % 2 else 1.0) * t.reduced
+        return 0.0
+
+    def decay_rate(self, index):
+        """Level decay rate [s^-1]: the level's own value, else the sum of the dataset's E1 rates."""
+        lv = self.levels[index]
+        if lv.decay_rate_s is not None:
+            return lv.decay_rate_s
+        return sum(t.rate_s or 0.0 for t in self.e1 if t.upper == index)
 
     @property
     def all_signed(self):

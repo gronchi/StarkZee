@@ -73,18 +73,29 @@ class _Double:
         staticmethod(sqrt), staticmethod(float)
 
 
-try:                                   # extended precision: the series alternates and cancels at large n*
-    import mpmath as _mpmath
+_ARITHMETIC = None
 
-    class _Extended:
-        ctx = _mpmath.mp.clone()
-        ctx.dps = 40
-        zero = ctx.mpf(0)
-        exp, log, sqrt, convert = ctx.exp, ctx.log, ctx.sqrt, ctx.mpf
-        lgamma = staticmethod(lambda x, _c=ctx: _c.loggamma(x))
-    _ARITHMETIC = _Extended
-except ImportError:                    # pragma: no cover - mpmath ships with SciPy/SymPy installs
-    _ARITHMETIC = _Double
+
+def _arithmetic():
+    """40-digit mpmath arithmetic if available (imported on first use), else double precision.
+
+    The series alternates and cancels at large n*, hence the extended precision.
+    """
+    global _ARITHMETIC
+    if _ARITHMETIC is None:
+        try:
+            import mpmath as _mpmath
+
+            class _Extended:
+                ctx = _mpmath.mp.clone()
+                ctx.dps = 40
+                zero = ctx.mpf(0)
+                exp, log, sqrt, convert = ctx.exp, ctx.log, ctx.sqrt, ctx.mpf
+                lgamma = staticmethod(lambda x, _c=ctx: _c.loggamma(x))
+            _ARITHMETIC = _Extended
+        except ImportError:            # pragma: no cover - mpmath ships with SciPy/SymPy installs
+            _ARITHMETIC = _Double
+    return _ARITHMETIC
 
 
 @lru_cache(maxsize=None)
@@ -98,7 +109,7 @@ def coulomb_radial(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
     """
     if abs(l_a - l_b) != 1:
         raise ValueError("|l_a - l_b| must be 1")
-    m = _ARITHMETIC
+    m = _arithmetic()
     na, nb, Z = m.convert(n_star_a), m.convert(n_star_b), m.convert(Z_core)
     a, Ka = _coefficients(na, l_a, Z)
     b, Kb = _coefficients(nb, l_b, Z)
