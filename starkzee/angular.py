@@ -15,9 +15,11 @@ The Wigner symbols have two back ends, selected with :func:`set_backend` (the ac
   pywigxjpf is not installed, and for arguments beyond ``MAX_TWO_J``.
 
 Both follow the Condon--Shortley convention and return 0 for arguments that violate
-a selection rule or are not (half-)integers. Results are cached.
+a selection rule or are not (half-)integers. Results are cached. The Racah fallback
+overflows from about j ≈ 50; it then raises ``OverflowError`` recommending pywigxjpf.
 """
 
+import importlib.util
 import math
 import threading
 from functools import lru_cache
@@ -124,18 +126,38 @@ def wigner_6j(j1, j2, j3, j4, j5, j6):
     return _wigner_6j_doubled(*doubled)
 
 
+def _overflow_error(kind, doubled):
+    args = ", ".join(f"{x // 2}" if x % 2 == 0 else f"{x}/2" for x in doubled)
+    if _wig is None and importlib.util.find_spec("pywigxjpf") is not None:
+        advice = "pywigxjpf is installed but not selected; call starkzee.angular.set_backend('auto')"
+    elif _wig is None:
+        advice = ("install pywigxjpf (`pip install pywigxjpf`, or `pip install starkzee[wigner]`), "
+                  "which evaluates Wigner symbols exactly at any j")
+    else:
+        advice = (f"pywigxjpf is active but only up to 2j = MAX_TWO_J = {MAX_TWO_J}; raise "
+                  "starkzee.angular.MAX_TWO_J and call set_backend('racah') then set_backend('auto')")
+    return OverflowError(f"Wigner {kind} symbol ({args}) is too large for the double-precision "
+                         f"Racah fallback; {advice}.")
+
+
 @lru_cache(maxsize=None)
 def _wigner_3j_doubled(a, b, c, ma, mb, mc):
     if _wig is not None and 0 <= min(a, b, c) and max(a, b, c) <= MAX_TWO_J:
         return _pywigxjpf_ready().wig3jj(a, b, c, ma, mb, mc) + 0.0     # + 0.0 turns -0.0 into 0.0
-    return _wigner_3j_racah(a / 2, b / 2, c / 2, ma / 2, mb / 2, mc / 2)
+    try:
+        return _wigner_3j_racah(a / 2, b / 2, c / 2, ma / 2, mb / 2, mc / 2)
+    except OverflowError as err:
+        raise _overflow_error("3-j", (a, b, c, ma, mb, mc)) from err
 
 
 @lru_cache(maxsize=None)
 def _wigner_6j_doubled(a, b, c, d, e, f):
     if _wig is not None and max(a, b, c, d, e, f) <= MAX_TWO_J:
         return _pywigxjpf_ready().wig6jj(a, b, c, d, e, f) + 0.0
-    return _wigner_6j_racah(a / 2, b / 2, c / 2, d / 2, e / 2, f / 2)
+    try:
+        return _wigner_6j_racah(a / 2, b / 2, c / 2, d / 2, e / 2, f / 2)
+    except OverflowError as err:
+        raise _overflow_error("6-j", (a, b, c, d, e, f)) from err
 
 
 # ---------------------------------------------------------------- closed forms in the |l m_l m_s> basis

@@ -60,6 +60,28 @@ needs_pywigxjpf = pytest.mark.skipif(importlib.util.find_spec("pywigxjpf") is No
                                      reason="pywigxjpf not installed")
 
 
+def test_fallback_overflow_recommends_pywigxjpf(monkeypatch):
+    angular.set_backend("racah")
+    try:
+        monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)   # as if not installed
+        with pytest.raises(OverflowError, match="install pywigxjpf"):
+            wigner_3j(150, 150, 200, 10, -10, 0)
+        with pytest.raises(OverflowError, match="install pywigxjpf"):
+            wigner_6j(150, 150, 150, 150, 150, 150)
+    finally:
+        angular.set_backend("auto")
+
+
+@needs_pywigxjpf
+def test_fallback_overflow_when_pywigxjpf_not_selected():
+    angular.set_backend("racah")
+    try:
+        with pytest.raises(OverflowError, match=r"set_backend\('auto'\)"):
+            wigner_3j(150, 150, 200, 10, -10, 0)
+    finally:
+        angular.set_backend("auto")
+
+
 @needs_pywigxjpf
 def test_backends_agree_3j():
     symbols = list(_symbols_3j())
