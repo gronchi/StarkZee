@@ -175,6 +175,25 @@ def ppp_complex_sdts(
         vectors_u, vectors_l, n_u, n_l, Z, impact_coefficient,
         electron_interference=electron_interference,
     )
+    rephased = rephase_transition_dipoles(dipoles, n_u, n_l)
+    return complex_sdts_from_operator(phi, energies, vectors_u, vectors_l, rephased, natural)
+
+
+def complex_sdts_from_operator(phi, transition_energies, eigenvectors_u, eigenvectors_l,
+                               dipoles, natural_widths):
+    """Diagonalize ``L_f - i (Phi + natural)`` for a given collision operator ``Phi`` [eV].
+
+    ``Phi`` is in the coherence basis ``|upper_i><lower_j|`` (index ``i*n_lower + j``)
+    of the dressed states; ``dipoles[q]`` are lower-by-upper matrices in the
+    basis of the eigenvector arrays, in the same phase convention as the
+    Hamiltonian. Returns ``(omega, gamma, strengths)`` as :func:`ppp_complex_sdts`.
+    """
+    energies = np.asarray(transition_energies, dtype=float)
+    vectors_u = np.asarray(eigenvectors_u, dtype=complex)
+    vectors_l = np.asarray(eigenvectors_l, dtype=complex)
+    natural = np.asarray(natural_widths, dtype=float)
+    if natural.ndim == 0:
+        natural = np.full_like(energies, float(natural))
     phi = phi + np.diag(natural.T.ravel())
     generator = np.diag(energies.T.ravel()) - 1j * phi
     eigenvalues, right = eig(generator, check_finite=True)
@@ -188,11 +207,10 @@ def ppp_complex_sdts(
         )
     widths = np.maximum(widths, 0.0)
 
-    rephased = rephase_transition_dipoles(dipoles, n_u, n_l)
-    q_order = tuple(rephased)
+    q_order = tuple(dipoles)
     vectors = []
     for q in q_order:
-        uncoupled = rephased[q]
+        uncoupled = dipoles[q]
         dressed = vectors_l.conj().T @ uncoupled @ vectors_u
         # Appendix B uses d_{alpha,beta}=<upper alpha|d|lower beta>,
         # the Hermitian-conjugate orientation of the stored lower-by-upper

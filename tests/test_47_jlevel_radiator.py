@@ -36,20 +36,51 @@ def pair():
     return up, lo, c
 
 
+def _reference(terms, couplings, B, g_L, g_s, A0_cm):
+    """Independent |term J M> construction (cm^-1) with ls_radiator's _zeeman_operator / _dipole_element."""
+    from starkzee.ls_radiator import _Basis, _dipole_element, _zeeman_operator
+    from starkzee.utils import BOHR_MAGNETON_EV_T, energy_ev_to_wavenumber_cm
+    basis = _Basis(list(terms))
+    H = np.diag(basis.energies) + BOHR_MAGNETON_EV_T * float(energy_ev_to_wavenumber_cm(1.0)) * B \
+        * _zeeman_operator(basis, g_L, g_s)
+    H = H - basis.energies.mean() * np.eye(len(H))
+    labels = [t.label for t in basis.terms]
+    z = np.zeros_like(H, dtype=complex)
+    x = np.zeros_like(H, dtype=complex)
+    for (a, b), red in couplings.items():
+        if a not in labels or b not in labels:
+            continue
+        ia, ib = labels.index(a), labels.index(b)
+        for i, (t, J, M) in enumerate(basis.states):
+            for j, (t2, J2, M2) in enumerate(basis.states):
+                if (t, t2) != (ia, ib):
+                    continue
+                bra, ket = (basis.terms[t], J, M), (basis.terms[t2], J2, M2)
+                ez = _dipole_element(bra, ket, red, 0)
+                ex = (_dipole_element(bra, ket, red, -1) - _dipole_element(bra, ket, red, 1)) / np.sqrt(2)
+                z[i, j] += ez
+                z[j, i] += np.conj(ez)
+                x[i, j] += ex
+                x[j, i] += np.conj(ex)
+    return H, z * A0_cm, x * A0_cm
+
+
 @pytest.mark.parametrize("B", [0.0, 2.0, 8.0])
-def test_matrices_equal_ls_radiator(pair, B):
+def test_matrices_equal_independent_ls_construction(pair, B):
+    from starkzee.utils import A0, energy_ev_to_wavenumber_cm
     up, lo, c = pair
-    ls = LSTransition(up, lo, c, B, g_L=1.0, g_s=G_S)
     data, iu, il = ls_level_data(up, lo, c, g_L=1.0, g_s=G_S)
     jl = JLevelTransition(data, iu, il, B)
-    for a, b in ((ls.upper, jl.upper), (ls.lower, jl.lower)):
-        np.testing.assert_allclose(a.H0 * CM_TO_EV, b.H0, atol=1e-15)
-        np.testing.assert_allclose(a.M_z * CM_TO_EV, b.M_z, atol=1e-25)
-        np.testing.assert_allclose(a.M_x * CM_TO_EV, b.M_x, atol=1e-25)
-        np.testing.assert_array_equal(a.decay_rates, b.decay_rates)
+    ls = LSTransition(up, lo, c, B, g_L=1.0, g_s=G_S)
+    A0_cm = A0 * float(energy_ev_to_wavenumber_cm(1.0))
+    for terms, m, m_ls in ((up, jl.upper, ls.upper), (lo, jl.lower, ls.lower)):
+        H, z, x = _reference(terms, c, B, 1.0, G_S, A0_cm)
+        np.testing.assert_allclose(m.H0, H * CM_TO_EV, atol=1e-15)
+        np.testing.assert_allclose(m.M_z, z * CM_TO_EV, atol=1e-25)
+        np.testing.assert_allclose(m.M_x, x * CM_TO_EV, atol=1e-25)
+        np.testing.assert_array_equal(m.H0, m_ls.H0)                # LSTransition runs on JLevelTransition
     for q in (-1, 0, 1):
-        np.testing.assert_allclose(ls.dipoles[q], jl.dipoles[q], atol=1e-13)
-    assert jl.E0_line == pytest.approx(ls.E0_line, rel=1e-13)
+        np.testing.assert_array_equal(ls.dipoles[q], jl.dipoles[q])
 
 
 def test_profiles_equal_ls_radiator(pair):
