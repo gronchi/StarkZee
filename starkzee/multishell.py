@@ -11,8 +11,8 @@ from functools import lru_cache
 import numpy as np
 from scipy.integrate import quad
 
+from starkzee.angular import angular_dipole_element, sin2_theta_element
 from starkzee.radiator import (
-    angular_dipole_element,
     build_basis,
     build_hamiltonian,
     radial_dipole,
@@ -127,25 +127,6 @@ def build_multishell_stark_matrix(shells, Z, Fz, Fx):
     return result.copy()
 
 
-def _sin2_angular(l1, ml1, l2, ml2):
-    if ml1 != ml2:
-        return 0.0
-    if l1 == l2:
-        if l1 == 0:
-            return 2.0 / 3.0
-        cos2 = (2.0 * l1**2 + 2.0 * l1 - 1.0 - 2.0 * ml1**2) / (
-            (2.0 * l1 - 1.0) * (2.0 * l1 + 3.0))
-        return 1.0 - cos2
-    if abs(l1 - l2) == 2:
-        lower = min(l1, l2)
-        numerator = (((lower + 1.0)**2 - ml1**2)
-                     * ((lower + 2.0)**2 - ml1**2))
-        denominator = ((2.0 * lower + 1.0) * (2.0 * lower + 3.0)**2
-                       * (2.0 * lower + 5.0))
-        return -np.sqrt(numerator / denominator)
-    return 0.0
-
-
 @lru_cache(maxsize=None)
 def _multishell_diamagnetic_template(shells, Z):
     basis = build_multishell_basis(shells)
@@ -154,7 +135,7 @@ def _multishell_diamagnetic_template(shells, Z):
         for j, ket in enumerate(basis):
             if bra.ms != ket.ms:
                 continue
-            angular = _sin2_angular(bra.l, bra.ml, ket.l, ket.ml)
+            angular = sin2_theta_element(bra.l, bra.ml, ket.l, ket.ml)
             if angular:
                 matrix[i, j] = angular * radial_r2_between_shells(
                     bra.n, bra.l, ket.n, ket.l, Z)

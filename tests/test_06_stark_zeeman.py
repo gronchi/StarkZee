@@ -13,8 +13,9 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from starkzee.static_profile import solve_starkzee
+from starkzee.angular import angular_dipole_element
 from starkzee.radiator import (
-    build_basis, angular_dipole_element, radial_dipole, dipole_matrix_elements
+    build_basis, radial_dipole, dipole_matrix_elements
 )
 from starkzee.utils import reduced_mass_rydberg_ev
 

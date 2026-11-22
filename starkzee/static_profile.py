@@ -9,8 +9,9 @@ from starkzee.utils import A0, reduced_mass_rydberg_ev, wavenumber_cm_to_energy_
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
 
 
+from starkzee.angular import angular_dipole_element
 from starkzee.radiator import (
-    build_hamiltonian, build_basis, angular_dipole_element, radial_dipole,
+    build_hamiltonian, build_basis, intrashell_radial_dipole,
     _uncoupled_dipole_matrices, einstein_a, natural_decay_rates,
 )
 from starkzee.microfield import microfield_quadrature
@@ -62,8 +63,7 @@ def _stark_templates(n, Z):
     for i, state_i in enumerate(basis):
         for j, state_j in enumerate(basis):
             if state_i.ms == state_j.ms and abs(state_i.l - state_j.l) == 1:
-                l = max(state_i.l, state_j.l)
-                r_val = (3.0 * n / (2.0 * Z)) * np.sqrt(n**2 - l**2)
+                r_val = intrashell_radial_dipole(n, state_i.l, state_j.l, Z)
                 z_ang = angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, 0)
                 x_ang = (angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, -1) +
                          angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml,  1)) / np.sqrt(2.0)
@@ -87,7 +87,7 @@ def build_stark_matrix(n, Z, Fz, Fx):
         ⟨n, l | r | n, l−1⟩ = (3n/2Z) √(n² − l²)   [a₀]
 
     The angular elements ⟨l, m_l | cos θ | l±1, m_l⟩ (for Fz) and the
-    combinations for Fx are provided by :func:`~starkzee.radiator.angular_dipole_element`.
+    combinations for Fx are provided by :func:`~starkzee.angular.angular_dipole_element`.
 
     The x-component is constructed as:
 
@@ -121,13 +121,12 @@ def build_stark_matrix(n, Z, Fz, Fx):
     dim = len(basis)
     V_E = np.zeros((dim, dim), dtype=complex)
     
-    # Hydrogenic radial matrix element within same n:
+    # Hydrogenic radial matrix element within same n (intrashell_radial_dipole):
     # <n, l | r | n, l-1> = (3n / 2Z) * sqrt(n^2 - l^2)
     for i, state_i in enumerate(basis):
         for j, state_j in enumerate(basis):
             if state_i.ms == state_j.ms and abs(state_i.l - state_j.l) == 1:
-                l = max(state_i.l, state_j.l)
-                r_val = (3.0 * n / (2.0 * Z)) * np.sqrt(n**2 - l**2)
+                r_val = intrashell_radial_dipole(n, state_i.l, state_j.l, Z)
                 
                 # z coupling (q=0)
                 z_ang = angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, 0)

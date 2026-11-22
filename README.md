@@ -61,6 +61,16 @@ pip install -e .
 
 ```
 
+Optional: with [pywigxjpf](https://pypi.org/project/pywigxjpf/) installed (`pip install -e .[wigner]`),
+Wigner 3-j and 6-j symbols use the exact WIGXJPF library instead of the built-in
+double-precision Racah sums (`starkzee.angular.BACKEND` shows which is active). pywigxjpf has
+no Windows wheels; with the Microsoft C++ Build Tools it builds with
+
+```powershell
+$env:CL = "/DTRAIL_ARRAY_EMPTY"
+pip install --no-build-isolation pywigxjpf      # needs numpy, cffi and pycparser installed
+```
+
 ---
 
 ## Quick start

@@ -9,6 +9,7 @@ API reference
    static_profile
    ffm
    radiator
+   angular
    multishell
    microfield
    broadening
@@ -38,6 +39,8 @@ Module overview
    * - :mod:`starkzee.radiator`
      - Basis states, Hamiltonian construction, dipole matrix elements,
        oscillator strengths, Einstein A coefficients
+   * - :mod:`starkzee.angular`
+     - Angular algebra: Wigner 3-j/6-j symbols (pywigxjpf when installed, Racah sums otherwise), dipole, sin²θ and L·S elements
    * - :mod:`starkzee.multishell`
      - Experimental multi-shell CI basis, signed radial integrals, and
        inter-shell Stark and diamagnetic matrices

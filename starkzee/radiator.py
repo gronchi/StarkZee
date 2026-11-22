@@ -7,7 +7,8 @@ from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
 from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE, energy_ev_to_wavenumber_cm
-from starkzee.multielectron import wigner_3j, wigner_6j
+from starkzee.angular import (
+    angular_dipole_element, sin2_theta_element, spin_orbit_element, wigner_3j, wigner_6j)
 
 
 @dataclass(frozen=True)
@@ -205,6 +206,29 @@ def _hyp2f1_neg(m, b, c, x):
     return total
 
 
+_SERIES_SCALE_BITS = 600
+_SERIES_SCALE = 2.0 ** _SERIES_SCALE_BITS
+
+
+def _hyp2f1_neg_scaled(m, b, c, x):
+    """Terminating ₂F₁(−m, b, c, x) as ``(mantissa, k)`` with value ``mantissa · 2**(600 k)``.
+
+    Same finite sum as :func:`_hyp2f1_neg`, rescaled whenever the terms grow past
+    2**600, so the large alternating terms met at high n cannot overflow.
+    """
+    total = 1.0
+    term = 1.0
+    k_scale = 0
+    for k in range(1, int(m) + 1):
+        term *= ((-m + k - 1) * (b + k - 1)) / ((c + k - 1) * k) * x
+        total += term
+        if abs(term) > _SERIES_SCALE:
+            term /= _SERIES_SCALE
+            total /= _SERIES_SCALE
+            k_scale += 1
+    return total, k_scale
+
+
 @lru_cache(maxsize=None)
 def _gordon_radial_dipole(n1, l1, n2, l2, Z):
     """Exact hydrogenic radial dipole ⟨n₁l₁|r|n₂l₂⟩ [a₀] via Gordon's closed form.
@@ -213,6 +237,10 @@ def _gordon_radial_dipole(n1, l1, n2, l2, Z):
     routed to the quad backend by :func:`radial_dipole`. Uses a terminating
     hypergeometric series, so the result is exact to floating-point precision and
     free of the finite-domain truncation and tolerance of numerical integration.
+
+    The squared prefactor is an exact integer ratio (factorials and powers), reduced
+    to a double times a power of two, and the series is rescaled as it grows, so no
+    intermediate overflows at any n; only the final value must fit in a double.
     """
     if abs(l1 - l2) != 1:
         return 0.0
@@ -223,17 +251,30 @@ def _gordon_radial_dipole(n1, l1, n2, l2, Z):
         n_b, L, n_s = n2, l2, n1
     diff = n_b - n_s
     summ = n_b + n_s
-    sqrt_fac = math.sqrt(
-        math.factorial(n_b + L) * math.factorial(n_s + L - 1)
-        / (math.factorial(n_b - L - 1) * math.factorial(n_s - L))
-    )
-    pref = (((-1.0) ** (n_s - L)) / (4.0 * math.factorial(2 * L - 1)) * sqrt_fac
-            * (4.0 * n_s * n_b) ** (L + 1)
-            * float(diff) ** (summ - 2 * L - 2) / float(summ) ** summ)
+    e_diff = summ - 2 * L - 2                     # exponent of diff in the prefactor (>= -1)
+    # prefactor**2 = num / den, exactly
+    num = (math.factorial(n_b + L) * math.factorial(n_s + L - 1) * (4 * n_s * n_b) ** (2 * L + 2))
+    den = (math.factorial(n_b - L - 1) * math.factorial(n_s - L)
+           * 16 * math.factorial(2 * L - 1) ** 2 * summ ** (2 * summ))
+    if e_diff >= 0:
+        num *= (diff * diff) ** e_diff
+    else:
+        den *= diff * diff
+    sign = -1.0 if (n_s - L) % 2 else 1.0
+    if diff < 0 and e_diff % 2:
+        sign = -sign
+    # sqrt(num/den) = sqrt(q) * 2**(t/2), with t even and q in [1/4, 4)
+    t = num.bit_length() - den.bit_length()
+    t -= t & 1
+    q = num / (den << t) if t >= 0 else (num << -t) / den
+
     x = -4.0 * n_s * n_b / float(diff * diff)
-    f1 = _hyp2f1_neg(n_b - L - 1, -(n_s - L), 2 * L, x)
-    f2 = _hyp2f1_neg(n_b - L + 1, -(n_s - L), 2 * L, x)
-    return pref * (f1 - (float(diff) / summ) ** 2 * f2) / Z
+    f1, k1 = _hyp2f1_neg_scaled(n_b - L - 1, -(n_s - L), 2 * L, x)
+    f2, k2 = _hyp2f1_neg_scaled(n_b - L + 1, -(n_s - L), 2 * L, x)
+    k = max(k1, k2)
+    bracket = (math.ldexp(f1, _SERIES_SCALE_BITS * (k1 - k))
+               - (float(diff) / summ) ** 2 * math.ldexp(f2, _SERIES_SCALE_BITS * (k2 - k)))
+    return sign * math.ldexp(math.sqrt(q) * bracket, t // 2 + _SERIES_SCALE_BITS * k) / Z
 
 
 def radial_dipole(n1, l1, n2, l2, Z, method=None):
@@ -264,6 +305,22 @@ def radial_dipole(n1, l1, n2, l2, Z, method=None):
     if method == "gordon" and n1 != n2:
         return _gordon_radial_dipole(n1, l1, n2, l2, Z)
     return _quad_radial_dipole(n1, l1, n2, l2, Z)
+
+
+def intrashell_radial_dipole(n, l1, l2, Z):
+    """Return the intra-shell radial element (3n/2Z)√(n² − l²) [a₀], l = max(l₁, l₂).
+
+    Closed form of ⟨n, l | r | n, l ± 1⟩ in the rephased, *positive* convention of
+    the intra-shell Stark templates (:mod:`starkzee.static_profile`,
+    :mod:`starkzee.collision`). The actual integral with the standard radial
+    functions has the opposite sign (:func:`radial_dipole`, e.g. ⟨2s|r|2p⟩ = −3√3 a₀);
+    the two differ by the rephasing |n,l,m⟩ → (−1)^l |n,l,m⟩. Returns 0 unless
+    abs(l₁ − l₂) = 1.
+    """
+    if abs(l1 - l2) != 1:
+        return 0.0
+    l = max(l1, l2)
+    return (3.0 * n / (2.0 * Z)) * np.sqrt(n**2 - l**2)
 
 
 def reduced_hydrogenic_dipole_j(n_bra, l_bra, j_bra,
@@ -343,95 +400,6 @@ def _quad_radial_dipole(n1, l1, n2, l2, Z):
                   * (x * scale)**3 * scale, 0, np.inf,
                   epsabs=1e-10, epsrel=1e-10, limit=500)
     return val
-
-@lru_cache(maxsize=None)
-def angular_dipole_element(l1, m1, l2, m2, q):
-    """Return the angular part of the dipole matrix element ⟨l₁, m₁ | T_q^(1) | l₂, m₂⟩.
-
-    The spherical tensor components T_q^(1) of the position unit vector r̂ are:
-
-    - q = 0  (π):  T₀ = cos θ
-    - q = +1 (σ+): T₊₁ = sin θ e^{iφ} / √2
-    - q = −1 (σ−): T₋₁ = sin θ e^{−iφ} / √2
-
-    The matrix elements are expressed via Clebsch-Gordan coefficients and are
-    non-zero only when abs(l₁ − l₂) = 1 and m₁ − m₂ = q.  Explicit formulas:
-
-    **q = 0** (Δm = 0, both states share the same m):
-
-        ⟨l, m | cos θ | l+1, m⟩ = √((l+1)² − m²) / √((2l+1)(2l+3))
-
-    evaluated with l = max(l₁, l₂) − 1.
-
-    **q = +1** (m₁ = m₂ + 1):
-
-        ⟨l−1, m | T₊₁ | l, m⟩ = +√((l−m)(l−m−1) / (2(2l−1)(2l+1)))
-        ⟨l, m+1 | T₊₁ | l−1, m⟩ = −√((l+m)(l+m+1) / (2(2l−1)(2l+1)))
-
-    **q = −1** (m₁ = m₂ − 1):
-
-        ⟨l−1, m | T₋₁ | l, m⟩ = −√((l+m)(l+m−1) / (2(2l−1)(2l+1)))
-        ⟨l, m−1 | T₋₁ | l−1, m⟩ = +√((l−m)(l−m+1) / (2(2l−1)(2l+1)))
-
-    Parameters
-    ----------
-    l1, m1 : int
-        Orbital and magnetic quantum numbers of the bra state.
-    l2, m2 : int
-        Orbital and magnetic quantum numbers of the ket state.
-    q : int
-        Polarization index: 0 (π), +1 (σ+), or −1 (σ−).
-
-    Returns
-    -------
-    float
-        Angular matrix element (real).  Returns 0 if abs(l₁ − l₂) ≠ 1 or
-        m₁ − m₂ ≠ q.
-
-    Notes
-    -----
-    The full dipole matrix element between two basis states is
-    ``−radial_dipole(n1,l1,n2,l2,Z) × angular_dipole_element(l1,m1,l2,m2,q)``
-    (the minus sign comes from d = −e r).
-    """
-    if abs(l1 - l2) != 1:
-        return 0.0
-        
-    if q == 0:
-        if m1 != m2:
-            return 0.0
-        l = max(l1, l2)
-        return np.sqrt((l**2 - m1**2) / ((2*l - 1) * (2*l + 1)))
-        
-    elif q == 1:
-        if m1 != m2 + 1:
-            return 0.0
-        # l1 = l-1, l2 = l
-        if l1 == l2 - 1:
-            l = l2
-            m = m2
-            return np.sqrt((l - m) * (l - m - 1) / (2.0 * (2*l - 1) * (2*l + 1)))
-        # l1 = l, l2 = l-1
-        else:
-            l = l1
-            m = m2
-            return -np.sqrt((l + m) * (l + m + 1) / (2.0 * (2*l - 1) * (2*l + 1)))
-            
-    elif q == -1:
-        if m1 != m2 - 1:
-            return 0.0
-        # l1 = l-1, l2 = l
-        if l1 == l2 - 1:
-            l = l2
-            m = m2
-            return -np.sqrt((l + m) * (l + m - 1) / (2.0 * (2*l - 1) * (2*l + 1)))
-        # l1 = l, l2 = l-1
-        else:
-            l = l1
-            m = m2
-            return np.sqrt((l - m) * (l - m + 1) / (2.0 * (2*l - 1) * (2*l + 1)))
-            
-    return 0.0
 
 @lru_cache(maxsize=None)
 def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, use_empirical_data=False, atom="H"):
@@ -526,16 +494,9 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
             if state_i.l == state_j.l and state_i.l > 0:
                 l = state_i.l
                 xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
-                if i == j:
-                    H[i, j] += xi * state_i.ml * state_i.ms
-                elif state_i.ml == state_j.ml + 1 and state_i.ms == state_j.ms - 1:
-                    term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml + 1))
-                    term_s = 1.0 if state_j.ms == 0.5 else 0.0
-                    H[i, j] += 0.5 * xi * term_l * term_s
-                elif state_i.ml == state_j.ml - 1 and state_i.ms == state_j.ms + 1:
-                    term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml - 1))
-                    term_s = 1.0 if state_j.ms == -0.5 else 0.0
-                    H[i, j] += 0.5 * xi * term_l * term_s
+                ls = spin_orbit_element(l, state_i.ml, state_i.ms, state_j.ml, state_j.ms)
+                if ls:
+                    H[i, j] += xi * ls
 
     # 2b. Mass-velocity and Darwin corrections (completes Dirac fine structure).
     if fine_structure:
@@ -582,15 +543,9 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                 if state_i.l == state_j.l and state_i.l > 0:
                     l = state_i.l
                     xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
-                    if i == j: H_break_deg[i, j] += xi * state_i.ml * state_i.ms
-                    elif state_i.ml == state_j.ml + 1 and state_i.ms == state_j.ms - 1:
-                        term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml + 1))
-                        term_s = 1.0 if state_j.ms == 0.5 else 0.0
-                        H_break_deg[i, j] += 0.5 * xi * term_l * term_s
-                    elif state_i.ml == state_j.ml - 1 and state_i.ms == state_j.ms + 1:
-                        term_l = np.sqrt(l * (l + 1.0) - state_j.ml * (state_j.ml - 1))
-                        term_s = 1.0 if state_j.ms == -0.5 else 0.0
-                        H_break_deg[i, j] += 0.5 * xi * term_l * term_s
+                    ls = spin_orbit_element(l, state_i.ml, state_i.ms, state_j.ml, state_j.ms)
+                    if ls:
+                        H_break_deg[i, j] += xi * ls
 
         evals, V = np.linalg.eigh(H_break_deg)
         D_emp = np.zeros(dim)
@@ -635,23 +590,14 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
             for j, state_j in enumerate(basis):
                 if state_i.ms == state_j.ms and state_i.ml == state_j.ml:
                     l1, l2 = state_i.l, state_j.l
-                    ml = state_i.ml
                     if l1 == l2:
                         r2_val = (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l1 * (l1 + 1.0))
-                        if l1 == 0:
-                            cos2_val = 1.0 / 3.0
-                        else:
-                            cos2_val = (2.0 * l1**2 + 2.0 * l1 - 1.0 - 2.0 * ml**2) / ((2.0 * l1 - 1.0) * (2.0 * l1 + 3.0))
-                        sin2_val = 1.0 - cos2_val
-                        H[i, j] += quad_coeff * r2_val * sin2_val
                     elif abs(l1 - l2) == 2:
-                        l_low = min(l1, l2)
-                        num_term = ((l_low + 1.0)**2 - ml**2) * ((l_low + 2.0)**2 - ml**2)
-                        den_term = (2.0 * l_low + 1.0) * (2.0 * l_low + 3.0)**2 * (2.0 * l_low + 5.0)
-                        cos2_val = np.sqrt(num_term / den_term)
-                        sin2_val = - cos2_val
                         r2_val = radial_r2_element(n, l1, l2, Z)
-                        H[i, j] += quad_coeff * r2_val * sin2_val
+                    else:
+                        continue
+                    sin2_val = sin2_theta_element(l1, state_i.ml, l2, state_j.ml)
+                    H[i, j] += quad_coeff * r2_val * sin2_val
 
     return H
 

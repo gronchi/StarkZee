@@ -12,7 +12,7 @@ from typing import Optional
 import numpy as np
 from scipy.constants import e as _E_CHARGE, h as _PLANCK
 
-from starkzee.multielectron import wigner_3j
+from starkzee.angular import wigner_3j
 from starkzee.multishell import (
     build_multishell_basis,
     build_multishell_hamiltonian,

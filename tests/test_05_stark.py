@@ -68,7 +68,7 @@ def test_within_n_radial_element_n2_l1():
     We verify it by looking at the matrix element between states
     |n=2,l=0,ml=0⟩ and |n=2,l=1,ml=0⟩ with Fz only (q=0).
     """
-    from starkzee.radiator import angular_dipole_element
+    from starkzee.angular import angular_dipole_element
     n, Z = 2, 1
     Fz = 1.0   # V/m (arbitrary for this test)
 

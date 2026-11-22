@@ -7,7 +7,7 @@ limit of StarkZee's present perturbative Dirac Hamiltonian.
 
 import numpy as np
 
-from starkzee.multielectron import wigner_6j
+from starkzee.angular import wigner_6j
 from starkzee.radiator import (
     diagonalize_hamiltonian,
     reduced_hydrogenic_dipole_j,

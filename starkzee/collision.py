@@ -12,7 +12,8 @@ import warnings
 import numpy as np
 from scipy.linalg import eig, solve
 
-from starkzee.radiator import angular_dipole_element, build_basis
+from starkzee.angular import angular_dipole_element
+from starkzee.radiator import build_basis, intrashell_radial_dipole
 
 
 def _shell_rephasing(n):
@@ -50,8 +51,7 @@ def intrashell_cartesian_dipoles(n, Z):
         for col, ket in enumerate(basis):
             if bra.ms != ket.ms or abs(bra.l - ket.l) != 1:
                 continue
-            l_high = max(bra.l, ket.l)
-            radial = (3.0 * n / (2.0 * Z)) * np.sqrt(n**2 - l_high**2)
+            radial = intrashell_radial_dipole(n, bra.l, ket.l, Z)
             for q in (-1, 0, 1):
                 angular = angular_dipole_element(
                     bra.l, bra.ml, ket.l, ket.ml, q)
