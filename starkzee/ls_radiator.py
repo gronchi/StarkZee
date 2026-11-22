@@ -35,6 +35,7 @@ import numpy as np
 from scipy.constants import atomic_mass as _U, hbar as _HBAR, e as _E_CHARGE
 
 from starkzee.angular import wigner_3j, wigner_6j
+from starkzee.coulomb_approximation import coulomb_radial, effective_n
 from starkzee.radiator import intrashell_radial_dipole, radial_dipole
 from starkzee.radiators import Manifold
 from starkzee.utils import (
@@ -81,6 +82,26 @@ class LSTerm:
             return float(self.decay_rates.get(J, 0.0))
         return float(self.decay_rates)
 
+    @property
+    def mean_energy_cm(self):
+        """Statistically weighted (2J+1) mean energy of the term [cm^-1]."""
+        w = {J: 2 * J + 1 for J in self.energies_cm}
+        return sum(w[J] * E for J, E in self.energies_cm.items()) / sum(w.values())
+
+
+@dataclass(frozen=True)
+class ActiveElectron:
+    """The radiating electron of a term: n l on a parent term L_parent.
+
+    limit_cm is the series limit (ionization energy to the parent term) on the
+    same energy scale as the term energies; it is needed for the Coulomb
+    approximation.
+    """
+    n: int
+    l: int
+    L_parent: int = 0
+    limit_cm: float = None
+
 
 # ---------------------------------------------------------------- reduced elements
 def orbital_reduced_r(l_a, l_b, radial):
@@ -106,6 +127,30 @@ def hydrogenic_radial(n_a, l_a, n_b, l_b, Z_core):
     if n_a == n_b:
         return -intrashell_radial_dipole(n_a, l_a, l_b, Z_core)
     return radial_dipole(n_a, l_a, n_b, l_b, Z_core)
+
+
+def reduced_element(term_a, electron_a, term_b, electron_b, Z_core=1.0, mass_amu=None, radial="coulomb"):
+    """Signed LS reduced E1 element <a||d||b> [e a0] for one active electron.
+
+    radial : "coulomb" (default) uses the Coulomb approximation with n* from the
+        weighted term energies and the series limits of ``electron_a/b``;
+        "hydrogenic" uses Gordon's hydrogenic integrals with the integer n and
+        Z_core.
+    Both terms must share the parent L (the spectator core is unchanged).
+    """
+    if electron_a.L_parent != electron_b.L_parent:
+        raise ValueError("one-electron E1 requires the same parent term")
+    if radial == "coulomb":
+        if electron_a.limit_cm is None or electron_b.limit_cm is None:
+            raise ValueError("the Coulomb approximation needs the series limits (limit_cm)")
+        na = effective_n(term_a.mean_energy_cm, electron_a.limit_cm, Z_core, mass_amu)
+        nb = effective_n(term_b.mean_energy_cm, electron_b.limit_cm, Z_core, mass_amu)
+        r = coulomb_radial(na, electron_a.l, nb, electron_b.l, Z_core)
+    elif radial == "hydrogenic":
+        r = hydrogenic_radial(electron_a.n, electron_a.l, electron_b.n, electron_b.l, Z_core)
+    else:
+        raise ValueError("radial must be 'coulomb' or 'hydrogenic'")
+    return one_electron_reduced(electron_a.l, term_a.L, electron_b.l, term_b.L, electron_a.L_parent, r)
 
 
 # ---------------------------------------------------------------- radiator

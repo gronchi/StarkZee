@@ -444,7 +444,7 @@ returning the lower and upper subsets and the transitions marked radiative
 | 6 | `Radiator` interface + J-basis + Wigner-Eckart + Hermiticity checks (B1-B2); hydrogenic as Tier 0 (**started on `feature/multi-electron`: `starkzee/radiators.py`, static solver routed through it with bit-identical hydrogenic profiles. `starkzee/ls_radiator.py`: LS-term radiator with exact Zeeman (off-diagonal J), Stark couplings between terms and Wigner-Eckart dipoles; hydrogen n=3-2 rebuilt from LS terms reproduces the hydrogenic profiles to 1e-9 of the peak, and the zero-field Zeeman pattern matches zeemanpb on 60 LS multiplets to 5e-10 cm^-1 / 2e-11. Constant electron widths only (operator: WP7); FFM path pending**) | 1 | T-B0 |
 | 7 | Generalized electron operator and level selection (B4, B8) | 6 | T-B3 |
 | 8 | Data spike: signed matrix elements from FAC/Cowan (B6) | none | decision documented |
-| 9 | Tier 1 quantum-defect module (B7) | 6 | T-B1, one published comparison |
+| 9 | Tier 1 quantum-defect module (B7) (**Coulomb approximation in `starkzee/coulomb_approximation.py`, used by `ls_radiator.reduced_element`; T-B1 exact at integer n*, Li 2s-2p and Na 3s-3p f-values within 1%; hydrogenic option kept**) | 6 | T-B1, one published comparison |
 | 10 | Tier 2 database reader and validation (B6) | 6-8 | T-B4, T-B5 |
 | 11 | Docs: manual sections, TODO items 2-4, validation table | each WP | doc build |
 
