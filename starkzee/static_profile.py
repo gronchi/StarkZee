@@ -12,17 +12,12 @@ from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_
 from starkzee.angular import angular_dipole_element
 from starkzee.radiator import (
     build_hamiltonian, build_basis, intrashell_radial_dipole,
-    _uncoupled_dipole_matrices, einstein_a, natural_decay_rates,
+    _uncoupled_dipole_matrices,
 )
 from starkzee.microfield import microfield_quadrature
+from starkzee.radiators import HydrogenicTransition
 from starkzee.convolutions import uniform_energy_grid
-from starkzee.broadening import (
-    electron_impact_collision_coefficient, electron_impact_width_model,
-    electron_impact_r2_scaling,
-)
-from starkzee.collision import (
-    generalized_lorentzian_components, ppp_complex_sdts,
-)
+from starkzee.collision import generalized_lorentzian_components
 
 @lru_cache(maxsize=None)
 def line_reference_energy(n_u, n_l, Z=1, A=1, use_empirical_data=False, atom="H"):
@@ -233,7 +228,7 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      emitter_charge=None, Z_bar=1.0,
                                      apply_doppler=True, species_charges=None,
                                      species_concentrations=None,
-                                     natural_width_mode='state_resolved'):
+                                     natural_width_mode='state_resolved', radiator=None):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -379,6 +374,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     atom : str, optional
         Atom identifier passed to :func:`~starkzee.atomic_data.load_levels`
         when ``use_empirical_data=True`` (default ``"H"``).
+    radiator : object, optional
+        Radiator supplying the manifolds, dipoles, line energies and electron
+        broadening (see :mod:`starkzee.radiators`). ``None`` (default) builds
+        :class:`~starkzee.radiators.HydrogenicTransition` from ``n_u``, ``n_l``,
+        ``Z`` and the atomic-structure options above, which are then ignored.
 
     Notes on approximations
     -----------------------
@@ -431,8 +431,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 "electron_interference=True currently supports only the PPPB/Ferri "
                 "electron models."
             )
+    if radiator is None:
+        radiator = HydrogenicTransition(n_u, n_l, Z, B, quadratic_zeeman, fine_structure, A,
+                                        use_empirical_data=use_empirical_data, atom=atom)
     if emitter_charge is None:
-        emitter_charge = Z - 1
+        emitter_charge = radiator.default_emitter_charge
     if not np.isfinite(emitter_charge) or emitter_charge < 0:
         raise ValueError("emitter_charge must be finite and nonnegative.")
     if charged is None:
@@ -452,42 +455,12 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     mu_points = 0.5 * (mu_points + 1.0)
     mu_weights = 0.5 * mu_weights
     
-    D_q_uncoupled = _uncoupled_dipole_matrices(n_u, n_l, Z)
-
-    # Precompute field-independent matrices (only depend on n, Z, B — not on microfield F).
-    # H_atom is rebuilt identically at every quadrature point otherwise.
-    # M_z/M_x templates let V_E = Fz*M_z + Fx*M_x without a Python double-loop each time.
-    H_atom_u = build_hamiltonian(n_u, Z, B, quadratic_zeeman, fine_structure, A,
-                                 use_empirical_data=use_empirical_data, atom=atom)
-    H_atom_l = build_hamiltonian(n_l, Z, B, quadratic_zeeman, fine_structure, A,
-                                 use_empirical_data=use_empirical_data, atom=atom)
-    H_atom_u = H_atom_u.copy()
-    H_atom_l = H_atom_l.copy()
-    M_z_u, M_x_u = _stark_templates(n_u, Z)
-    M_z_l, M_x_l = _stark_templates(n_l, Z)
-
-    if use_empirical_data:
-        # H_atom_{u,l} are in cm⁻¹ (NIST convention, incl. Lamb shift); scale the
-        # (always-eV) Stark templates to cm⁻¹/(V/m) so Fz*M_z + Fx*M_x stays
-        # unit-consistent with H_atom in the loop — mirrors the identical
-        # ev_to_cm scaling in solve_starkzee.
-        ev_to_cm = energy_ev_to_wavenumber_cm(1.0)
-        M_z_u, M_x_u = M_z_u * ev_to_cm, M_x_u * ev_to_cm
-        M_z_l, M_x_l = M_z_l * ev_to_cm, M_x_l * ev_to_cm
-        # Center near 0 using the mean of the empirical levels (well-conditions
-        # the eigensolve; equivalent role to En_u/En_l in the analytic branch).
-        En_u = H_atom_u.diagonal().real.mean()
-        En_l = H_atom_l.diagonal().real.mean()
-    else:
-        En_u = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n_u**2)
-        En_l = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n_l**2)
-    # Subtract shell unperturbed energies from diagonal to keep H_atom_u and H_atom_l
-    # well-conditioned (norm ~1e-3 eV instead of ~3 eV, or the cm⁻¹ equivalent)
-    # before diagonalizing in the loop.
-    for i in range(H_atom_u.shape[0]):
-        H_atom_u[i, i] -= En_u
-    for i in range(H_atom_l.shape[0]):
-        H_atom_l[i, i] -= En_l
+    # Field-independent matrices of the radiator: H0 (shell energy removed from the
+    # diagonal), Stark templates (V_E = Fz*M_z + Fx*M_x), dipoles between manifolds.
+    D_q_uncoupled = radiator.dipoles
+    H_atom_u, H_atom_l = radiator.upper.H0, radiator.lower.H0
+    M_z_u, M_x_u = radiator.upper.M_z, radiator.upper.M_x
+    M_z_l, M_x_l = radiator.lower.M_z, radiator.lower.M_x
 
     # Output arrays
     profile_pi = np.zeros_like(energies_ev)
@@ -503,7 +476,7 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         # the latter depends on the requested observation window (its offset and width),
         # not on the emitter, so an asymmetric or shifted window would silently change the
         # modeled Doppler width without changing the physics.
-        _E0_center_ev = line_reference_energy(n_u, n_l, Z, A, use_empirical_data, atom)
+        _E0_center_ev = radiator.E0_physical
         sigma_D = _E0_center_ev * np.sqrt(Ti_ev / mc2_ev)
 
     # Direct Voigt evaluation preserves constant per-transition widths without
@@ -517,34 +490,23 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         raise ValueError(
             "natural_width_mode must be 'state_resolved' or 'shell_average'.")
     if natural_width_mode == 'state_resolved':
-        natural_rates_u_basis = natural_decay_rates(n_u, Z)
-        natural_rates_l_basis = natural_decay_rates(n_l, Z)
+        natural_rates_u_basis = radiator.upper.decay_rates
+        natural_rates_l_basis = radiator.lower.decay_rates
         # Conservative scalar used only by the undersampling diagnostic below.
         min_natural_ev = (_HBAR / (2.0 * _E_CHARGE)
                           * (natural_rates_u_basis.min()
                              + natural_rates_l_basis.min()))
     else:
-        gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
-        gamma_lower = (sum(einstein_a(n_l, k, Z) for k in range(1, n_l))
-                       if n_l > 1 else 0.0)
-        shell_natural_ev = (_HBAR * (gamma_upper + gamma_lower)
-                            / (2.0 * _E_CHARGE))
+        shell_natural_ev = radiator.shell_natural_width_ev()
         min_natural_ev = shell_natural_ev
 
-    # Numerical reconstruction offset for transition energies. It must equal
-    # En_u − En_l (the diagonal shift subtracted from H_atom_u/H_atom_l above)
-    # so that dE_shifted + E0_line recovers the true absolute transition energy
-    # regardless of which reference (analytic Rydberg or empirical-level mean)
-    # En_u/En_l were centered on.
-    if use_empirical_data:
-        E0_line = float(wavenumber_cm_to_energy_ev(En_u - En_l))
-        # In-loop eigenvalues (and hence dE_shifted) are in cm⁻¹; convert to eV.
-        _shift_to_ev = float(wavenumber_cm_to_energy_ev(1.0))
-    else:
-        E0_line = (Z**2) * reduced_mass_rydberg_ev(Z, A) * (1.0/n_l**2 - 1.0/n_u**2)
-        _shift_to_ev = 1.0
-    # Keep physical damping separate from the B-dependent conditioning shift.
-    E0_physical = line_reference_energy(n_u, n_l, Z, A, use_empirical_data, atom)
+    # Numerical reconstruction offset for transition energies: E_ref,u - E_ref,l of
+    # the radiator (the diagonal shift removed from H0), so dE_shifted*unit_to_ev +
+    # E0_line is the absolute transition energy. E0_physical is the fixed line
+    # reference used for damping, independent of the conditioning shift.
+    E0_line = radiator.E0_line
+    _shift_to_ev = radiator.unit_to_ev
+    E0_physical = radiator.E0_physical
 
     # On-resonance width — used for the FFT Lorentzian step (both paths when
     # Doppler is active) and as the scalar w for frequency_dependent_width=False.
@@ -559,24 +521,17 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # terms instead of rescaling either scalar shell width.
     # n_l = 1 (Lyman) has no intra-shell dipole channel, so its impact width is
     # taken as 0 in the default diagonal approximation.
-    w_resonance_e_u = electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_u,
-                                                 electron_model=electron_model)
-    w_resonance_e_l = (electron_impact_width_model(0.0, Ne_m3, Te_ev, B, Z, n=n_l,
-                                                  electron_model=electron_model)
-                       if n_l > 1 else 0.0)
+    w_resonance_e_u, w_resonance_e_l = radiator.electron_widths(
+        0.0, Ne_m3, Te_ev, B, electron_model)
     w_resonance_e = w_resonance_e_u + w_resonance_e_l
     w_resonance = w_resonance_e + min_natural_ev
     ppp_impact_coefficient = None
     if electron_interference:
-        ppp_impact_coefficient = electron_impact_collision_coefficient(
-            Ne_m3, Te_ev, B, Z, n=n_u)
+        ppp_impact_coefficient = radiator.ppp_impact_coefficient(Ne_m3, Te_ev, B)
         # Use the selected-shell mean self-term scale for grid-resolution
         # diagnostics. The scalar electron_model selector does not calibrate
         # the full operator and therefore must not alter this warning.
-        r2_intra_u = 9.0 * n_u**2 * (n_u**2 - 1.0) / (8.0 * Z**2)
-        r2_intra_l = (9.0 * n_l**2 * (n_l**2 - 1.0) / (8.0 * Z**2)
-                      if n_l > 1 else 0.0)
-        w_resonance = (ppp_impact_coefficient * (r2_intra_u + r2_intra_l)
+        w_resonance = (ppp_impact_coefficient * radiator.ppp_self_term_r2()
                        + min_natural_ev)
 
     # Pointwise electron width w_e(E − E0) on the observation grid (PPPB Φ(Δω),
@@ -584,12 +539,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # once per profile call; shared by every quadrature point and transition.
     # Upper and lower shells kept separate (see the on-resonance block above).
     if frequency_dependent_width:
-        _w_e_grid_u = electron_impact_width_model(
-            energies_ev - E0_physical, Ne_m3, Te_ev, B, Z, n=n_u,
-            electron_model=electron_model)[:, np.newaxis]
-        _w_e_grid_l = (electron_impact_width_model(
-            energies_ev - E0_physical, Ne_m3, Te_ev, B, Z, n=n_l,
-            electron_model=electron_model)[:, np.newaxis] if n_l > 1 else 0.0)
+        _w_e_grid_u, _w_e_grid_l = radiator.electron_widths(
+            energies_ev - E0_physical, Ne_m3, Te_ev, B, electron_model)
+        _w_e_grid_u = _w_e_grid_u[:, np.newaxis]
+        if np.ndim(_w_e_grid_l):
+            _w_e_grid_l = _w_e_grid_l[:, np.newaxis]
 
     # Undersampled-Lorentzian guard: in the Lorentzian-accumulation path,
     # components narrower than the grid spacing lose integrated intensity
@@ -636,11 +590,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 # and every ZEST selector use the projected intra-shell sum.
                 r2_form = ('full' if electron_model.lower() in ('pppb', 'ferri')
                            else 'intra')
-                r2_scale_u = electron_impact_r2_scaling(
-                    sz_vectors_u, n_u, Z, r2_form=r2_form)
-                r2_scale_l = (electron_impact_r2_scaling(
-                    sz_vectors_l, n_l, Z, r2_form=r2_form)
-                              if n_l > 1 else None)
+                r2_scale_u, r2_scale_l = radiator.electron_r2_scaling(
+                    sz_vectors_u, sz_vectors_l, r2_form)
             
             # Compute all three dipole intensity matrices; dE is shared across q.
             V_l_adj = sz_vectors_l.conj().T
@@ -659,11 +610,9 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 natural_for_operator = (natural_widths
                                         if natural_width_mode == 'state_resolved'
                                         else shell_natural_ev)
-                frequencies, widths, complex_strengths = ppp_complex_sdts(
-                    dE, sz_vectors_u, sz_vectors_l, D_q_uncoupled,
-                    n_u, n_l, Z, ppp_impact_coefficient,
-                    natural_for_operator, electron_interference=True,
-                )
+                frequencies, widths, complex_strengths = radiator.ppp_sdts(
+                    dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
+                    natural_for_operator)
                 components = generalized_lorentzian_components(
                     energies_ev, frequencies, widths, complex_strengths)
                 profile_pi += weight * components[0]

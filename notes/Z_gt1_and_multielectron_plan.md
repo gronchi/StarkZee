@@ -441,7 +441,7 @@ returning the lower and upper subsets and the transitions marked radiative
 | 3 | H-like energy table / Dirac + Lamb (A3) | 1 | T-A2, T-A3 |
 | 4 | Δn ≠ 0 perturbers and z/n audit in the electron operator (A6) | 1 | T-A5 |
 | 5 | Ar17 external comparison (T-A6) | 2-4 | declared tolerance vs Talin 1995 figures |
-| 6 | `Radiator` interface + J-basis + Wigner-Eckart + Hermiticity checks (B1-B2); hydrogenic as Tier 0 | 1 | T-B0 |
+| 6 | `Radiator` interface + J-basis + Wigner-Eckart + Hermiticity checks (B1-B2); hydrogenic as Tier 0 (**started on `feature/multi-electron`: `starkzee/radiators.py`, static solver routed through it with bit-identical hydrogenic profiles. `starkzee/ls_radiator.py`: LS-term radiator with exact Zeeman (off-diagonal J), Stark couplings between terms and Wigner-Eckart dipoles; hydrogen n=3-2 rebuilt from LS terms reproduces the hydrogenic profiles to 1e-9 of the peak, and the zero-field Zeeman pattern matches zeemanpb on 60 LS multiplets to 5e-10 cm^-1 / 2e-11. Constant electron widths only (operator: WP7); FFM path pending**) | 1 | T-B0 |
 | 7 | Generalized electron operator and level selection (B4, B8) | 6 | T-B3 |
 | 8 | Data spike: signed matrix elements from FAC/Cowan (B6) | none | decision documented |
 | 9 | Tier 1 quantum-defect module (B7) | 6 | T-B1, one published comparison |
