@@ -26,10 +26,12 @@ csv   Generic tables, for converting Cowan / GRASP / HULLAC / SUPERSTRUCTURE
 Conventions
 -----------
 energy    eV, measured from the lowest level.
-redu      reduced dipole matrix element <J||d||J'> in atomic units, recovered
-          as |redu|^2 = 3 gf / (2 dE[Ha]). The SIGN IS LOST, yet relative signs
-          of the Stark-coupling elements matter for PPP; signed values must come
-          from the CSV path or --fac-multipole once that column is verified.
+redu      reduced dipole matrix element <J||d||J'> in atomic units. FAC E1
+          tables (MULTIP = -1) give it signed: <lower||d||upper> = M / sqrt(2)
+          with gf = M^2 dE[Ha]/3 (starkzee.fac_reader). Otherwise (FAC MULTIP = 0,
+          or a CSV without redu) only |redu|^2 = 3 gf / (2 dE[Ha]) is known and the
+          SIGN IS LOST, yet relative signs of the Stark-coupling elements matter
+          for PPP.
 popu      ETL population relative to the lowest level,
           (g/g0) exp(-(E-E0)/kT_e); this reproduces the Ar17.dat example.
 xstrs     2 = radiative (ground <-> excited), 1 = Stark coupling (same manifold).
@@ -80,8 +82,7 @@ _FAC_SHELL = re.compile(r"(\d+)([%s])" % ORBITALS)
 _FLOAT = r"[-+]?\d*\.?\d+(?:[Ee][-+]?\d+)?"
 
 
-def read_fac(lev_path: Path, tr_path: Path | None,
-             multipole_col: bool = False) -> tuple[list[Level], list[Transition]]:
+def read_fac(lev_path: Path, tr_path: Path | None) -> tuple[list[Level], list[Transition]]:
     levels = []
     for line in lev_path.read_text().splitlines():
         m = _FAC_LEV.match(line)
@@ -100,19 +101,12 @@ def read_fac(lev_path: Path, tr_path: Path | None,
 
     transitions = []
     if tr_path is not None:
-        # FAC layout (checked on demo/structure/ref/ne.tr, FAC 1.1.5):
-        #   UP 2J LOW 2J DE(eV) GF A(1/s) <8th column>
-        # The 8th column equals GF in that file, so it is not used as a reduced
-        # matrix element unless multipole_col is set.
-        row = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)((?:\s+%s){3,4})\s*$" % _FLOAT)
-        for line in tr_path.read_text().splitlines():
-            m = row.match(line)
-            if not m:
-                continue
-            up, _, low, _ = (int(m.group(i)) for i in range(1, 5))
-            vals = [float(v) for v in m.group(5).split()]
-            transitions.append(Transition(low, up, redu=vals[3] if multipole_col and len(vals) > 3 else None,
-                                          gf=vals[1], a_s=vals[2]))
+        # starkzee.fac_reader interprets the M column from the MULTIP header:
+        # signed <lower||d||upper> for E1 tables, gf (sign lost) for MULTIP = 0.
+        from starkzee.fac_reader import read_fac as read_fac_data
+        for t in read_fac_data(lev_path, tr_path).e1:
+            transitions.append(Transition(t.lower, t.upper, redu=t.reduced if t.signed else None,
+                                          gf=t.gf, a_s=t.rate_s))
     return levels, transitions
 
 
@@ -209,14 +203,14 @@ def main(argv=None) -> int:
                    "(default: n of the lowest level)")
     p.add_argument("--n-ground", type=int, help="instead, treat the N lowest levels as ground levels")
     p.add_argument("--fac-multipole", action="store_true",
-                   help="take redu from the 8th column of the FAC transition file (signed)")
+                   help="no effect: signed redu is taken automatically from FAC E1 (MULTIP = -1) tables")
     p.add_argument("--min-redu", type=float, default=0.0, help="drop transitions with |redu| below this")
     a = p.parse_args(argv)
 
     if len(a.output.name) > MAX_BASE_NAME:
         p.error(f"PPP limits the database filename to {MAX_BASE_NAME} characters: {a.output.name}")
     if a.format == "fac":
-        levels, transitions = read_fac(a.levels, a.transitions, a.fac_multipole)
+        levels, transitions = read_fac(a.levels, a.transitions)
     else:
         levels, transitions = read_csv(a.levels, a.transitions)
     mark_ground(levels, a.ground_n, a.n_ground)
