@@ -1,4 +1,4 @@
-"""Neutral J-level atomic data filled by the file readers (FAC now; Cowan, PPP, ADAS later).
+"""Neutral J-level atomic data filled by the file readers (FAC and Cowan RCG now; PPP, ADAS later).
 
 A dataset holds levels (energy, J, parity, labels) and E1 reduced elements between
 them. Reduced elements follow the Edmonds / Wigner-Eckart convention used in
