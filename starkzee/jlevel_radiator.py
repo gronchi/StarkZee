@@ -115,12 +115,30 @@ class JLevelTransition:
                 states.append((i, lv.J, -lv.J + k))
         return states
 
+    def _warn_weak_field(self, states, mu):
+        """Without off-diagonal magnetic elements only g_J enters: warn if B mixes J levels."""
+        data = self.data
+        idx = sorted({i for i, _, _ in states})
+        for k, a in enumerate(idx):
+            for b in idx[k + 1:]:
+                la, lb = data.levels[a], data.levels[b]
+                if (la.parity == lb.parity and abs(la.two_j - lb.two_j) <= 2
+                        and abs(la.energy_ev - lb.energy_ev) < 10.0 * mu):
+                    warnings.warn(
+                        f"levels {a} and {b} are {abs(la.energy_ev - lb.energy_ev):.2e} eV apart, not large "
+                        f"next to mu_B B = {mu:.2e} eV, but the dataset has no off-diagonal magnetic "
+                        "elements (e.g. FAC tables): the g_J-only Zeeman term misses their B mixing",
+                        UserWarning, stacklevel=4)
+                    return
+
     def _manifold(self, states, B):
         data = self.data
         E = np.array([data.levels[i].energy_ev for i, _, _ in states])
         H = np.diag(E).astype(complex)
         if B != 0.0:
             mu = BOHR_MAGNETON_EV_T * B
+            if not data.magnetic:
+                self._warn_weak_field(states, mu)
             for i, (a, J, M) in enumerate(states):
                 for j, (b, J2, M2) in enumerate(states):
                     if abs(M - M2) > 1e-9 or abs(J - J2) > 1 + 1e-9:

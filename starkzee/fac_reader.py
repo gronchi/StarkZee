@@ -23,14 +23,20 @@ after dE and a CI factor at the end). What M is depends on MULTIP:
 
 Signs come from FAC's eigenvector phases: they are consistent within one
 structure calculation (one level set), not between separate runs.
+
+Lande factors are not in FAC's level tables. :func:`read_fac` takes them from a
+dict (e.g. from a FAC Zeeman calculation or measured values) or estimates them
+in pure jj coupling from FAC's relativistic level names (:func:`jj_lande_factor`),
+ignoring configuration and intermediate-coupling mixing.
 """
+import dataclasses
 import re
 from pathlib import Path
 
 import numpy as np
 
 from starkzee.level_data import E1Element, JLevel, LevelData, reduced_from_gf
-from starkzee.utils import HARTREE_EV
+from starkzee.utils import G_S, HARTREE_EV
 
 _KEY = re.compile(r"^\s*([A-Za-z0-9 ]+?)\s*=\s*(.*?)\s*$")
 
@@ -135,17 +141,64 @@ def read_fac_transitions(path):
     return head, blocks
 
 
-def read_fac(lev_path, tr_path=None, gf_rtol=1e-4):
+_SUBSHELL = re.compile(r"^(\d+)([a-z])([+-])(\d+)\((\d+)\)(\d+)$")
+_L_LETTERS = "spdfghiklmnoqrtuv"
+
+
+def jj_lande_factor(name, g_s=G_S, g_L=1.0):
+    """Lande g_J of a pure jj-coupled FAC level from its relativistic name.
+
+    The name lists the open subshells as ``n l(+|-) occupancy (2J_sub) 2J_cumulative``
+    joined by dots, e.g. ``2p+3(3)3.3s+1(1)4``: every subshell has the one-electron
+    g_j = g_L +- (g_s - g_L)/(2l+1) for j = l +- 1/2 (equivalent electrons share
+    it), and successive couplings J1 + J2 -> J combine them with the projection
+    formula. Returns 0 for J = 0.
+    """
+    g, two_j = None, 0
+    for token in name.split("."):
+        m = _SUBSHELL.match(token.strip())
+        if m is None:
+            raise ValueError(f"cannot parse FAC relativistic subshell {token!r} in {name!r}")
+        l = _L_LETTERS.index(m.group(2))
+        sign = 1 if m.group(3) == "+" else -1
+        g_sub = g_L + sign * (g_s - g_L) / (2 * l + 1)
+        j2_sub, j2_cum = int(m.group(5)), int(m.group(6))
+        if g is None:
+            g, two_j = g_sub, j2_sub
+            if j2_cum != j2_sub:
+                raise ValueError(f"first subshell of {name!r}: 2J_sub {j2_sub} != 2J {j2_cum}")
+            continue
+        J1, J2, J = two_j / 2, j2_sub / 2, j2_cum / 2
+        if J > 0:
+            g = (g * (J * (J + 1) + J1 * (J1 + 1) - J2 * (J2 + 1))
+                 + g_sub * (J * (J + 1) + J2 * (J2 + 1) - J1 * (J1 + 1))) / (2 * J * (J + 1))
+        two_j = j2_cum
+    return 0.0 if two_j == 0 else float(g)
+
+
+def read_fac(lev_path, tr_path=None, gf_rtol=1e-4, g_factors=None):
     """Levels and E1 elements of a FAC calculation as :class:`~starkzee.level_data.LevelData`.
 
     E1 blocks (MULTIP = -1) give signed elements <lower||d||upper> = M / sqrt(2),
     checked against gf to ``gf_rtol`` (M is stored in single precision). MULTIP = 0
     blocks give unsigned magnitudes from gf (all multipoles summed); other
     multipoles are skipped.
+
+    g_factors : None, dict {level index: g_J} or ``"jj"``
+        Lande factors (needed for B != 0). ``"jj"`` estimates them from the
+        relativistic level names in pure jj coupling (:func:`jj_lande_factor`);
+        levels missing from a dict keep g_J = None.
     """
     head, levels = read_fac_levels(lev_path)
+    if g_factors == "jj":
+        levels = [dataclasses.replace(lv, g_J=jj_lande_factor(lv.label)) for lv in levels]
+    elif g_factors is not None:
+        levels = [dataclasses.replace(lv, g_J=float(g_factors[lv.index])) if lv.index in g_factors else lv
+                  for lv in levels]
     data = LevelData(levels={lv.index: lv for lv in levels}, source=f"FAC {head['FAC']}: {Path(lev_path).name}",
                      Z=head["Z"], reference_energy_ev=head.get("E0_ev"))
+    if g_factors == "jj":
+        data.notes.append("g_J estimated in pure jj coupling from the level names (mixing ignored)")
     if tr_path is None:
         return data
     _, blocks = read_fac_transitions(tr_path)
