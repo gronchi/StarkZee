@@ -5,7 +5,8 @@ For every manifold the radiator builds
 
 * H0(B) = E_J (zero-field level energies, any number of terms) + the exact Zeeman
   operator mu_B B (g_L L_z + g_s S_z), including the elements between the J levels
-  of a term (Paschen-Back mixing);
+  of a term (Paschen-Back mixing), and optionally the diamagnetic term from the
+  term elements of r^2 C^0 and r^2 C^2 (``diamagnetic``);
 * the Stark templates M_z, M_x from the E1 couplings between terms of opposite
   parity inside the manifold (e.g. 4d-4f, 4d-4p for He I 447.1 nm), so that the
   electric interaction is Fz*M_z + Fx*M_x;
@@ -118,6 +119,43 @@ def one_electron_reduced(l_a, L_a, l_b, L_b, L_parent, radial):
     """
     return (_phase(L_parent + l_a + L_b + 1) * np.sqrt((2 * L_a + 1) * (2 * L_b + 1))
             * wigner_6j(l_a, L_a, L_parent, L_b, l_b, 1) * orbital_reduced_r(l_a, l_b, radial))
+
+
+def one_electron_r2_reduced(l_a, L_a, l_b, L_b, L_parent, k, radial_r2):
+    """<(Lp l_a) L_a || r^2 C^k || (Lp l_b) L_b> [a0^2] for one active electron on a parent Lp.
+
+    radial_r2 is <n_a l_a| r^2 |n_b l_b> [a0^2]; k = 0 or 2 (the diamagnetic term).
+    """
+    orbital = (_phase(l_a) * np.sqrt((2 * l_a + 1) * (2 * l_b + 1))
+               * wigner_3j(l_a, k, l_b, 0, 0, 0))                                 # <l_a||C^k||l_b>
+    return (_phase(L_parent + l_a + L_b + k) * np.sqrt((2 * L_a + 1) * (2 * L_b + 1))
+            * wigner_6j(l_a, L_a, L_parent, L_b, l_b, k) * orbital * radial_r2)
+
+
+def ls_diamagnetic_elements(terms, index, diamagnetic):
+    """J-level elements {(i, j): {k: <(L S)J||r^2 C^k||(L' S)J'>}} from term elements.
+
+    terms: {label: LSTerm}; index: {(label, J): level index}; diamagnetic:
+    {(label_a, label_b): {k: <L_a||r^2 C^k||L_b>}} (each unordered pair once).
+    """
+    out = {}
+    for (a, b), by_rank in diamagnetic.items():
+        ta, tb = terms[a], terms[b]
+        if abs(ta.S - tb.S) > 1e-9 or ta.parity != tb.parity:
+            raise ValueError(f"{a} - {b}: the diamagnetic term needs equal S and parity")
+        for J in sorted(ta.energies_cm):
+            for J2 in sorted(tb.energies_cm):
+                if a == b and J2 < J:                  # the reverse follows from hermiticity
+                    continue
+                values = {}
+                for k, red in by_rank.items():
+                    v = (_phase(ta.L + ta.S + J2 + k) * np.sqrt((2 * J + 1) * (2 * J2 + 1))
+                         * wigner_6j(ta.L, J, ta.S, J2, tb.L, k) * red)
+                    if v:
+                        values[k] = float(v)
+                if values:
+                    out[(index[(a, J)], index[(b, J2)])] = values
+    return out
 
 
 def hydrogenic_radial(n_a, l_a, n_b, l_b, Z_core):
@@ -281,12 +319,17 @@ class LSTransition(JLevelTransition):
         see :class:`~starkzee.jlevel_radiator.JLevelTransition`.
     upper_perturbers, lower_perturbers : sequences of LSTerm
         Terms outside the manifolds that perturb them through electron collisions.
+    diamagnetic : dict, optional
+        {(label_a, label_b): {0: <a||r^2 C^0||b>, 2: <a||r^2 C^2||b>}} [a0^2],
+        term elements (e.g. :func:`one_electron_r2_reduced`) between terms of
+        one manifold, diagonal pairs included, each unordered pair once. Adds the
+        diamagnetic (quadratic Zeeman) term; default: linear Zeeman term only.
     """
 
     def __init__(self, upper_terms, lower_terms, couplings, B, mass_amu=None, g_L=None, g_s=G_S,
                  emitter_charge=0.0, electron_widths_ev=None, reference_energy_ev=None,
                  collision_n=None, collision_Z=None, upper_perturbers=(), lower_perturbers=(),
-                 collision_n_lower=None):
+                 collision_n_lower=None, diamagnetic=None):
         if g_L is None:
             g_L = 1.0 if mass_amu is None else 1.0 - M_E / (mass_amu * _U)
         self.g_L, self.g_s = g_L, g_s
@@ -305,11 +348,13 @@ class LSTransition(JLevelTransition):
         index = lambda group: [k for t in group for k, lv in data.levels.items()   # noqa: E731
                                if lv.configuration == t.label]
         self._term_of = {k: lv.configuration for k, lv in data.levels.items()}
+        level_index = {(lv.configuration, lv.J): k for k, lv in data.levels.items()}
+        dia = ls_diamagnetic_elements(terms, level_index, diamagnetic) if diamagnetic else None
         super().__init__(data, index(groups[0]), index(groups[1]), B, emitter_charge=emitter_charge,
                          electron_widths_ev=electron_widths_ev, reference_energy_ev=reference_energy_ev,
                          collision_n=collision_n, collision_Z=collision_Z,
                          upper_perturbers=index(groups[2]), lower_perturbers=index(groups[3]),
-                         collision_n_lower=collision_n_lower, mass_amu=mass_amu)
+                         collision_n_lower=collision_n_lower, mass_amu=mass_amu, diamagnetic=dia)
 
     @property
     def states(self):

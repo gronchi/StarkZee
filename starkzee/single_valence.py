@@ -13,7 +13,11 @@ table (``data/<ion>_nist.json``, NIST values). A line n_u -> n_l is built as an
 * natural widths from the E1 rates (same radial model) of every term to all
   lower terms in the table;
 * the generalized electron impact operator with the effective n of the most
-  hydrogenic (largest l) term of each shell and the core charge.
+  hydrogenic (largest l) term of each shell and the core charge;
+* the diamagnetic (quadratic Zeeman) term inside each shell, with <r^2> from the
+  same radial model (``diamagnetic=True``). The field-free radial functions are
+  kept: the mixing of other shells by the field is ~0.2 gamma^2 n^7 / Z^4
+  (gamma = B / 2.35e5 T), 3e-4 for C IV n = 5 at 500 T.
 
 Optional perturbing shells add their Delta n != 0 couplings to the collision
 self terms only.
@@ -26,8 +30,9 @@ import numpy as np
 from scipy.constants import c as _C, epsilon_0 as _EPS0, hbar as _HBAR, e as _E
 from scipy.constants import physical_constants as _pc
 
-from starkzee.coulomb_approximation import effective_n
-from starkzee.ls_radiator import ActiveElectron, LSTerm, LSTransition, reduced_element
+from starkzee.coulomb_approximation import coulomb_r2, effective_n
+from starkzee.ls_radiator import ActiveElectron, LSTerm, LSTransition, one_electron_r2_reduced, reduced_element
+from starkzee.radiator import radial_r2_element
 from starkzee.utils import wavenumber_cm_to_energy_ev
 
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -71,6 +76,36 @@ def term_reduced(data, a, b, radial="coulomb"):
                            mass_amu=data["mass_amu"], radial=radial)
 
 
+def term_r2(data, a, b, radial="coulomb"):
+    """Radial <a| r^2 |b> [a0^2] between two terms of one shell (|Delta l| = 0 or 2)."""
+    T, E = data["terms"], data["electrons"]
+    ea, eb = E[a], E[b]
+    if radial == "coulomb":
+        Z, M, lim = data["core_charge"], data["mass_amu"], data["limit_cm"]
+        return coulomb_r2(effective_n(T[a].mean_energy_cm, lim, Z, M), ea.l,
+                          effective_n(T[b].mean_energy_cm, lim, Z, M), eb.l, Z)
+    if radial == "hydrogenic":
+        if ea.n != eb.n:
+            raise ValueError("hydrogenic r^2 elements are implemented inside one shell")
+        return radial_r2_element(ea.n, ea.l, eb.l, data["core_charge"])
+    raise ValueError("radial must be 'coulomb' or 'hydrogenic'")
+
+
+def shell_diamagnetic(data, labels, radial="coulomb"):
+    """Term elements {(a, b): {k: <a||r^2 C^k||b>}} inside a shell (input of LSTransition)."""
+    E = data["electrons"]
+    out = {}
+    for i, a in enumerate(labels):
+        for b in labels[i:]:
+            la, lb = E[a].l, E[b].l
+            if abs(la - lb) not in (0, 2):
+                continue
+            r2 = term_r2(data, a, b, radial)
+            ranks = (0, 2) if la == lb else (2,)
+            out[(a, b)] = {k: float(one_electron_r2_reduced(la, la, lb, lb, 0, k, r2)) for k in ranks}
+    return out
+
+
 def partial_rate(data, upper, lower, radial="coulomb"):
     """E1 rate [s^-1] of term ``upper`` (each J) to all J of term ``lower`` (LS coupling)."""
     T = data["terms"]
@@ -94,10 +129,12 @@ def _dl1_pairs(a_labels, b_labels, data):
 
 
 def single_valence_transition(data, n_upper, n_lower, B, radial="coulomb", natural_widths=True,
-                              upper_perturber_shells=(), lower_perturber_shells=(), **radiator_options):
+                              upper_perturber_shells=(), lower_perturber_shells=(), diamagnetic=True,
+                              **radiator_options):
     """LSTransition for the n_upper -> n_lower line of a one-valence-electron ion.
 
     ``data`` is a table from :func:`load_single_valence` (or a bundled name).
+    ``diamagnetic`` adds the quadratic Zeeman term inside both shells (default).
     Further keyword arguments go to :class:`~starkzee.ls_radiator.LSTransition`.
     The radiator gets ``line_energy_ev`` (centroid of the strongest, largest-l
     component), ``couplings`` and ``ion_data`` (the table).
@@ -130,6 +167,8 @@ def single_valence_transition(data, n_upper, n_lower, B, radial="coulomb", natur
                    collision_n_lower=effective_n(T[top_l].mean_energy_cm, d["limit_cm"], d["core_charge"],
                                                  d["mass_amu"]),
                    collision_Z=d["core_charge"])
+    if diamagnetic:
+        options["diamagnetic"] = {**shell_diamagnetic(d, up, radial), **shell_diamagnetic(d, lo, radial)}
     options.update(radiator_options)
     radiator = LSTransition([term(k) for k in up], [term(k) for k in lo], couplings, B,
                             upper_perturbers=[term(k) for k in up_p], lower_perturbers=[term(k) for k in lo_p],

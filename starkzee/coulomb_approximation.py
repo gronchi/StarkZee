@@ -98,6 +98,19 @@ def _arithmetic():
     return _ARITHMETIC
 
 
+def _moment(n_star_a, l_a, n_star_b, l_b, Z_core, power):
+    """Signed <n*_a l_a| r^power |n*_b l_b> [a0^power] (positive-near-origin functions)."""
+    m = _arithmetic()
+    na, nb, Z = m.convert(n_star_a), m.convert(n_star_b), m.convert(Z_core)
+    a, Ka = _coefficients(na, l_a, Z)
+    b, Kb = _coefficients(nb, l_b, Z)
+    norm_a = _overlap(a, na, a, na, 2 * Z / na, 0, m)
+    norm_b = _overlap(b, nb, b, nb, 2 * Z / nb, 0, m)
+    integral = _overlap(a, na, b, nb, Z * (1 / na + 1 / nb), power, m)
+    sign = -1.0 if (Ka + Kb) % 2 else 1.0                     # positive near the origin
+    return sign * float(integral / m.sqrt(norm_a * norm_b))
+
+
 @lru_cache(maxsize=None)
 def coulomb_radial(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
     """Signed <n*_a l_a| r |n*_b l_b> [a0] in the Coulomb approximation.
@@ -109,12 +122,17 @@ def coulomb_radial(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
     """
     if abs(l_a - l_b) != 1:
         raise ValueError("|l_a - l_b| must be 1")
-    m = _arithmetic()
-    na, nb, Z = m.convert(n_star_a), m.convert(n_star_b), m.convert(Z_core)
-    a, Ka = _coefficients(na, l_a, Z)
-    b, Kb = _coefficients(nb, l_b, Z)
-    norm_a = _overlap(a, na, a, na, 2 * Z / na, 0, m)
-    norm_b = _overlap(b, nb, b, nb, 2 * Z / nb, 0, m)
-    integral = _overlap(a, na, b, nb, Z * (1 / na + 1 / nb), 1, m)
-    sign = -1.0 if (Ka + Kb) % 2 else 1.0                     # positive near the origin
-    return sign * float(integral / m.sqrt(norm_a * norm_b))
+    return _moment(n_star_a, l_a, n_star_b, l_b, Z_core, 1)
+
+
+@lru_cache(maxsize=None)
+def coulomb_r2(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
+    """Signed <n*_a l_a| r^2 |n*_b l_b> [a0^2] in the Coulomb approximation (|l_a - l_b| = 0 or 2).
+
+    For the diamagnetic (quadratic Zeeman) term inside a shell; equal to the
+    hydrogenic values for integer n*. Like all Coulomb-approximation moments it
+    ignores the core region, which matters little for r^2 (weighted to large r).
+    """
+    if abs(l_a - l_b) not in (0, 2):
+        raise ValueError("|l_a - l_b| must be 0 or 2")
+    return _moment(n_star_a, l_a, n_star_b, l_b, Z_core, 2)

@@ -6,7 +6,9 @@ Wigner-Eckart theorem,
 
 * H0(B) = E_level + mu_B B <a J M| T_0 |b J' M>, T = L + g_s S, from the levels'
   g_J (diagonal) and the dataset's magnetic elements between levels (Paschen-Back
-  mixing; optional);
+  mixing; optional), plus, when the reduced elements of r^2 C^0 and r^2 C^2 are
+  given (``diamagnetic``), the diamagnetic term
+  (e^2 B^2 / 8 m_e) r^2 sin^2(theta) = (e^2 B^2 / 12 m_e) r^2 (C^0 - C^2_0);
 * the Stark templates (V = e F . r) come from the E1 elements between levels of
   the same manifold, the dipole matrices D_q[lower, upper] = <lower| r_q |upper>
   from the elements between the manifolds.
@@ -33,7 +35,7 @@ from starkzee.level_collision import (
     ManifoldCollisionData, build_level_collision_operator, line_center_factor, scalar_width_ev,
 )
 from starkzee.radiators import Manifold
-from starkzee.utils import A0, BOHR_MAGNETON_EV_T
+from starkzee.utils import A0, BOHR_MAGNETON_EV_T, E_CHARGE, M_E
 
 _PPPB_MODELS = ("pppb", "ferri", "pppb-intra", "ferri-intra")
 
@@ -43,9 +45,9 @@ def _phase(x):
     return -1.0 if k % 2 else 1.0
 
 
-def _we(J, M, J2, M2, q, reduced):
-    """<J M| T_q |J2 M2> = (-1)^(J-M) (J 1 J2; -M q M2) <J||T||J2>."""
-    return _phase(J - M) * wigner_3j(J, 1, J2, -M, q, M2) * reduced
+def _we(J, M, J2, M2, q, reduced, k=1):
+    """<J M| T^k_q |J2 M2> = (-1)^(J-M) (J k J2; -M q M2) <J||T^k||J2>."""
+    return _phase(J - M) * wigner_3j(J, k, J2, -M, q, M2) * reduced
 
 
 class JLevelTransition:
@@ -79,15 +81,23 @@ class JLevelTransition:
     collision_n_lower : float, optional
         Effective n of the lower manifold for its scalar and per-state widths
         (default collision_n). The full PPP operator uses collision_n for all terms.
+    diamagnetic : dict, optional
+        {(a, b): {0: <a||r^2 C^0||b>, 2: <a||r^2 C^2||b>}} [a0^2], the reduced
+        elements of the radiating electron between levels of one manifold
+        (each unordered pair once, diagonal pairs included; missing ranks are
+        zero). Adds the diamagnetic term to H0 for B != 0; without it the
+        Zeeman term is linear only.
     """
 
     def __init__(self, data, upper, lower, B, emitter_charge=0.0, electron_widths_ev=None,
                  reference_energy_ev=None, collision_n=None, collision_Z=None,
-                 upper_perturbers=(), lower_perturbers=(), collision_n_lower=None, mass_amu=None):
+                 upper_perturbers=(), lower_perturbers=(), collision_n_lower=None, mass_amu=None,
+                 diamagnetic=None):
         groups = [set(upper), set(lower), set(upper_perturbers), set(lower_perturbers)]
         if groups[0] & groups[1] or (groups[0] | groups[1]) & (groups[2] | groups[3]):
             raise ValueError("a level cannot be in two manifolds or be both radiating and perturbing")
         self.data = data
+        self.diamagnetic = dict(diamagnetic or {})
         self.mass_amu = mass_amu
         self.default_emitter_charge = emitter_charge
         self._electron = (0.0, 0.0) if electron_widths_ev is None else tuple(float(w) for w in electron_widths_ev)
@@ -148,11 +158,39 @@ class JLevelTransition:
                         raise ValueError(f"level {a} has no g_J; needed for B != 0")
                     if red:
                         H[i, j] += mu * _we(J, M, J2, M2, 0, red)
+            if self.diamagnetic:
+                H += self._diamagnetic(states, B)
         E_ref = float(E.mean())
         H -= E_ref * np.eye(len(H))
         r_x, r_y, r_z = self._cartesian(states, states, require_sign=True)
         rates = np.array([data.decay_rate(i) for i, _, _ in states])
         return Manifold(H, E_ref, r_z * A0, r_x * A0, rates, np.array([M for _, _, M in states]))
+
+    def _diamagnetic_reduced(self, a, b, k):
+        """<a||r^2 C^k||b> [a0^2] in either orientation (Hermitian tensor: (-1)^(J_a - J_b))."""
+        if (a, b) in self.diamagnetic:
+            return self.diamagnetic[(a, b)].get(k, 0.0)
+        if (b, a) in self.diamagnetic:
+            la, lb = self.data.levels[a], self.data.levels[b]
+            return _phase((la.two_j - lb.two_j) / 2) * self.diamagnetic[(b, a)].get(k, 0.0)
+        return 0.0
+
+    def _diamagnetic(self, states, B):
+        """(e^2 B^2 / 12 m_e) <i| r^2 (C^0 - C^2_0) |j> [eV] in the |level J M> basis."""
+        coefficient = E_CHARGE * B**2 * A0**2 / (12.0 * M_E)          # e^2 B^2 a0^2 / (12 m_e), in eV
+        dim = len(states)
+        H = np.zeros((dim, dim))
+        for i, (a, J, M) in enumerate(states):
+            for j, (b, J2, M2) in enumerate(states):
+                if abs(M - M2) > 1e-9:
+                    continue
+                value = 0.0
+                if abs(J - J2) < 1e-9:
+                    value += _we(J, M, J2, M2, 0, self._diamagnetic_reduced(a, b, 0), k=0)
+                if abs(J - J2) <= 2 + 1e-9:
+                    value -= _we(J, M, J2, M2, 0, self._diamagnetic_reduced(a, b, 2), k=2)
+                H[i, j] = coefficient * value
+        return H
 
     def _cartesian(self, bra_states, ket_states, require_sign=False):
         """x, y, z matrices <bra| r_c |ket> [a0] from the dataset's E1 elements."""
