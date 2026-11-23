@@ -1,0 +1,231 @@
+{
+  "description": "N V (Li-like, 1s2 nl) levels n = 2-7, as printed by the NIST Atomic Spectra Database (energy levels query, retrieved 2026-11-22). Energies in cm^-1 relative to the ground level 1s2 2s 2S1/2; values NIST prints in brackets (theoretical or derived) are marked 'bracketed'. NIST lists no Lande g factors for N V. NIST lists the 2p levels for 14N.",
+  "source": "NIST Atomic Spectra Database, https://physics.nist.gov/asd (ASD v5.12, dataset prepared by A. Kramida, October 2024; levels: Moore 1993, Azarov et al. 2023, Kramida et al. 2024)",
+  "ion": "N V",
+  "mass_amu": 14.003074,
+  "core_charge": 5,
+  "ion_charge": 4,
+  "ionization_limit_cm": {
+    "value": 789537.2,
+    "uncertainty": 3.0,
+    "reference": "L4829"
+  },
+  "terms": {
+    "2s 2S": {
+      "n": 2,
+      "l": 0,
+      "levels": {
+        "1/2": 0.0
+      }
+    },
+    "2p 2P": {
+      "n": 2,
+      "l": 1,
+      "levels": {
+        "1/2": 80463.8,
+        "3/2": 80723.0
+      }
+    },
+    "3s 2S": {
+      "n": 3,
+      "l": 0,
+      "levels": {
+        "1/2": 456126.6
+      }
+    },
+    "3p 2P": {
+      "n": 3,
+      "l": 1,
+      "levels": {
+        "1/2": 477765.7,
+        "3/2": 477842.0
+      }
+    },
+    "3d 2D": {
+      "n": 3,
+      "l": 2,
+      "levels": {
+        "3/2": 484404.3,
+        "5/2": 484426.3
+      }
+    },
+    "4s 2S": {
+      "n": 4,
+      "l": 0,
+      "levels": {
+        "1/2": 606348.8
+      }
+    },
+    "4p 2P": {
+      "n": 4,
+      "l": 1,
+      "levels": {
+        "1/2": 615141.0,
+        "3/2": 615173.8
+      }
+    },
+    "4d 2D": {
+      "n": 4,
+      "l": 2,
+      "levels": {
+        "3/2": 617916.3,
+        "5/2": 617925.5
+      }
+    },
+    "4f 2F": {
+      "n": 4,
+      "l": 3,
+      "levels": {
+        "5/2": 618059.3,
+        "7/2": 618064.1
+      }
+    },
+    "5s 2S": {
+      "n": 5,
+      "l": 0,
+      "levels": {
+        "1/2": 673886.2
+      }
+    },
+    "5p 2P": {
+      "n": 5,
+      "l": 1,
+      "levels": {
+        "1/2": 678300.4,
+        "3/2": 678316.5
+      }
+    },
+    "5d 2D": {
+      "n": 5,
+      "l": 2,
+      "levels": {
+        "3/2": 679712.7,
+        "5/2": 679717.6
+      },
+      "bracketed": true
+    },
+    "5f 2F": {
+      "n": 5,
+      "l": 3,
+      "levels": {
+        "5/2": 679790.4,
+        "7/2": 679790.4
+      }
+    },
+    "5g 2G": {
+      "n": 5,
+      "l": 4,
+      "levels": {
+        "7/2": 679802.3,
+        "9/2": 679802.3
+      }
+    },
+    "6s 2S": {
+      "n": 6,
+      "l": 0,
+      "levels": {
+        "1/2": 709939.2
+      }
+    },
+    "6p 2P": {
+      "n": 6,
+      "l": 1,
+      "levels": {
+        "1/2": 712463.2,
+        "3/2": 712472.6
+      }
+    },
+    "6d 2D": {
+      "n": 6,
+      "l": 2,
+      "levels": {
+        "3/2": 713279.3,
+        "5/2": 713281.5
+      }
+    },
+    "6f 2F": {
+      "n": 6,
+      "l": 3,
+      "levels": {
+        "5/2": 713324.7,
+        "7/2": 713324.7
+      }
+    },
+    "6g 2G": {
+      "n": 6,
+      "l": 4,
+      "levels": {
+        "7/2": 713328.9,
+        "9/2": 713328.9
+      }
+    },
+    "6h 2H": {
+      "n": 6,
+      "l": 5,
+      "levels": {
+        "9/2": 713334.8,
+        "11/2": 713334.8
+      }
+    },
+    "7s 2S": {
+      "n": 7,
+      "l": 0,
+      "levels": {
+        "1/2": 731425.4
+      }
+    },
+    "7p 2P": {
+      "n": 7,
+      "l": 1,
+      "levels": {
+        "1/2": 733003.3,
+        "3/2": 733009.2
+      },
+      "bracketed": true
+    },
+    "7d 2D": {
+      "n": 7,
+      "l": 2,
+      "levels": {
+        "3/2": 733515.4,
+        "5/2": 733517.2
+      },
+      "bracketed": true
+    },
+    "7f 2F": {
+      "n": 7,
+      "l": 3,
+      "levels": {
+        "5/2": 733542.7,
+        "7/2": 733542.7
+      }
+    },
+    "7g 2G": {
+      "n": 7,
+      "l": 4,
+      "levels": {
+        "7/2": 733549.0,
+        "9/2": 733549.0
+      },
+      "bracketed": true
+    },
+    "7h 2H": {
+      "n": 7,
+      "l": 5,
+      "levels": {
+        "9/2": 733549.9,
+        "11/2": 733549.9
+      },
+      "bracketed": true
+    },
+    "7i 2I": {
+      "n": 7,
+      "l": 6,
+      "levels": {
+        "11/2": 733550.4,
+        "13/2": 733550.4
+      },
+      "bracketed": true
+    }
+  }
+}

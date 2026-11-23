@@ -1,0 +1,60 @@
+{
+  "description": "C IV (Li-like, 1s2 nl) levels n = 2-7 and selected n = 4 - 5 line data, as printed by the NIST Atomic Spectra Database (energy levels and lines queries, ASD v5.12, retrieved 2026-11-22). Energies in cm^-1 relative to the C IV ground level 1s2 2s 2S1/2; values NIST prints in brackets (theoretical or derived) are listed in 'bracketed'. A in s^-1; S in atomic units; air wavelengths in Angstrom. NIST lists no Lande g factors for C IV.",
+  "source": "NIST Atomic Spectra Database, https://physics.nist.gov/asd (levels: Moore 1993, Azarov et al. 2023, Kramida et al. 2024; transition probabilities: Wiese et al. 1996, T5118LS)",
+  "ion": "C IV",
+  "mass_amu": 12.0,
+  "core_charge": 4,
+  "ion_charge": 3,
+  "ionization_limit_cm": {"value": 520175.3, "uncertainty": 1.5, "reference": "L11667"},
+  "terms": {
+    "2s 2S": {"n": 2, "l": 0, "levels": {"1/2": 0.00}},
+    "2p 2P": {"n": 2, "l": 1, "levels": {"1/2": 64483.53, "3/2": 64590.96}},
+    "3s 2S": {"n": 3, "l": 0, "levels": {"1/2": 302849.0}},
+    "3p 2P": {"n": 3, "l": 1, "levels": {"1/2": 320050.1, "3/2": 320081.7}},
+    "3d 2D": {"n": 3, "l": 2, "levels": {"3/2": 324879.8, "5/2": 324890.3}},
+    "4s 2S": {"n": 4, "l": 0, "levels": {"1/2": 401348.1}},
+    "4p 2P": {"n": 4, "l": 1, "levels": {"1/2": 408311.1, "3/2": 408324.2}},
+    "4d 2D": {"n": 4, "l": 2, "levels": {"3/2": 410336.1, "5/2": 410340.1}},
+    "4f 2F": {"n": 4, "l": 3, "levels": {"5/2": 410434.2, "7/2": 410434.2}},
+    "5s 2S": {"n": 5, "l": 0, "levels": {"1/2": 445368.5}},
+    "5p 2P": {"n": 5, "l": 1, "levels": {"1/2": 448855.8, "3/2": 448862.9}},
+    "5d 2D": {"n": 5, "l": 2, "levels": {"3/2": 449888.2, "5/2": 449889.9}},
+    "5f 2F": {"n": 5, "l": 3, "levels": {"5/2": 449939.8, "7/2": 449939.8}},
+    "5g 2G": {"n": 5, "l": 4, "levels": {"7/2": 449948.4, "9/2": 449948.4}},
+    "6s 2S": {"n": 6, "l": 0, "levels": {"1/2": 468784.0}},
+    "6p 2P": {"n": 6, "l": 1, "levels": {"1/2": 470775.0, "3/2": 470778.9}},
+    "6d 2D": {"n": 6, "l": 2, "levels": {"3/2": 471370.3, "5/2": 471371.5}},
+    "6f 2F": {"n": 6, "l": 3, "levels": {"5/2": 471403.2, "7/2": 471403.2}, "bracketed": true},
+    "6g 2G": {"n": 6, "l": 4, "levels": {"7/2": 471406.16, "9/2": 471406.16}, "bracketed": true},
+    "6h 2H": {"n": 6, "l": 5, "levels": {"9/2": 471406.80, "11/2": 471406.80}, "bracketed": true},
+    "7s 2S": {"n": 7, "l": 0, "levels": {"1/2": 482706.0}},
+    "7p 2P": {"n": 7, "l": 1, "levels": {"1/2": 483948.4, "3/2": 483950.8}, "bracketed": true},
+    "7d 2D": {"n": 7, "l": 2, "levels": {"3/2": 484320.6, "5/2": 484320.6}},
+    "7f 2F": {"n": 7, "l": 3, "levels": {"5/2": 484343.5, "7/2": 484343.5}, "bracketed": true},
+    "7g 2G": {"n": 7, "l": 4, "levels": {"7/2": 484345.42, "9/2": 484345.42}, "bracketed": true},
+    "7h 2H": {"n": 7, "l": 5, "levels": {"9/2": 484345.84, "11/2": 484345.84}, "bracketed": true},
+    "7i 2I": {"n": 7, "l": 6, "levels": {"11/2": 484345.96}, "bracketed": true}
+  },
+  "transitions": {
+    "4p 2P - 5d 2D": {
+      "reference": "T5118LS (accuracy A)",
+      "lines": [
+        {"J_lower": "1/2", "J_upper": "3/2", "air_ritz_A": 2404.44, "A_s": 2.97e8, "f": 0.515, "S_au": 8.16},
+        {"J_lower": "3/2", "J_upper": "5/2", "air_ritz_A": 2405.10, "A_s": 3.56e8, "f": 0.463, "S_au": 14.7},
+        {"J_lower": "3/2", "J_upper": "3/2", "air_ritz_A": 2405.20, "A_s": 5.93e7, "f": 0.0515, "S_au": 1.63}
+      ]
+    },
+    "4d 2D - 5p 2P": {
+      "reference": "T5118LS (accuracy A)",
+      "lines": [
+        {"J_lower": "3/2", "J_upper": "3/2", "air_ritz_A": 2594.82, "A_s": 6.68e6, "f": 0.00675, "S_au": 0.231},
+        {"J_lower": "5/2", "J_upper": "3/2", "air_ritz_A": 2595.09, "A_s": 6.01e7, "f": 0.0405, "S_au": 2.08},
+        {"J_lower": "3/2", "J_upper": "1/2", "air_ritz_A": 2595.30, "A_s": 6.67e7, "f": 0.0337, "S_au": 1.15}
+      ]
+    }
+  },
+  "observed_lines": [
+    {"air_A": 2524.41, "uncertainty_A": 0.05, "relative_intensity": 200, "identification": "5f 2F - 4d 2D (by Ritz energies; NIST row unclassified)", "reference": "L7288, L3492"},
+    {"air_A": 2529.98, "uncertainty_A": 0.05, "relative_intensity": 300, "identification": "5g 2G - 4f 2F (by Ritz energies; NIST row unclassified)", "reference": "L7288, L3492"}
+  ]
+}
