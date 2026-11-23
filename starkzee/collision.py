@@ -151,6 +151,7 @@ def ppp_complex_sdts(
     natural_widths,
     *,
     electron_interference=True,
+    m_values=None,
 ):
     """Diagonalize ``L_f - i Phi`` and return complex PPP SDTs.
 
@@ -176,17 +177,48 @@ def ppp_complex_sdts(
         electron_interference=electron_interference,
     )
     rephased = rephase_transition_dipoles(dipoles, n_u, n_l)
-    return complex_sdts_from_operator(phi, energies, vectors_u, vectors_l, rephased, natural)
+    return complex_sdts_from_operator(phi, energies, vectors_u, vectors_l, rephased, natural,
+                                      m_values=m_values)
+
+
+def _delta_m_blocks(generator, m_values):
+    """Coherence index sets with M_u - M_l = -1, 0, +1, or None if the generator does not split.
+
+    With the field along z and B = 0 the dressed states have pure M and the
+    (rotationally invariant) collision operator conserves M_u - M_l; only those
+    three blocks carry dipole weight. Elements coupling a block to the rest must
+    vanish to rounding, otherwise the full matrix is used.
+    """
+    m_u, m_l = (np.asarray(m, dtype=float) for m in m_values)
+    delta = np.rint(2.0 * (m_u[:, np.newaxis] - m_l[np.newaxis, :])).ravel()
+    blocks = [np.flatnonzero(delta == 2 * q) for q in (-1, 0, 1)]
+    blocks = [b for b in blocks if b.size]
+    keep = np.concatenate(blocks)
+    rest = np.setdiff1d(np.arange(generator.shape[0]), keep)
+    scale = max(float(np.max(np.abs(generator))), np.finfo(float).tiny)
+    for b in blocks:
+        others = np.concatenate([rest, np.setdiff1d(keep, b)])
+        if others.size and np.max(np.abs(generator[np.ix_(b, others)])) > 1e-10 * scale:
+            return None
+        if others.size and np.max(np.abs(generator[np.ix_(others, b)])) > 1e-10 * scale:
+            return None
+    return blocks
 
 
 def complex_sdts_from_operator(phi, transition_energies, eigenvectors_u, eigenvectors_l,
-                               dipoles, natural_widths):
+                               dipoles, natural_widths, m_values=None):
     """Diagonalize ``L_f - i (Phi + natural)`` for a given collision operator ``Phi`` [eV].
 
     ``Phi`` is in the coherence basis ``|upper_i><lower_j|`` (index ``i*n_lower + j``)
     of the dressed states; ``dipoles[q]`` are lower-by-upper matrices in the
     basis of the eigenvector arrays, in the same phase convention as the
     Hamiltonian. Returns ``(omega, gamma, strengths)`` as :func:`ppp_complex_sdts`.
+
+    ``m_values = (M_upper, M_lower)`` of the dressed states (pure-M states, field
+    along z at B = 0) restricts the diagonalization to the Delta M = 0, +-1
+    blocks, the only ones with dipole weight; the modes of the other blocks have
+    zero strength. Without it, or if the generator does not split, the full
+    matrix is diagonalized.
     """
     energies = np.asarray(transition_energies, dtype=float)
     vectors_u = np.asarray(eigenvectors_u, dtype=complex)
@@ -196,6 +228,33 @@ def complex_sdts_from_operator(phi, transition_energies, eigenvectors_u, eigenve
         natural = np.full_like(energies, float(natural))
     phi = phi + np.diag(natural.T.ravel())
     generator = np.diag(energies.T.ravel()) - 1j * phi
+
+    q_order = tuple(dipoles)
+    vectors = []
+    for q in q_order:
+        uncoupled = dipoles[q]
+        dressed = vectors_l.conj().T @ uncoupled @ vectors_u
+        # Appendix B uses d_{alpha,beta}=<upper alpha|d|lower beta>,
+        # the Hermitian-conjugate orientation of the stored lower-by-upper
+        # emission matrix.
+        vectors.append(dressed.conj().T.ravel())
+    dipole_vectors = np.column_stack(vectors)
+
+    blocks = None if m_values is None else _delta_m_blocks(generator, m_values)
+    if blocks is None:
+        blocks = [np.arange(generator.shape[0])]
+    parts = [_generator_modes(generator[np.ix_(b, b)], dipole_vectors[b]) for b in blocks]
+    omega = np.concatenate([p[0] for p in parts])
+    widths = np.concatenate([p[1] for p in parts])
+    residues = np.concatenate([p[2] for p in parts], axis=1)
+    order = np.argsort(omega)
+    return omega[order], widths[order], {
+        q: residues[index, order] for index, q in enumerate(q_order)
+    }
+
+
+def _generator_modes(generator, dipole_vectors):
+    """Eigenmodes of one (block of the) generator: (omega, gamma, residues[q, mode])."""
     eigenvalues, right = eig(generator, check_finite=True)
 
     widths = -eigenvalues.imag
@@ -207,21 +266,10 @@ def complex_sdts_from_operator(phi, transition_energies, eigenvectors_u, eigenve
         )
     widths = np.maximum(widths, 0.0)
 
-    q_order = tuple(dipoles)
-    vectors = []
-    for q in q_order:
-        uncoupled = dipoles[q]
-        dressed = vectors_l.conj().T @ uncoupled @ vectors_u
-        # Appendix B uses d_{alpha,beta}=<upper alpha|d|lower beta>,
-        # the Hermitian-conjugate orientation of the stored lower-by-upper
-        # emission matrix.
-        vectors.append(dressed.conj().T.ravel())
-
     # Only R^{-1}d_q is required for the residues. Solving the three dipole
     # right-hand sides together avoids forming the complete inverse of the
     # dense eigenvector matrix. scipy.linalg.solve also performs its own
     # reciprocal-condition check and warns for an ill-conditioned system.
-    dipole_vectors = np.column_stack(vectors)
     coordinates = solve(
         right, dipole_vectors, assume_a='gen', check_finite=False)
     projections = dipole_vectors.conj().T @ right
@@ -234,13 +282,9 @@ def complex_sdts_from_operator(phi, transition_energies, eigenvectors_u, eigenve
             f"PPP collision eigenvector solve has relative residual "
             f"{residual:.3e}; complex SDT residues may be inaccurate.",
             RuntimeWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
-
-    order = np.argsort(eigenvalues.real)
-    return eigenvalues.real[order], widths[order], {
-        q: residues[index, order] for index, q in enumerate(q_order)
-    }
+    return eigenvalues.real, widths, residues
 
 
 def generalized_lorentzian(energies, frequencies, widths, strengths):

@@ -134,7 +134,7 @@ class JLevelTransition:
         H -= E_ref * np.eye(len(H))
         r_x, r_y, r_z = self._cartesian(states, states, require_sign=True)
         rates = np.array([data.decay_rate(i) for i, _, _ in states])
-        return Manifold(H, E_ref, r_z * A0, r_x * A0, rates)
+        return Manifold(H, E_ref, r_z * A0, r_x * A0, rates, np.array([M for _, _, M in states]))
 
     def _cartesian(self, bra_states, ket_states, require_sign=False):
         """x, y, z matrices <bra| r_c |ket> [a0] from the dataset's E1 elements."""
@@ -226,14 +226,15 @@ class JLevelTransition:
     def ppp_self_term_r2(self):
         return self._collision_u.r2_mean + self._collision_l.r2_mean
 
-    def ppp_sdts(self, dE, vectors_u, vectors_l, coefficient, natural):
-        """Complex generalized SDTs with the generalized impact operator."""
+    def ppp_sdts(self, dE, vectors_u, vectors_l, coefficient, natural, m_values=None):
+        """Complex generalized SDTs with the generalized impact operator (m_values: see HydrogenicTransition)."""
         if self._plasma is None:
             raise RuntimeError("ppp_impact_coefficient must be called first")
         Ne_m3, Te_ev, B = self._plasma
         phi = build_level_collision_operator(vectors_u, vectors_l, self._collision_u, self._collision_l,
                                              Ne_m3, Te_ev, B, self.collision_n, self.collision_Z)
-        return complex_sdts_from_operator(phi, dE, vectors_u, vectors_l, self.dipoles, natural)
+        return complex_sdts_from_operator(phi, dE, vectors_u, vectors_l, self.dipoles, natural,
+                                          m_values=m_values)
 
     @property
     def states(self):

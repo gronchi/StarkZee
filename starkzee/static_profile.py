@@ -214,6 +214,27 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     eigenvalues += En
     return eigenvalues, eigenvectors
 
+def _eigh_by_m(H, m_values):
+    """eigh of H block by block in M (H must not couple different M); eigenvectors of pure M.
+
+    Returns (energies ascending, vectors, M of each eigenvector).
+    """
+    m = np.asarray(m_values, dtype=float)
+    energies = np.empty(len(m))
+    vectors = np.zeros(H.shape, dtype=complex)
+    labels = np.empty(len(m))
+    start = 0
+    for M in np.unique(m):
+        idx = np.flatnonzero(m == M)
+        e, v = np.linalg.eigh(H[np.ix_(idx, idx)])
+        cols = slice(start, start + len(idx))
+        energies[cols], labels[cols] = e, M
+        vectors[np.ix_(idx, np.arange(start, start + len(idx)))] = v
+        start += len(idx)
+    order = np.argsort(energies, kind="stable")
+    return energies[order], vectors[:, order], labels[order]
+
+
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, max_beta=10.0,
                                      use_screening=True,
@@ -262,7 +283,9 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     num_mu : int, optional
         Number of Gauss-Legendre angle points (default 6). Check convergence
         for the requested field and polarization observable; the default is not
-        a universal accuracy guarantee.
+        a universal accuracy guarantee. Ignored at B = 0, where the problem is
+        rotationally invariant: one field direction is solved and each
+        polarization of the orientation average is 1/3 of its total.
     max_beta : float, optional
         Upper limit of the reduced-microfield grid β = F/F₀ (default 10).
         The Holtsmark tail beyond β = 10 carries ~3 % of the probability, which
@@ -455,6 +478,25 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     mu_points, mu_weights = np.polynomial.legendre.leggauss(num_mu)
     mu_points = 0.5 * (mu_points + 1.0)
     mu_weights = 0.5 * mu_weights
+    # At B = 0 only the field direction breaks the isotropy: solve F along z and
+    # average the polarizations over orientations afterwards (exact; the angle
+    # quadrature gives the same result to rounding at num_mu >= 2).
+    isotropic = B == 0
+    if isotropic:
+        mu_points, mu_weights = np.array([1.0]), np.array([1.0])
+    # With F along z at B = 0 the dressed states can be chosen with pure M, and the
+    # full PPP generator splits into Delta M blocks (only Delta M = 0, +-1 radiate).
+    m_u_basis = getattr(radiator.upper, "m_values", None)
+    m_l_basis = getattr(radiator.lower, "m_values", None)
+    m_blocks = (isotropic and electron_interference
+                and m_u_basis is not None and m_l_basis is not None)
+    if m_blocks:
+        for mats, m in (((radiator.upper.H0, radiator.upper.M_z), m_u_basis),
+                        ((radiator.lower.H0, radiator.lower.M_z), m_l_basis)):
+            off = np.not_equal.outer(np.asarray(m, float), np.asarray(m, float))
+            # rounding-level off-M elements (e.g. from basis transforms) are dropped
+            if any(np.any(np.abs(np.asarray(a)[off]) > 1e-9 * max(np.max(np.abs(a)), 1e-300)) for a in mats):
+                m_blocks = False            # radiator couples different M: use the full generator
     
     # Field-independent matrices of the radiator: H0 (shell energy removed from the
     # diagonal), Stark templates (V_E = Fz*M_z + Fx*M_x), dipoles between manifolds.
@@ -576,8 +618,12 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             Fx = fi * np.sqrt(1.0 - mu**2)
 
             # Diagonalize using precomputed H_atom and Stark templates
-            sz_energies_u, sz_vectors_u = np.linalg.eigh(H_atom_u + Fz * M_z_u + Fx * M_x_u)
-            sz_energies_l, sz_vectors_l = np.linalg.eigh(H_atom_l + Fz * M_z_l + Fx * M_x_l)
+            if m_blocks:
+                sz_energies_u, sz_vectors_u, m_dressed_u = _eigh_by_m(H_atom_u + Fz * M_z_u, m_u_basis)
+                sz_energies_l, sz_vectors_l, m_dressed_l = _eigh_by_m(H_atom_l + Fz * M_z_l, m_l_basis)
+            else:
+                sz_energies_u, sz_vectors_u = np.linalg.eigh(H_atom_u + Fz * M_z_u + Fx * M_x_u)
+                sz_energies_l, sz_vectors_l = np.linalg.eigh(H_atom_l + Fz * M_z_l + Fx * M_x_l)
 
             if natural_width_mode == 'state_resolved':
                 natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
@@ -618,7 +664,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                         else shell_natural_ev)
                 frequencies, widths, complex_strengths = radiator.ppp_sdts(
                     dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
-                    natural_for_operator)
+                    natural_for_operator,
+                    **({"m_values": (m_dressed_u, m_dressed_l)} if m_blocks else {}))
                 components = generalized_lorentzian_components(
                     energies_ev, frequencies, widths, complex_strengths)
                 profile_pi += weight * components[0]
@@ -660,6 +707,13 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 profile_pi        += weight * (kernel @ I_pi[mask])
                 profile_sig_plus  += weight * (kernel @ I_sp[mask])
                 profile_sig_minus += weight * (kernel @ I_sm[mask])
+
+    if isotropic:
+        # orientation average of dipole emission: every lab polarization gets 1/3
+        # of the field-frame total
+        average = (profile_pi + profile_sig_plus + profile_sig_minus) / 3.0
+        for prof in (profile_pi, profile_sig_plus, profile_sig_minus):
+            prof[:] = average
 
     # Post-loop FFT to complete the Voigt when Doppler is active.
     # Zero-pad to 2N so the circular convolution approximates a linear one,

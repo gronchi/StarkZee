@@ -42,13 +42,21 @@ class Manifold:
     H0 is H_atom(B) with the reference energy E_ref removed from the diagonal,
     so that it is well conditioned; the eigenvalues of H0 + Fz*M_z + Fx*M_x are
     energies relative to E_ref. decay_rates are E1 spontaneous rates [s^-1] of
-    the basis states.
+    the basis states. m_values (optional) is the magnetic quantum number M of
+    each basis state; with it the solver uses the Delta M block structure of the
+    PPP generator at B = 0.
     """
     H0: np.ndarray
     E_ref: float
     M_z: np.ndarray
     M_x: np.ndarray
     decay_rates: np.ndarray
+    m_values: np.ndarray = None
+
+
+def hydrogenic_m_values(n):
+    """M = m_l + m_s of the uncoupled basis of :func:`starkzee.radiator.build_basis` (same order)."""
+    return np.array([ml + ms for l in range(n) for ml in range(-l, l + 1) for ms in (0.5, -0.5)])
 
 
 class HydrogenicTransition:
@@ -92,8 +100,8 @@ class HydrogenicTransition:
         for H, E in ((H_u, E_u), (H_l, E_l)):
             for i in range(H.shape[0]):
                 H[i, i] -= E
-        self.upper = Manifold(H_u, E_u, M_z_u, M_x_u, natural_decay_rates(n_u, Z))
-        self.lower = Manifold(H_l, E_l, M_z_l, M_x_l, natural_decay_rates(n_l, Z))
+        self.upper = Manifold(H_u, E_u, M_z_u, M_x_u, natural_decay_rates(n_u, Z), hydrogenic_m_values(n_u))
+        self.lower = Manifold(H_l, E_l, M_z_l, M_x_l, natural_decay_rates(n_l, Z), hydrogenic_m_values(n_l))
         # Fixed physical line reference (Doppler width, electron detuning origin).
         self.E0_physical = line_reference_energy(n_u, n_l, Z, A, use_empirical_data, atom)
 
@@ -136,7 +144,11 @@ class HydrogenicTransition:
         r2_l = 9.0 * n_l**2 * (n_l**2 - 1.0) / (8.0 * Z**2) if n_l > 1 else 0.0
         return r2_u + r2_l
 
-    def ppp_sdts(self, dE, vectors_u, vectors_l, coefficient, natural):
-        """Complex generalized SDTs (frequencies, widths, strengths) with the full PPP operator."""
+    def ppp_sdts(self, dE, vectors_u, vectors_l, coefficient, natural, m_values=None):
+        """Complex generalized SDTs (frequencies, widths, strengths) with the full PPP operator.
+
+        m_values = (M of the upper, M of the lower dressed states) enables the
+        Delta M block diagonalization (field along z, B = 0).
+        """
         return ppp_complex_sdts(dE, vectors_u, vectors_l, self.dipoles, self.n_u, self.n_l, self.Z,
-                                coefficient, natural, electron_interference=True)
+                                coefficient, natural, electron_interference=True, m_values=m_values)
