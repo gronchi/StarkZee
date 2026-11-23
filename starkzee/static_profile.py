@@ -7,6 +7,7 @@ from scipy.special import voigt_profile
 from functools import lru_cache
 from starkzee.utils import A0, reduced_mass_rydberg_ev, wavenumber_cm_to_energy_ev, energy_ev_to_wavenumber_cm
 from scipy.constants import hbar as _HBAR, e as _E_CHARGE, m_p as _M_P, c as _C_LIGHT
+from scipy.constants import atomic_mass as _ATOMIC_MASS
 
 
 from starkzee.angular import angular_dipole_element
@@ -469,9 +470,14 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     
     sigma_D = None
     if apply_doppler and Ti_ev is not None and Ti_ev > 0:
-        from starkzee.utils import species_to_ZA
-        _, A_species = species_to_ZA(species)
-        mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
+        radiator_mass = getattr(radiator, "mass_amu", None)
+        if radiator_mass is not None:
+            # multi-electron radiators carry the emitter mass [u]
+            mc2_ev = radiator_mass * _ATOMIC_MASS * _C_LIGHT**2 / _E_CHARGE
+        else:
+            from starkzee.utils import species_to_ZA
+            _, A_species = species_to_ZA(species)
+            mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
         # Use the physical (analytic) gross-structure line center, not mean(energies_ev):
         # the latter depends on the requested observation window (its offset and width),
         # not on the emitter, so an asymmetric or shifted window would silently change the

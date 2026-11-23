@@ -1,0 +1,51 @@
+{
+  "description": "He I triplet (S = 1) levels n = 2, 4, 5 and the 2p 3P - 4d 3D (447.1 nm) transition data, as printed by the NIST Atomic Spectra Database (energy levels, lines and ionization energy queries, retrieved 2026-11-22). Energies in cm^-1 relative to the He I ground level; A in s^-1; S in atomic units. NIST lists no Lande g factors for He I.",
+  "source": "NIST Atomic Spectra Database, https://physics.nist.gov/asd",
+  "mass_amu": 4.002602,
+  "ionization_limit_cm": {"value": 198310.66637, "uncertainty": 0.00020, "reference": "L17714"},
+  "terms": {
+    "2s 3S": {"n": 2, "l": 0, "L": 0, "S": 1, "parity": 1,
+              "levels": {"1": 159855.971776}, "reference": "L22715c200, L20736"},
+    "2p 3P": {"n": 2, "l": 1, "L": 1, "S": 1, "parity": -1,
+              "levels": {"2": 169086.76391031, "1": 169086.84033581, "0": 169087.82825101},
+              "reference": "L22715c200, L20736"},
+    "4s 3S": {"n": 4, "l": 0, "L": 0, "S": 1, "parity": 1,
+              "levels": {"1": 190298.110654}, "reference": "L22715c200"},
+    "4p 3P": {"n": 4, "l": 1, "L": 1, "S": 1, "parity": -1,
+              "levels": {"2": 191217.0383609, "1": 191217.0473571, "0": 191217.1576834},
+              "reference": "L22715c200"},
+    "4d 3D": {"n": 4, "l": 2, "L": 2, "S": 1, "parity": 1,
+              "levels": {"3": 191444.47832914, "2": 191444.47952984, "1": 191444.49804915},
+              "reference": "L22715c200, L21466"},
+    "4f 3F": {"n": 4, "l": 3, "L": 3, "S": 1, "parity": -1,
+              "levels": {"3": 191451.871342758, "4": 191451.878482501, "2": 191451.887100873},
+              "reference": "L22715c200"},
+    "5s 3S": {"n": 5, "l": 0, "L": 0, "S": 1, "parity": 1,
+              "levels": {"1": 193346.988738}, "reference": "L22715c200"},
+    "5p 3P": {"n": 5, "l": 1, "L": 1, "S": 1, "parity": -1,
+              "levels": {"2": 193800.7049900, "1": 193800.7095104, "0": 193800.7649571},
+              "reference": "L22715c200"},
+    "5d 3D": {"n": 5, "l": 2, "L": 2, "S": 1, "parity": 1,
+              "levels": {"3": 193917.14868441, "2": 193917.14932512, "1": 193917.15878310},
+              "reference": "L22715c200, L21466"},
+    "5f 3F": {"n": 5, "l": 3, "L": 3, "S": 1, "parity": -1,
+              "levels": {"3": 193921.115658304, "4": 193921.118736664, "2": 193921.123147015},
+              "reference": "L22715c200"},
+    "5g 3G": {"n": 5, "l": 4, "L": 4, "S": 1, "parity": 1,
+              "levels": {"4": 193921.612342687, "5": 193921.615113207, "3": 193921.617632089},
+              "reference": "L22715c200"}
+  },
+  "transitions": {
+    "2p 3P - 4d 3D": {
+      "reference": "TP T8636c73 (accuracy AAA)",
+      "lines": [
+        {"J_lower": 2, "J_upper": 1, "air_ritz_A": 4471.470373, "A_s": 6.8275e+05, "f": 1.2286e-03, "S_au": 9.0455e-02},
+        {"J_lower": 2, "J_upper": 2, "air_ritz_A": 4471.474077, "A_s": 6.1440e+06, "f": 1.8427e-02, "S_au": 1.3567e+00},
+        {"J_lower": 2, "J_upper": 3, "air_ritz_A": 4471.474317, "A_s": 2.4579e+07, "f": 1.0320e-01, "S_au": 7.5982e+00},
+        {"J_lower": 1, "J_upper": 1, "air_ritz_A": 4471.485658, "A_s": 1.0241e+07, "f": 3.0715e-02, "S_au": 1.3568e+00},
+        {"J_lower": 1, "J_upper": 2, "air_ritz_A": 4471.489362, "A_s": 1.8432e+07, "f": 9.2135e-02, "S_au": 4.0700e+00},
+        {"J_lower": 0, "J_upper": 1, "air_ritz_A": 4471.683251, "A_s": 1.3655e+07, "f": 1.2287e-01, "S_au": 1.8094e+00}
+      ]
+    }
+  }
+}

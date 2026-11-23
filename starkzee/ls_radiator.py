@@ -274,7 +274,7 @@ class LSTransition(JLevelTransition):
     B : float
         Magnetic field [T].
     mass_amu : float, optional
-        Emitter mass [u]; sets g_L = 1 - m_e/M unless g_L is given.
+        Emitter mass [u]; sets g_L = 1 - m_e/M unless g_L is given, and the Doppler mass.
     g_L, g_s : float, optional
         Orbital and spin g factors (defaults: finite-mass g_L, CODATA g_s).
     emitter_charge, electron_widths_ev, reference_energy_ev, collision_n, collision_Z, collision_n_lower :
@@ -309,7 +309,7 @@ class LSTransition(JLevelTransition):
                          electron_widths_ev=electron_widths_ev, reference_energy_ev=reference_energy_ev,
                          collision_n=collision_n, collision_Z=collision_Z,
                          upper_perturbers=index(groups[2]), lower_perturbers=index(groups[3]),
-                         collision_n_lower=collision_n_lower)
+                         collision_n_lower=collision_n_lower, mass_amu=mass_amu)
 
     @property
     def states(self):

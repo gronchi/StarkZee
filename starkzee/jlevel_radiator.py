@@ -74,6 +74,8 @@ class JLevelTransition:
     upper_perturbers, lower_perturbers : sequences of level indices
         Levels outside the manifolds whose E1 couplings to them add to the
         collision self terms (e.g. 4p/4f for a 4d manifold, or Delta n != 0 levels).
+    mass_amu : float, optional
+        Emitter mass [u] for the Doppler width (otherwise the solver uses ``species``).
     collision_n_lower : float, optional
         Effective n of the lower manifold for its scalar and per-state widths
         (default collision_n). The full PPP operator uses collision_n for all terms.
@@ -81,11 +83,12 @@ class JLevelTransition:
 
     def __init__(self, data, upper, lower, B, emitter_charge=0.0, electron_widths_ev=None,
                  reference_energy_ev=None, collision_n=None, collision_Z=None,
-                 upper_perturbers=(), lower_perturbers=(), collision_n_lower=None):
+                 upper_perturbers=(), lower_perturbers=(), collision_n_lower=None, mass_amu=None):
         groups = [set(upper), set(lower), set(upper_perturbers), set(lower_perturbers)]
         if groups[0] & groups[1] or (groups[0] | groups[1]) & (groups[2] | groups[3]):
             raise ValueError("a level cannot be in two manifolds or be both radiating and perturbing")
         self.data = data
+        self.mass_amu = mass_amu
         self.default_emitter_charge = emitter_charge
         self._electron = (0.0, 0.0) if electron_widths_ev is None else tuple(float(w) for w in electron_widths_ev)
         self.collision_n = collision_n

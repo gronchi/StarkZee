@@ -9,7 +9,9 @@ emission line, independently of how the atomic structure is described:
 * the dipole matrices D_q between the two manifolds;
 * the line reference energies and the unit of the Hamiltonian matrices;
 * the electron-broadening hooks (impact widths, per-state operator scaling and
-  the full PPP collision operator).
+  the full PPP collision operator);
+* optionally ``mass_amu``, the emitter mass [u] for the Doppler width (the
+  hydrogenic radiator leaves it to the solver's ``species``).
 
 :class:`HydrogenicTransition` implements it for the hydrogenic n -> n' shells
 of :mod:`starkzee.radiator`. Multi-electron radiators implement the same
