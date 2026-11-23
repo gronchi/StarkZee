@@ -354,7 +354,10 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         :func:`~starkzee.broadening.electron_impact_width_model`.  ``'pppb'``
         (default) is the PPPB model (B-dependent ω_c cutoff); ``'zest'``,
         ``'zest-lee'``, ``'zest-dufty'`` select the ZEST model with the GBK,
-        Lee, or Dufty RPA G-function.
+        Lee, or Dufty RPA G-function. ``'none'`` switches electron broadening off
+        (ion quasi-static + natural + Doppler only; any radiator), e.g. to
+        separate the ion and electron contributions; Lorentzian widths are then
+        floored at the grid spacing so that unbroadened components keep their area.
     electron_operator : bool, optional
         When ``True``, use the electron-impact **operator** diagonal: each
         Stark-Zeeman dressed state gets a width scaled by its own ⟨k|r²|k⟩
@@ -444,6 +447,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     energies_ev, restore_grid = uniform_energy_grid(
         energies_ev, resample=apply_doppler and Ti_ev is not None and Ti_ev > 0
         and frequency_dependent_width)
+    no_electrons = electron_model.lower() == 'none'
+    if no_electrons:
+        if electron_interference:
+            raise ValueError("electron_interference=True needs an electron model (got 'none').")
+        electron_operator = False
     if electron_interference:
         if frequency_dependent_width:
             raise ValueError(
@@ -569,8 +577,13 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # terms instead of rescaling either scalar shell width.
     # n_l = 1 (Lyman) has no intra-shell dipole channel, so its impact width is
     # taken as 0 in the default diagonal approximation.
-    w_resonance_e_u, w_resonance_e_l = radiator.electron_widths(
-        0.0, Ne_m3, Te_ev, B, electron_model)
+    def _electron_widths(detuning):
+        if no_electrons:
+            zero = np.zeros(np.shape(detuning)) if np.ndim(detuning) else 0.0
+            return zero, zero
+        return radiator.electron_widths(detuning, Ne_m3, Te_ev, B, electron_model)
+
+    w_resonance_e_u, w_resonance_e_l = _electron_widths(0.0)
     w_resonance_e = w_resonance_e_u + w_resonance_e_l
     w_resonance = w_resonance_e + min_natural_ev
     ppp_impact_coefficient = None
@@ -587,8 +600,7 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     # once per profile call; shared by every quadrature point and transition.
     # Upper and lower shells kept separate (see the on-resonance block above).
     if frequency_dependent_width:
-        _w_e_grid_u, _w_e_grid_l = radiator.electron_widths(
-            energies_ev - E0_physical, Ne_m3, Te_ev, B, electron_model)
+        _w_e_grid_u, _w_e_grid_l = _electron_widths(energies_ev - E0_physical)
         _w_e_grid_u = _w_e_grid_u[:, np.newaxis]
         if np.ndim(_w_e_grid_l):
             _w_e_grid_l = _w_e_grid_l[:, np.newaxis]
@@ -701,6 +713,9 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                  if natural_width_mode == 'state_resolved'
                                  else shell_natural_ev)
                 w = w_e_u + w_e_l + natural_width
+                if no_electrons:
+                    # keep (nearly) unbroadened components on the grid: floor at one grid step
+                    w = np.maximum(w, _dx)
                 kernel = (voigt_profile(detuning, sigma_D, w) if _voigt_loop
                           else (w / np.pi) / (detuning**2 + w**2))
 
