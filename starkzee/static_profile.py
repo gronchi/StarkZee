@@ -20,6 +20,16 @@ from starkzee.radiators import HydrogenicTransition
 from starkzee.convolutions import uniform_energy_grid
 from starkzee.collision import generalized_lorentzian_components
 
+try:                                    # optional: fused, multithreaded kernel evaluation
+    import numexpr as _numexpr
+except ImportError:                     # pragma: no cover - numpy fallback
+    _numexpr = None
+
+# numexpr pays off only above this many grid x transition elements
+NUMEXPR_MIN_ELEMENTS = 20_000
+# memory budget [bytes] for the eigenvector batch of one manifold
+EIGH_BATCH_BYTES = 64 * 2**20
+
 def _isotope_from_species(Z, A, species):
     """Mass number from A and/or a hydrogen-isotope species name; they must agree with Z and each other."""
     if species is None:
@@ -265,6 +275,72 @@ def _eigh_by_m(H, m_values):
         start += len(idx)
     order = np.argsort(energies, kind="stable")
     return energies[order], vectors[:, order], labels[order]
+
+
+def _transition_widths(w_u, w_l, w_natural, scale_u=None, scale_l=None, floor=None):
+    """Lorentzian half widths w = w_u*scale_u + w_l*scale_l + w_natural [eV], floored at `floor`.
+
+    Every term is a scalar or broadcasts to (grid, transitions): the electron widths
+    are columns over the grid (frequency-dependent) or scalars, the operator scales
+    and state-resolved natural widths are rows over the transitions.
+    """
+    u = w_u if scale_u is None else w_u * scale_u
+    l = w_l if scale_l is None else w_l * scale_l
+    w = u + l + w_natural
+    return w if floor is None else np.maximum(w, floor)
+
+
+def _lorentzian_kernel(energies, centres, w_u, w_l, w_natural,
+                       scale_u=None, scale_l=None, floor=None):
+    """Area-normalized Lorentzians (w/pi) / ((E - E_k)^2 + w^2) on the grid x transitions.
+
+    energies (N,), centres (P,), widths as in _transition_widths. The same arithmetic
+    as the plain numpy expressions, evaluated in one fused, multithreaded pass when
+    numexpr is available (widths included), otherwise in place.
+    """
+    E = energies[:, np.newaxis]
+    c = centres[np.newaxis, :]
+    terms = [t for t in (w_u, w_l, w_natural, scale_u, scale_l) if t is not None]
+    full = np.prod(np.broadcast_shapes(*(np.shape(t) for t in terms))) >= E.size * c.size
+    if _numexpr is not None and E.size * c.size >= NUMEXPR_MIN_ELEMENTS and not full:
+        # widths vary along one axis only: build them first (cheap), fuse the rest
+        w = _transition_widths(w_u, w_l, w_natural, scale_u, scale_l, floor)
+        return _numexpr.evaluate("(w / pi) / ((E - c)**2 + w**2)",
+                                 local_dict={"E": E, "c": c, "w": w, "pi": np.pi})
+    if _numexpr is not None and E.size * c.size >= NUMEXPR_MIN_ELEMENTS:
+        # widths span grid x transitions: build them inside the fused expression
+        names = {"E": E, "c": c, "wu": w_u, "wl": w_l, "wn": w_natural, "pi": np.pi}
+        u = "wu" if scale_u is None else "(wu * su)"
+        l = "wl" if scale_l is None else "(wl * sl)"
+        w = f"(({u} + {l}) + wn)"
+        if floor is not None:
+            w = f"where({w} < wmin, wmin, {w})"
+            names["wmin"] = floor
+        if scale_u is not None:
+            names["su"] = scale_u
+        if scale_l is not None:
+            names["sl"] = scale_l
+        return _numexpr.evaluate(f"({w} / pi) / ((E - c)**2 + {w}**2)", local_dict=names)
+    w = _transition_widths(w_u, w_l, w_natural, scale_u, scale_l, floor)
+    out = E - c
+    out *= out
+    out += np.square(w)
+    return np.divide(np.divide(w, np.pi), out, out=out)
+
+
+def _batched_eigh(H0, M_z, M_x, Fz, Fx):
+    """Yield eigh(H0 + Fz*M_z + Fx*M_x) for every (Fz, Fx), in stacked eigh calls.
+
+    The points are diagonalized in chunks of at most EIGH_BATCH_BYTES of
+    eigenvectors, so memory stays bounded. numpy's stacked eigh runs the same
+    routine per matrix: the result is identical to a loop of single calls.
+    """
+    n = H0.shape[0]
+    chunk = max(1, int(EIGH_BATCH_BYTES // (16 * n * n)))
+    for i in range(0, len(Fz), chunk):
+        fz = Fz[i:i + chunk, np.newaxis, np.newaxis]
+        fx = Fx[i:i + chunk, np.newaxis, np.newaxis]
+        yield from zip(*np.linalg.eigh(H0 + fz * M_z + fx * M_x))
 
 
 def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
@@ -648,112 +724,116 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             "post-convolution Doppler cannot recover unresolved intrinsic components.",
             UserWarning, stacklevel=2)
 
+    # Quadrature points (field magnitude x angle) with non-negligible weight
+    points = [(f_weight * mu_weight, fi * mu, fi * np.sqrt(1.0 - mu**2))
+              for fi, f_weight in zip(fields, f_weights) if f_weight > 1e-15
+              for mu, mu_weight in zip(mu_points, mu_weights)
+              if f_weight * mu_weight > 1e-15]
+    if not m_blocks and points:
+        # Diagonalize the quadrature points in stacked eigh calls, chunk by chunk
+        _, Fz_all, Fx_all = (np.array(col) for col in zip(*points))
+        eig_u = _batched_eigh(H_atom_u, M_z_u, M_x_u, Fz_all, Fx_all)
+        eig_l = _batched_eigh(H_atom_l, M_z_l, M_x_l, Fz_all, Fx_all)
+
     # Main integration loop
-    for fi, f_weight in zip(fields, f_weights):
-        if f_weight <= 1e-15:
+    for weight, Fz, Fx in points:
+        # Diagonalize using precomputed H_atom and Stark templates
+        if m_blocks:
+            sz_energies_u, sz_vectors_u, m_dressed_u = _eigh_by_m(H_atom_u + Fz * M_z_u, m_u_basis)
+            sz_energies_l, sz_vectors_l, m_dressed_l = _eigh_by_m(H_atom_l + Fz * M_z_l, m_l_basis)
+        else:
+            sz_energies_u, sz_vectors_u = next(eig_u)
+            sz_energies_l, sz_vectors_l = next(eig_l)
+
+        if natural_width_mode == 'state_resolved':
+            natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
+            natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
+            natural_widths = (_HBAR / (2.0 * _E_CHARGE)
+                              * (natural_rates_l[:, np.newaxis]
+                                 + natural_rates_u[np.newaxis, :]))
+
+        # Electron-impact operator diagonal: per-dressed-state ⟨k|r²|k⟩/⟨r²⟩_avg
+        # (c_k = 0 → ZEST operator), applied to the upper AND lower shell
+        # (ZEST: w_init_eigen[i] + w_final_eigen[j]). The opt-in full PPP
+        # branch below supersedes this diagonal approximation.
+        if electron_operator:
+            # Keep the resolved operator consistent with the scalar model:
+            # historical PPPB/Ferri uses full closure, whereas PPPB-intra
+            # and every ZEST selector use the projected intra-shell sum.
+            r2_form = ('full' if electron_model.lower() in ('pppb', 'ferri')
+                       else 'intra')
+            r2_scale_u, r2_scale_l = radiator.electron_r2_scaling(
+                sz_vectors_u, sz_vectors_l, r2_form)
+        
+        # Compute all three dipole intensity matrices; dE is shared across q.
+        V_l_adj = sz_vectors_l.conj().T
+        # Compute transition energies using high-precision shifted eigenvalues
+        # and add the gross structure line center back. This prevents catastrophic
+        # cancellation from subtracting large energy levels directly.
+        dE_shifted = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
+        # _shift_to_ev converts cm⁻¹ → eV in the empirical branch (1.0 otherwise).
+        dE = dE_shifted * _shift_to_ev + E0_line
+
+        I_pi = np.abs(V_l_adj @ D_q_uncoupled[ 0] @ sz_vectors_u)**2
+        I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
+        I_sm = np.abs(V_l_adj @ D_q_uncoupled[ 1] @ sz_vectors_u)**2
+
+        if electron_interference:
+            natural_for_operator = (natural_widths
+                                    if natural_width_mode == 'state_resolved'
+                                    else shell_natural_ev)
+            frequencies, widths, complex_strengths = radiator.ppp_sdts(
+                dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
+                natural_for_operator,
+                **({"m_values": (m_dressed_u, m_dressed_l)} if m_blocks else {}))
+            components = generalized_lorentzian_components(
+                energies_ev, frequencies, widths, complex_strengths)
+            profile_pi += weight * components[0]
+            profile_sig_plus += weight * components[-1]
+            profile_sig_minus += weight * components[1]
             continue
-            
-        for mu, mu_weight in zip(mu_points, mu_weights):
-            weight = f_weight * mu_weight
-            if weight <= 1e-15:
-                continue
-                
-            Fz = fi * mu
-            Fx = fi * np.sqrt(1.0 - mu**2)
 
-            # Diagonalize using precomputed H_atom and Stark templates
-            if m_blocks:
-                sz_energies_u, sz_vectors_u, m_dressed_u = _eigh_by_m(H_atom_u + Fz * M_z_u, m_u_basis)
-                sz_energies_l, sz_vectors_l, m_dressed_l = _eigh_by_m(H_atom_l + Fz * M_z_l, m_l_basis)
+        # Union of active transitions — compute kernel once for all q.
+        mask = (I_pi > 1e-12) | (I_sp > 1e-12) | (I_sm > 1e-12)
+        if np.any(mask):
+            act_dE    = dE[mask]
+
+            if frequency_dependent_width:
+                # Pointwise w(E − E0): column vector over the observation
+                # grid, shared by all transitions (PPPB Φ(Δω) convention).
+                w_e_u = _w_e_grid_u
+                w_e_l = _w_e_grid_l
             else:
-                sz_energies_u, sz_vectors_u = np.linalg.eigh(H_atom_u + Fz * M_z_u + Fx * M_x_u)
-                sz_energies_l, sz_vectors_l = np.linalg.eigh(H_atom_l + Fz * M_z_l + Fx * M_x_l)
-
-            if natural_width_mode == 'state_resolved':
-                natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
-                natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
-                natural_widths = (_HBAR / (2.0 * _E_CHARGE)
-                                  * (natural_rates_l[:, np.newaxis]
-                                     + natural_rates_u[np.newaxis, :]))
-
-            # Electron-impact operator diagonal: per-dressed-state ⟨k|r²|k⟩/⟨r²⟩_avg
-            # (c_k = 0 → ZEST operator), applied to the upper AND lower shell
-            # (ZEST: w_init_eigen[i] + w_final_eigen[j]). The opt-in full PPP
-            # branch below supersedes this diagonal approximation.
+                w_e_u = w_resonance_e_u
+                w_e_l = w_resonance_e_l
+            scale_u = scale_l = None
             if electron_operator:
-                # Keep the resolved operator consistent with the scalar model:
-                # historical PPPB/Ferri uses full closure, whereas PPPB-intra
-                # and every ZEST selector use the projected intra-shell sum.
-                r2_form = ('full' if electron_model.lower() in ('pppb', 'ferri')
-                           else 'intra')
-                r2_scale_u, r2_scale_l = radiator.electron_r2_scaling(
-                    sz_vectors_u, sz_vectors_l, r2_form)
-            
-            # Compute all three dipole intensity matrices; dE is shared across q.
-            V_l_adj = sz_vectors_l.conj().T
-            # Compute transition energies using high-precision shifted eigenvalues
-            # and add the gross structure line center back. This prevents catastrophic
-            # cancellation from subtracting large energy levels directly.
-            dE_shifted = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
-            # _shift_to_ev converts cm⁻¹ → eV in the empirical branch (1.0 otherwise).
-            dE = dE_shifted * _shift_to_ev + E0_line
+                # Rescale each shell's width per SDT by its own ⟨r²⟩.
+                # r2_scale_u is per upper eigenstate (columns of dE),
+                # r2_scale_l per lower eigenstate (rows); broadcast to
+                # dE.shape then select the active transitions.
+                scale_u = np.broadcast_to(r2_scale_u[np.newaxis, :], dE.shape)[mask]
+                if r2_scale_l is not None:
+                    scale_l = np.broadcast_to(r2_scale_l[:, np.newaxis], dE.shape)[mask]
+            natural_width = (natural_widths[mask]
+                             if natural_width_mode == 'state_resolved'
+                             else shell_natural_ev)
+            # no electrons: keep (nearly) unbroadened components on the grid, floor at one grid step
+            floor = _dx if no_electrons else None
+            if _voigt_loop:
+                w = _transition_widths(w_e_u, w_e_l, natural_width, scale_u, scale_l, floor)
+                kernel = voigt_profile(energies_ev[:, np.newaxis] - act_dE[np.newaxis, :],
+                                       sigma_D, w)
+            else:
+                kernel = _lorentzian_kernel(energies_ev, act_dE, w_e_u, w_e_l, natural_width,
+                                            scale_u, scale_l, floor)
 
-            I_pi = np.abs(V_l_adj @ D_q_uncoupled[ 0] @ sz_vectors_u)**2
-            I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
-            I_sm = np.abs(V_l_adj @ D_q_uncoupled[ 1] @ sz_vectors_u)**2
-
-            if electron_interference:
-                natural_for_operator = (natural_widths
-                                        if natural_width_mode == 'state_resolved'
-                                        else shell_natural_ev)
-                frequencies, widths, complex_strengths = radiator.ppp_sdts(
-                    dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
-                    natural_for_operator,
-                    **({"m_values": (m_dressed_u, m_dressed_l)} if m_blocks else {}))
-                components = generalized_lorentzian_components(
-                    energies_ev, frequencies, widths, complex_strengths)
-                profile_pi += weight * components[0]
-                profile_sig_plus += weight * components[-1]
-                profile_sig_minus += weight * components[1]
-                continue
-
-            # Union of active transitions — compute kernel once for all q.
-            mask = (I_pi > 1e-12) | (I_sp > 1e-12) | (I_sm > 1e-12)
-            if np.any(mask):
-                act_dE    = dE[mask]
-                detuning  = energies_ev[:, np.newaxis] - act_dE[np.newaxis, :]
-
-                if frequency_dependent_width:
-                    # Pointwise w(E − E0): column vector over the observation
-                    # grid, shared by all transitions (PPPB Φ(Δω) convention).
-                    w_e_u = _w_e_grid_u
-                    w_e_l = _w_e_grid_l
-                else:
-                    w_e_u = w_resonance_e_u
-                    w_e_l = w_resonance_e_l
-                if electron_operator:
-                    # Rescale each shell's width per SDT by its own ⟨r²⟩.
-                    # r2_scale_u is per upper eigenstate (columns of dE),
-                    # r2_scale_l per lower eigenstate (rows); broadcast to
-                    # dE.shape then select the active transitions.
-                    w_e_u = w_e_u * np.broadcast_to(
-                        r2_scale_u[np.newaxis, :], dE.shape)[mask]
-                    if r2_scale_l is not None:
-                        w_e_l = w_e_l * np.broadcast_to(
-                            r2_scale_l[:, np.newaxis], dE.shape)[mask]
-                natural_width = (natural_widths[mask]
-                                 if natural_width_mode == 'state_resolved'
-                                 else shell_natural_ev)
-                w = w_e_u + w_e_l + natural_width
-                if no_electrons:
-                    # keep (nearly) unbroadened components on the grid: floor at one grid step
-                    w = np.maximum(w, _dx)
-                kernel = (voigt_profile(detuning, sigma_D, w) if _voigt_loop
-                          else (w / np.pi) / (detuning**2 + w**2))
-
-                profile_pi        += weight * (kernel @ I_pi[mask])
-                profile_sig_plus  += weight * (kernel @ I_sp[mask])
-                profile_sig_minus += weight * (kernel @ I_sm[mask])
+            # one matrix product for the three polarizations
+            acc = kernel @ np.column_stack((I_pi[mask], I_sp[mask], I_sm[mask]))
+            acc *= weight
+            profile_pi        += acc[:, 0]
+            profile_sig_plus  += acc[:, 1]
+            profile_sig_minus += acc[:, 2]
 
     if isotropic:
         # orientation average of dipole emission: every lab polarization gets 1/3

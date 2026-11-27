@@ -60,6 +60,12 @@ pip install -e .
 
 ```
 
+Optional: with [numexpr](https://pypi.org/project/numexpr/) installed (`pip install -e .[fast]`),
+the static-profile Lorentzian kernel (grid x Stark-Zeeman components, the dominant cost)
+is evaluated in one fused, multithreaded pass, 2-6x faster per profile with the same
+result to rounding (`python scripts/benchmark_static_profile.py`). Without it the kernel
+runs in place in numpy.
+
 Optional: with [pywigxjpf](https://pypi.org/project/pywigxjpf/) installed (`pip install -e .[wigner]`),
 Wigner 3-j and 6-j symbols use the exact WIGXJPF library instead of the built-in
 double-precision Racah sums (`starkzee.angular.BACKEND` shows which is active). pywigxjpf has

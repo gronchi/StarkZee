@@ -11,6 +11,8 @@ Requirements
 Optional:
 
 - Matplotlib ≥ 3.5 — for plotting examples
+- numexpr ≥ 2.8 — fused, multithreaded static-profile kernel (``pip install -e ".[fast]"``);
+  same results to rounding, 2–6× faster profiles
 - pytest ≥ 7 — for running the test suite
 
 Install
@@ -39,6 +41,6 @@ Running the tests
 
     pytest tests/ -v
 
-The current test-suite snapshot contains 599 passing tests. It also reports
-90 warnings for documented fallbacks, domain checks, and optional
+The current test-suite snapshot contains 799 passing tests. It also reports
+93 warnings for documented fallbacks, domain checks, and optional
 dependency paths.
