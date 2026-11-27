@@ -242,7 +242,7 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     lambda0_nm  = _nist_center_air_nm(n_u, n_l, species, wavelengths_nm)
     freq_center = C / (lambda0_nm * 1e-9)
 
-    # Stark profile on the output wavelength grid, area-normalised in m (mirrors pystark).
+    # Stark profile on the output wavelength grid, area-normalized in m (mirrors pystark).
     delta_wl12 = _fwhm_stark_loman_nm(n_u, n_l, Ne_m3, Te_ev)
     ls_s_wl    = 1.0 / (np.abs(wavelengths_nm - lambda0_nm)**2.5 + (delta_wl12 / 2.0)**2.5)
     ls_s_wl   /= trapz(ls_s_wl, wavelengths_nm * 1e-9)
@@ -253,7 +253,7 @@ def stehle_param(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     wl_at_freq_nm = C / freq_axis * 1e9                              # nm, descending
     ls_s          = np.interp(wl_at_freq_nm, wavelengths_nm, ls_s_wl) * C / freq_axis**2
 
-    # Analytically-normalised Doppler Gaussian on the extended axis (mirrors pystark.doppler_lineshape).
+    # Analytically-normalized Doppler Gaussian on the extended axis (mirrors pystark.doppler_lineshape).
     mass_kg   = _DOPPLER_MASS_KG.get(A, A * _U)
     v_th      = np.sqrt(2.0 * E * Ti_ev / mass_kg)
     sigma_hz  = v_th * freq_center / (np.sqrt(2.0) * C)

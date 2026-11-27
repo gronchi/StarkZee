@@ -47,11 +47,15 @@ def test_return_structure():
     (3, 2, 6, 10.0),  # C VI Hα
 ])
 def test_strength_sum_equals_line_strength(n_u, n_l, Z, B):
-    """Σ|d_q|² over all transitions must equal line_strength() (unitary invariance)."""
+    """Σ|d_q|² over all transitions must equal line_strength() (unitary invariance).
+
+    The transitions are in the reduced Bohr radius, line_strength in a0: factor (m_e/mu)^2.
+    """
+    from starkzee.utils import reduced_mass_factor
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=B,
                               use_empirical_data=False)
     S_got = tr['strength'].sum()
-    S_ref = line_strength(n_u, n_l, Z)
+    S_ref = line_strength(n_u, n_l, Z) / reduced_mass_factor(Z)**2
     assert relerr(S_got, S_ref) < 1e-10, (
         f"n={n_u}→{n_l},Z={Z},B={B}T: Σstrength={S_got:.8e}, S_ul={S_ref:.8e}"
     )
@@ -68,7 +72,7 @@ def test_centroid_at_zero_field(n_u, n_l, Z):
     """Intensity-weighted centroid must equal the Bohr energy at B=0, F=0."""
     tr = discrete_transitions(n_u=n_u, n_l=n_l, Z=Z, B=0.0, Fz=0.0, Fx=0.0,
                                fine_structure=False, use_empirical_data=False)
-    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z) * (1.0/n_l**2 - 1.0/n_u**2)
     centroid = np.sum(tr['energy_ev'] * tr['strength']) / np.sum(tr['strength'])
     assert relerr(centroid, E0) < 1e-8, (
         f"n={n_u}→{n_l},Z={Z}: centroid={centroid:.8f} eV, E0={E0:.8f} eV"

@@ -46,7 +46,7 @@ def test_default_discrete_transitions_match_explicit_empirical():
 @pytest.mark.parametrize('atom', ['H', 'D', 'T'])
 def test_empirical_without_fine_structure_uses_shell_average(atom):
     from starkzee.atomic_data import empirical_shell_energy_cm
-    matrix = build_hamiltonian(2, 1, 0, fine_structure=False,
+    matrix = build_hamiltonian(2, 1, 0, fine_structure=False, A={'H': 1, 'D': 2, 'T': 3}[atom],
                                use_empirical_data=True, atom=atom)
     expected = empirical_shell_energy_cm(atom, 2)
     np.testing.assert_allclose(matrix, np.eye(len(matrix)) * expected, atol=1e-8)

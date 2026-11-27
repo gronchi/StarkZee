@@ -168,8 +168,12 @@ def angular_dipole_element(l1, m1, l2, m2, q):
     The spherical tensor components T_q^(1) of the position unit vector r̂ are:
 
     - q = 0  (π):  T₀ = cos θ
-    - q = +1 (σ+): T₊₁ = sin θ e^{iφ} / √2
-    - q = −1 (σ−): T₋₁ = sin θ e^{−iφ} / √2
+    - q = +1 (σ+): T₊₁ = −sin θ e^{iφ} / √2
+    - q = −1 (σ−): T₋₁ = +sin θ e^{−iφ} / √2
+
+    These are the standard (Condon-Shortley) spherical components C¹_q of r̂, the
+    convention of the Wigner-Eckart elements used by the LS and J-level radiators;
+    Cartesian components follow as x/r = (T₋₁ − T₊₁)/√2, y/r = i(T₋₁ + T₊₁)/√2.
 
     The matrix elements are expressed via Clebsch-Gordan coefficients and are
     non-zero only when abs(l₁ − l₂) = 1 and m₁ − m₂ = q.  Explicit formulas:
@@ -182,8 +186,8 @@ def angular_dipole_element(l1, m1, l2, m2, q):
 
     **q = +1** (m₁ = m₂ + 1):
 
-        ⟨l−1, m | T₊₁ | l, m⟩ = +√((l−m)(l−m−1) / (2(2l−1)(2l+1)))
-        ⟨l, m+1 | T₊₁ | l−1, m⟩ = −√((l+m)(l+m+1) / (2(2l−1)(2l+1)))
+        ⟨l−1, m+1 | T₊₁ | l, m⟩ = −√((l−m)(l−m−1) / (2(2l−1)(2l+1)))
+        ⟨l, m+1 | T₊₁ | l−1, m⟩ = +√((l+m)(l+m+1) / (2(2l−1)(2l+1)))
 
     **q = −1** (m₁ = m₂ − 1):
 
@@ -227,12 +231,12 @@ def angular_dipole_element(l1, m1, l2, m2, q):
         if l1 == l2 - 1:
             l = l2
             m = m2
-            return np.sqrt((l - m) * (l - m - 1) / (2.0 * (2*l - 1) * (2*l + 1)))
+            return -np.sqrt((l - m) * (l - m - 1) / (2.0 * (2*l - 1) * (2*l + 1)))
         # l1 = l, l2 = l-1
         else:
             l = l1
             m = m2
-            return -np.sqrt((l + m) * (l + m + 1) / (2.0 * (2*l - 1) * (2*l + 1)))
+            return np.sqrt((l + m) * (l + m + 1) / (2.0 * (2*l - 1) * (2*l + 1)))
 
     elif q == -1:
         if m1 != m2 - 1:

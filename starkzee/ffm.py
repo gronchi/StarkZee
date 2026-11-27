@@ -3,11 +3,12 @@
 from collections.abc import MutableMapping
 
 import numpy as np
-from scipy.constants import hbar as HBAR, e as E_CHARGE, m_p as _M_P, c as _C_LIGHT
+from scipy.constants import hbar as HBAR, e as E_CHARGE, c as _C_LIGHT, atomic_mass as _ATOMIC_MASS
 from starkzee.radiator import (
     _uncoupled_dipole_matrices, einstein_a, natural_decay_rates,
 )
-from starkzee.utils import reduced_mass_rydberg_ev
+from starkzee.utils import (emitter_mass_amu, mass_number, perturber_mass_kg, reduced_mass_factor,
+                            reduced_mass_rydberg_ev)
 from starkzee.microfield import microfield_quadrature
 from starkzee.static_profile import solve_starkzee, line_reference_energy
 from starkzee.convolutions import uniform_energy_grid
@@ -47,10 +48,11 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion,
     Z_ion : int
         Ion charge number (used to derive ion density N_i = N_e / Z_ion).
     A_ion : float
-        Perturbing-ion atomic mass number (e.g. 1 for H⁺, 2 for D⁺).
+        Perturbing-ion mass number (e.g. 1 for H⁺, 2 for D⁺); the CODATA p, d,
+        t and alpha masses are used for A = 1-4, A u otherwise.
     A_emitter : float or None, optional
-        Emitter atomic mass number. Required by ``model='ppp'``; ignored by
-        ``model='zest'``.
+        Emitter mass [u] (nucleus + bound electrons). Required by
+        ``model='ppp'``; ignored by ``model='zest'``.
     model : {'zest', 'ppp'}, optional
         ``'zest'`` (default) retains ZEST Eq. (20). ``'ppp'`` uses the
         relative-speed estimate in PPP manual Eq. (C5).
@@ -73,13 +75,13 @@ def calculate_ion_fluctuation_rate(Ne_m3, Ti_ev, Z_ion, A_ion,
     ri = (3.0 / (4.0 * np.pi * Ni))**(1.0 / 3.0)
 
     model_key = str(model).lower()
-    m_perturber = A_ion * _M_P
+    m_perturber = perturber_mass_kg(A_ion)
     if model_key == 'zest':
         v_th = np.sqrt(2.0 * Ti_ev * E_CHARGE / m_perturber)
     elif model_key == 'ppp':
         if A_emitter is None or not np.isfinite(A_emitter) or A_emitter <= 0:
             raise ValueError("model='ppp' requires a positive finite A_emitter.")
-        m_emitter = A_emitter * _M_P
+        m_emitter = A_emitter * _ATOMIC_MASS
         reduced_mass = m_emitter * m_perturber / (m_emitter + m_perturber)
         v_th = np.sqrt(Ti_ev * E_CHARGE / reduced_mass)
     else:
@@ -295,11 +297,77 @@ def group_complex_sdts(frequencies, gamma_k, strengths,
         np.asarray(group_sizes, dtype=int)[grouped_order],
     )
 
+def _radiator_sdts(radiator, B, fields, f_weights, mu_points, mu_weights, Ne_m3, Te_ev,
+                   electron_model, electron_operator, natural_width_mode, parallel_stark):
+    """Stark-dressed transitions of a radiator object (see :mod:`starkzee.radiators`).
+
+    Returns {q: list of dicts} with ``intensity`` (quadrature weight included),
+    ``frequency`` [eV] and ``natural_width``, which here holds the complete
+    Lorentzian half-width of the SDT: electron impact (scalar per shell, or per
+    dressed state with ``electron_operator``) plus natural. The construction is
+    that of :func:`~starkzee.static_profile.calculate_static_profile`. At B = 0
+    the field is put along z and the SDTs of all polarizations are pooled into
+    one isotropic set, each polarization receiving a third of it.
+    """
+    no_electrons = electron_model.lower() == 'none'
+    isotropic = B == 0
+    if isotropic:
+        mu_points, mu_weights = np.array([1.0]), np.array([1.0])
+    if no_electrons:
+        w_u, w_l = 0.0, 0.0
+    else:
+        w_u, w_l = radiator.electron_widths(0.0, Ne_m3, Te_ev, B, electron_model)
+    r2_form = 'full' if electron_model.lower() in ('pppb', 'ferri') else 'intra'
+    D = radiator.dipoles
+    up, lo = radiator.upper, radiator.lower
+    if natural_width_mode == 'state_resolved':
+        rates_u, rates_l = up.decay_rates, lo.decay_rates
+    else:
+        shell_natural_ev = radiator.shell_natural_width_ev()
+    sdts = {0: [], 1: [], -1: []}
+    for fi, f_weight in zip(fields, f_weights):
+        if f_weight <= 1e-15:
+            continue
+        for mu, mu_weight in zip(mu_points, mu_weights):
+            weight = f_weight * mu_weight
+            if weight <= 1e-15:
+                continue
+            Fz = fi * mu
+            Fx = 0.0 if parallel_stark else fi * np.sqrt(1.0 - mu**2)
+            e_u, v_u = np.linalg.eigh(up.H0 + Fz * up.M_z + Fx * up.M_x)
+            e_l, v_l = np.linalg.eigh(lo.H0 + Fz * lo.M_z + Fx * lo.M_x)
+            dE = (e_u[np.newaxis, :] - e_l[:, np.newaxis]) * radiator.unit_to_ev + radiator.E0_line
+            if natural_width_mode == 'state_resolved':
+                natural = (HBAR / (2.0 * E_CHARGE)
+                           * (((np.abs(v_l)**2).T @ rates_l)[:, np.newaxis]
+                              + ((np.abs(v_u)**2).T @ rates_u)[np.newaxis, :]))
+            else:
+                natural = np.full(dE.shape, shell_natural_ev)
+            width_u, width_l = w_u, w_l
+            if electron_operator and not no_electrons:
+                scale_u, scale_l = radiator.electron_r2_scaling(v_u, v_l, r2_form)
+                width_u = w_u * scale_u[np.newaxis, :]
+                if scale_l is not None:
+                    width_l = w_l * scale_l[:, np.newaxis]
+            width = np.broadcast_to(width_u + width_l + natural, dE.shape)
+            v_l_adj = v_l.conj().T
+            for q in (0, 1, -1):
+                intensities = np.abs(v_l_adj @ D[q] @ v_u)**2
+                rows, cols = np.nonzero(intensities > 1e-12)
+                for j, i in zip(rows, cols):
+                    sdts[q].append({"intensity": weight * intensities[j, i],
+                                    "frequency": dE[j, i], "natural_width": width[j, i]})
+    if isotropic:
+        pooled = [dict(item, intensity=item["intensity"] / 3.0) for q in (0, 1, -1) for item in sdts[q]]
+        sdts = {q: pooled for q in (0, 1, -1)}
+    return sdts
+
+
 def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_ev,
                                   num_f=30, num_mu=10, max_beta=10.0, use_screening=True,
                                   quadratic_zeeman=True, fine_structure=True,
                                   numerical_inversion=False,
-                                  use_empirical_data=True, atom="H",
+                                  use_empirical_data=True, atom=None,
                                   electron_model='pppb', parallel_stark=False,
                                   apply_doppler=True, sdt_bin_tol=None,
                                   sdt_frequency_dependent_width=False,
@@ -313,7 +381,8 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                                   interference_diagnostics=None,
                                   interference_group_tolerance_ev=None,
                                   interference_group_width_tolerance_ev=None,
-                                  interference_group_profile_rtol=1e-3):
+                                  interference_group_profile_rtol=1e-3,
+                                  radiator=None, electron_operator=False):
     """Compute the dynamical Stark-Zeeman line profile using the Frequency Fluctuation Model.
 
     The FFM treats the ion microfield as a Markov jump process between
@@ -359,10 +428,12 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         Ion (emitter) temperature [eV].  Used both to compute the ion
         fluctuation rate ν_i and, when ``apply_doppler=True``, as the emitter
         thermal velocity for Doppler broadening.
-    A_ion : float
-        Emitter atomic mass number. It sets the Doppler width and reduced-mass
-        Rydberg. For backward compatibility, it is also the perturber mass when
-        ``A_perturber`` is omitted.
+    A_ion : float or None
+        Emitter mass number (None: most abundant isotope of Z). It sets the
+        reduced-mass terms, the measured-level table and the Doppler mass
+        (nucleus + electron); it is also the perturber mass number when
+        ``A_perturber`` is omitted (same-species plasma). With a radiator it
+        defaults to the radiator's emitter mass.
     A_perturber : float or None, optional
         Background perturbing-ion mass number. Use this for, e.g., Ar XVII in
         a proton plasma. ``None`` retains the same-species assumption.
@@ -481,6 +552,21 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
         intensity-weighted means. Compare against ``None`` while decreasing
         the tolerance for every requested transition and plasma regime; no
         nonzero tolerance is a universal safe default.
+    radiator : object, optional
+        Radiator providing the manifold Hamiltonians, Stark templates, dipoles
+        and electron broadening (:mod:`starkzee.radiators`; e.g. the LS and
+        J-level radiators of :mod:`starkzee.single_valence`). ``n_u``, ``n_l``
+        and ``Z`` are then ignored (may be None), ``A_ion`` defaults to the
+        radiator mass, the Doppler width uses the radiator mass and line
+        reference, and ``emitter_charge`` defaults to the radiator charge. The
+        perturbing ions are set by ``Z_bar`` and ``A_perturber`` (default
+        protons). The Hamiltonian options (``quadratic_zeeman``,
+        ``fine_structure``, empirical data) belong to the radiator. Not
+        combinable with ``electron_interference`` or
+        ``sdt_frequency_dependent_width``.
+    electron_operator : bool, optional
+        Radiator path only: scale each shell's impact width per dressed state
+        by its own <r^2> (as in the static solver); default False.
 
     Returns
     -------
@@ -563,6 +649,23 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
                 "electron_interference=True currently supports only the PPPB/Ferri "
                 "electron models."
             )
+    if radiator is not None:
+        if electron_interference or sdt_frequency_dependent_width:
+            raise NotImplementedError(
+                "the radiator path supports the diagonal electron widths only "
+                "(electron_interference=False, sdt_frequency_dependent_width=False)")
+        if A_ion is None:
+            A_ion = radiator.mass_amu
+        if A_perturber is None:
+            A_perturber = 1.0
+        emitter_amu = radiator.mass_amu if radiator.mass_amu is not None else A_ion
+        if emitter_charge is None:
+            emitter_charge = radiator.default_emitter_charge
+    elif electron_operator:
+        raise ValueError("electron_operator needs a radiator (e.g. HydrogenicTransition).")
+    if radiator is None:
+        A_ion = mass_number(Z, A_ion)
+        emitter_amu = emitter_mass_amu(Z, A_ion)
     if emitter_charge is None:
         emitter_charge = Z - 1
     if not np.isfinite(emitter_charge) or emitter_charge < 0:
@@ -573,7 +676,7 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
     # Background charge is not the radiator's nuclear charge.
     nu_i = calculate_ion_fluctuation_rate(
         Ne_m3, Ti_ev, Z_bar, perturber_mass,
-        A_emitter=A_ion, model=fluctuation_rate_model)
+        A_emitter=emitter_amu, model=fluctuation_rate_model)
 
     # 2. Get microfield grid and weights
     fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f,
@@ -590,98 +693,104 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
     mu_points = 0.5 * (mu_points + 1.0)
     mu_weights = 0.5 * mu_weights
     
-    D_q_uncoupled = _uncoupled_dipole_matrices(n_u, n_l, Z)
-    gamma_resonance_u = electron_impact_width_model(
-        0.0, Ne_m3, Te_ev, B, Z, n=n_u, electron_model=electron_model)
-    gamma_resonance_l = (electron_impact_width_model(
-        0.0, Ne_m3, Te_ev, B, Z, n=n_l, electron_model=electron_model)
-        if n_l > 1 else 0.0)
-    ppp_impact_coefficient = None
-    if electron_interference:
-        ppp_impact_coefficient = electron_impact_collision_coefficient(
-            Ne_m3, Te_ev, B, Z, n=n_u)
-    if natural_width_mode == 'state_resolved':
-        natural_rates_u_basis = natural_decay_rates(n_u, Z)
-        natural_rates_l_basis = natural_decay_rates(n_l, Z)
-    else:
-        gamma_upper = sum(einstein_a(n_u, k, Z) for k in range(1, n_u))
-        gamma_lower = (sum(einstein_a(n_l, k, Z) for k in range(1, n_l))
-                       if n_l > 1 else 0.0)
-        shell_natural_ev = HBAR * (gamma_upper + gamma_lower) / 2.0 / E_CHARGE
+    if radiator is None:
+        a_mu = 1.0 / reduced_mass_factor(Z, A_ion)               # dipoles in the reduced Bohr radius
+        D_q_uncoupled = {q: D * a_mu for q, D in _uncoupled_dipole_matrices(n_u, n_l, Z).items()}
+        r2_scale = a_mu**2                       # <r^2> in a_mu^2 on the a0-based electron model
+        gamma_resonance_u = r2_scale * electron_impact_width_model(
+            0.0, Ne_m3, Te_ev, B, Z, n=n_u, electron_model=electron_model)
+        gamma_resonance_l = (r2_scale * electron_impact_width_model(
+            0.0, Ne_m3, Te_ev, B, Z, n=n_l, electron_model=electron_model)
+            if n_l > 1 else 0.0)
+        ppp_impact_coefficient = None
+        if electron_interference:
+            ppp_impact_coefficient = r2_scale * electron_impact_collision_coefficient(
+                Ne_m3, Te_ev, B, Z, n=n_u)
+        if natural_width_mode == 'state_resolved':
+            natural_rates_u_basis = natural_decay_rates(n_u, Z, A_ion)
+            natural_rates_l_basis = natural_decay_rates(n_l, Z, A_ion)
+        else:
+            gamma_upper = sum(einstein_a(n_u, k, Z, A_ion) for k in range(1, n_u))
+            gamma_lower = (sum(einstein_a(n_l, k, Z, A_ion) for k in range(1, n_l))
+                           if n_l > 1 else 0.0)
+            shell_natural_ev = HBAR * (gamma_upper + gamma_lower) / 2.0 / E_CHARGE
 
-    # Accumulate Stark-Dressed Transitions (SDTs)
-    sdt_list = {0: [], 1: [], -1: []}
+        # Accumulate Stark-Dressed Transitions (SDTs)
+        sdt_list = {0: [], 1: [], -1: []}
     
-    for fi, f_weight in zip(fields, f_weights):
-        if f_weight <= 1e-15:
-            continue
-            
-        for mu, mu_weight in zip(mu_points, mu_weights):
-            weight = f_weight * mu_weight
-            if weight <= 1e-15:
+        for fi, f_weight in zip(fields, f_weights):
+            if f_weight <= 1e-15:
                 continue
+            
+            for mu, mu_weight in zip(mu_points, mu_weights):
+                weight = f_weight * mu_weight
+                if weight <= 1e-15:
+                    continue
                 
-            Fz = fi * mu
-            Fx = 0.0 if parallel_stark else fi * np.sqrt(1.0 - mu**2)
+                Fz = fi * mu
+                Fx = 0.0 if parallel_stark else fi * np.sqrt(1.0 - mu**2)
             
-            # Solve combined Stark-Zeeman Hamiltonian for upper and lower states.
-            # A=A_ion (same-species assumption) so the reduced-mass Rydberg — and
-            # hence the absolute SDT frequencies — match the emitting isotope.
-            sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
-                                                         A=A_ion,
-                                                         use_empirical_data=use_empirical_data, atom=atom)
-            sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
-                                                         A=A_ion,
-                                                         use_empirical_data=use_empirical_data, atom=atom)
+                # Solve combined Stark-Zeeman Hamiltonian for upper and lower states.
+                # A=A_ion (same-species assumption) so the reduced-mass Rydberg — and
+                # hence the absolute SDT frequencies — match the emitting isotope.
+                sz_energies_u, sz_vectors_u = solve_starkzee(n_u, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                             A=A_ion,
+                                                             use_empirical_data=use_empirical_data, atom=atom)
+                sz_energies_l, sz_vectors_l = solve_starkzee(n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure,
+                                                             A=A_ion,
+                                                             use_empirical_data=use_empirical_data, atom=atom)
 
-            if natural_width_mode == 'state_resolved':
-                natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
-                natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
-                natural_widths = (HBAR / (2.0 * E_CHARGE)
-                                  * (natural_rates_l[:, np.newaxis]
-                                     + natural_rates_u[np.newaxis, :]))
+                if natural_width_mode == 'state_resolved':
+                    natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
+                    natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
+                    natural_widths = (HBAR / (2.0 * E_CHARGE)
+                                      * (natural_rates_l[:, np.newaxis]
+                                         + natural_rates_u[np.newaxis, :]))
             
-            V_l_adj = sz_vectors_l.conj().T
-            dE = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
+                V_l_adj = sz_vectors_l.conj().T
+                dE = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
 
-            if electron_interference:
-                natural_for_operator = (natural_widths
-                                        if natural_width_mode == 'state_resolved'
-                                        else shell_natural_ev)
-                frequencies, widths, complex_strengths = ppp_complex_sdts(
-                    dE, sz_vectors_u, sz_vectors_l, D_q_uncoupled,
-                    n_u, n_l, Z, ppp_impact_coefficient,
-                    natural_for_operator, electron_interference=True,
-                )
+                if electron_interference:
+                    natural_for_operator = (natural_widths
+                                            if natural_width_mode == 'state_resolved'
+                                            else shell_natural_ev)
+                    frequencies, widths, complex_strengths = ppp_complex_sdts(
+                        dE, sz_vectors_u, sz_vectors_l, D_q_uncoupled,
+                        n_u, n_l, Z, ppp_impact_coefficient,
+                        natural_for_operator, electron_interference=True,
+                    )
+                    for q in [0, 1, -1]:
+                        strengths = complex_strengths[q]
+                        keep = np.abs(strengths) > 1e-12
+                        for frequency, width, strength in zip(
+                                frequencies[keep], widths[keep], strengths[keep]):
+                            sdt_list[q].append({
+                                "intensity": weight * strength.real,
+                                "dispersion": weight * strength.imag,
+                                "frequency": frequency,
+                                "collision_width": width,
+                                "natural_width": 0.0,
+                            })
+                    continue
+            
+                # For each polarization q
                 for q in [0, 1, -1]:
-                    strengths = complex_strengths[q]
-                    keep = np.abs(strengths) > 1e-12
-                    for frequency, width, strength in zip(
-                            frequencies[keep], widths[keep], strengths[keep]):
-                        sdt_list[q].append({
-                            "intensity": weight * strength.real,
-                            "dispersion": weight * strength.imag,
-                            "frequency": frequency,
-                            "collision_width": width,
-                            "natural_width": 0.0,
-                        })
-                continue
-            
-            # For each polarization q
-            for q in [0, 1, -1]:
-                mixed_D = V_l_adj @ D_q_uncoupled[q] @ sz_vectors_u
-                intensities = np.abs(mixed_D)**2
+                    mixed_D = V_l_adj @ D_q_uncoupled[q] @ sz_vectors_u
+                    intensities = np.abs(mixed_D)**2
                 
-                # Collect non-zero transitions
-                j_indices, i_indices = np.where(intensities > 1e-12)
-                for j, i in zip(j_indices, i_indices):
-                    sdt_list[q].append({
-                        "intensity": weight * intensities[j, i],
-                        "frequency": dE[j, i],
-                        "natural_width": (natural_widths[j, i]
-                                          if natural_width_mode == 'state_resolved'
-                                          else shell_natural_ev),
-                    })
+                    # Collect non-zero transitions
+                    j_indices, i_indices = np.where(intensities > 1e-12)
+                    for j, i in zip(j_indices, i_indices):
+                        sdt_list[q].append({
+                            "intensity": weight * intensities[j, i],
+                            "frequency": dE[j, i],
+                            "natural_width": (natural_widths[j, i]
+                                              if natural_width_mode == 'state_resolved'
+                                              else shell_natural_ev),
+                        })
+    else:
+        sdt_list = _radiator_sdts(radiator, B, fields, f_weights, mu_points, mu_weights, Ne_m3, Te_ev,
+                                  electron_model, electron_operator, natural_width_mode, parallel_stark)
                         
     output_profiles = {}
     
@@ -690,10 +799,14 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
     # The opt-in branch has already encoded the full PPP operator in its SDTs.
     # n_l = 1 (Lyman) has no intra-shell dipole channel, so its impact width is 0.
     gamma_resonance = None
-    if not sdt_frequency_dependent_width:
-        gamma_resonance = gamma_resonance_u + gamma_resonance_l
-    reference_energy_ev = line_reference_energy(
-        n_u, n_l, Z, A_ion, use_empirical_data, atom)
+    if radiator is not None:
+        gamma_resonance = 0.0            # the radiator SDT widths already hold the electron part
+        reference_energy_ev = radiator.E0_physical
+    else:
+        if not sdt_frequency_dependent_width:
+            gamma_resonance = gamma_resonance_u + gamma_resonance_l
+        reference_energy_ev = line_reference_energy(
+            n_u, n_l, Z, A_ion, use_empirical_data, atom)
     
     for q in [0, 1, -1]:
         sdts = sdt_list[q]
@@ -790,11 +903,12 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
 
         if sdt_frequency_dependent_width:
             sdt_detuning = frequencies - reference_energy_ev
-            gamma_k = electron_impact_width_model(
+            r2_scale = 1.0 / reduced_mass_factor(Z, A_ion)**2
+            gamma_k = r2_scale * electron_impact_width_model(
                 sdt_detuning, Ne_m3, Te_ev, B, Z, n=n_u,
                 electron_model=electron_model)
             if n_l > 1:
-                gamma_k += electron_impact_width_model(
+                gamma_k += r2_scale * electron_impact_width_model(
                     sdt_detuning, Ne_m3, Te_ev, B, Z, n=n_l,
                     electron_model=electron_model)
             gamma_k = np.asarray(gamma_k, dtype=float) + natural_widths
@@ -850,9 +964,11 @@ def calculate_ffm_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, Ti_ev, A_ion, energies_e
 
     # Thermal Doppler broadening: FFT convolution with Gaussian of 1/e half-width
     # σ_D = E₀ √(T_i / m_ion c²).  Uses zero-padded rfft to avoid wrap-around
-    # artefacts, matching the strategy in calculate_static_profile.
+    # artifacts, matching the strategy in calculate_static_profile.
     if apply_doppler and Ti_ev > 0:
-        mc2_ev = A_ion * _M_P * (_C_LIGHT ** 2) / E_CHARGE
+        if emitter_amu is None:
+            raise ValueError("Doppler broadening needs the emitter mass (A_ion or the radiator's mass_amu).")
+        mc2_ev = emitter_amu * _ATOMIC_MASS * (_C_LIGHT ** 2) / E_CHARGE
         # Use the physical (analytic) gross-structure line center, not mean(energies_ev):
         # the latter depends on the requested observation window, not on the emitter.
         sigma_D = reference_energy_ev * np.sqrt(Ti_ev / mc2_ev)

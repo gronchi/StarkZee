@@ -14,10 +14,10 @@ column titles; every line is one row ::
     i  E J conf lab   E' J' conf' lab'   dE  lambda  S/Pmax^2  gf  log gf  gA  cf
 
 E, E' and dE are in units of U cm^-1. The first level (E) belongs to the first
-parity group: RCG computes the amplitude <E||P||E'> = sum v P v' with that
+parity group: RCG computes the amplitude ``<E||P||E'> = sum v P v'`` with that
 level as bra, squares it for S/Pmax^2 and prints the *signed* cancellation factor
-cf = sign(amp) amp^2 / (sum |terms|)^2. So sign(cf) is the sign of the reduced
-element <E||P||E'> in RCG's phases, and
+``cf = sign(amp) amp^2 / (sum |terms|)^2``. So sign(cf) is the sign of the reduced
+element ``<E||P||E'>`` in RCG's phases, and
 
 * E1: S = Pmax^2 (S/Pmax^2) = gf / (3.0375e-6 dE[cm^-1]) [(e a0)^2]
   (RCG's constant: (2/3)/219474.6). Pmax is the largest radial integral of the
@@ -26,7 +26,7 @@ element <E||P||E'> in RCG's phases, and
   precise. For each line the more precise of the two columns is used (gf has
   5 decimals, S/Pmax^2 3); the worst relative uncertainty is recorded in
   ``notes``. All elements of a block share the sign of Pmax, a common phase.
-* M1 (``mag dip``): Pmax = 1 and S/Pmax^2 = |<a||L + g_s S||b>|^2 [mu_B^2]
+* M1 (``mag dip``): Pmax = 1 and ``S/Pmax^2 = |<a||L + g_s S||b>|^2`` [mu_B^2]
   (RCG's operator is J + 1.00232 S) between levels of one parity group; with
   sign(cf) these are the off-diagonal magnetic elements (Paschen-Back mixing)
   that FAC tables lack. RCG lists each pair once and no diagonal elements.
@@ -249,6 +249,7 @@ def read_rcg(paths, energy_unit_cm=None, g_factors=None, energy_tolerance=None):
     """Read RCG spectra (one file or a list, e.g. separate E1 and M1 runs) into LevelData.
 
     g_factors : None, ``"rcg"``, ``"ls"`` or dict {level index: g_J}.
+
     energy_tolerance : match tolerance for g-value eigenvalues [RCG units]
         (default 0.006, for the f9.2 print).
     """

@@ -7,7 +7,7 @@ Absolute dipole values are compared because the sign of an individual matrix
 element depends on the phase convention chosen for the atomic states.
 
 ARC is an optional dependency. From the StarkZee repository, one convenient
-way to run this example against a neighbouring ARC checkout is::
+way to run this example against a neighboring ARC checkout is::
 
     uv run --project ../ARC-Alkali-Rydberg-Calculator \
         python examples/compare_arc_hydrogen.py --no-show

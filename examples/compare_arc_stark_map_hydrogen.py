@@ -7,7 +7,7 @@ an electric field parallel to the quantization axis. Energies in each map are
 referenced to that package's zero-field target energy, removing the different
 absolute-energy conventions while retaining differences in Stark shifts.
 
-ARC is optional. With a neighbouring ARC checkout and its uv environment::
+ARC is optional. With a neighboring ARC checkout and its uv environment::
 
     uv run --project ../ARC-Alkali-Rydberg-Calculator -- \
         python examples/compare_arc_stark_map_hydrogen.py --no-show

@@ -85,7 +85,7 @@ def test_hydrogen_n2_fine_structure():
     ΔE = (3/2) × 4.53e-5 ≈ 6.79e-5 eV
     """
     Z, n = 1, 2
-    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
+    xi = (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / (n**3 * 1 * 2 * 1.5)
     dE_expected = 1.5 * xi
 
     evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
@@ -99,7 +99,7 @@ def test_hydrogen_n2_fine_structure():
     evals_full, evecs = np.linalg.eigh(H)
 
     # The spread among eigenvalues near E_n
-    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
     # The p-states should have energies near En ± some SOC
     soc_energies = evals_full.real - En
     soc_range = soc_energies.max() - soc_energies.min()
@@ -120,11 +120,11 @@ def test_cvi_n2_fine_structure_larger():
     This is the SOC that the code must correctly capture.
     """
     Z, n = 6, 2
-    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
+    xi = (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / (n**3 * 1 * 2 * 1.5)
     dE_expected = 1.5 * xi
 
     evals, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
-    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
     soc_range = evals.real.max() - evals.real.min()
 
     print(f"C VI n=2: ξ = {xi:.4f} eV, expected ΔE = {dE_expected:.4f} eV")
@@ -148,7 +148,7 @@ def test_soc_zero_for_l0():
         H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
                                       fine_structure=False)
         basis = build_basis(n)
-        En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+        En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
         for i, s in enumerate(basis):
             if s.l == 0:
                 E_diag = H[i, i].real
@@ -170,7 +170,7 @@ def test_soc_off_diagonal_lplus_sminus():
     H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False)
     basis = build_basis(n)
 
-    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**3 * 1 * 2 * 1.5)
+    xi = (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / (n**3 * 1 * 2 * 1.5)
 
     # For l=1, ml=0, ms=+0.5 → l=1, ml=1, ms=-0.5 (L+ raises ml, S- lowers ms)
     i_from = next(idx for idx, s in enumerate(basis)

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from starkzee.radiator import build_hamiltonian, diagonalize_hamiltonian, build_basis
 from scipy.constants import fine_structure as FINE_STRUCTURE
-from starkzee.utils import reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, RYDBERG_EV, G_S
+from starkzee.utils import orbital_g_factor, reduced_mass_rydberg_ev, BOHR_MAGNETON_EV_T, RYDBERG_EV, G_S
 
 
 def relerr(got, ref):
@@ -45,7 +45,7 @@ def test_zeeman_diagonal_l0_states():
 
 def test_zeeman_diagonal_l1_states():
     """
-    For n=2, l=1 states: ΔE = μ_B × B × (ml + g_s × ms).
+    For n=2, l=1 states: ΔE = μ_B × B × (g_L ml + g_s × ms), g_L = 1 - m_e/m_p.
     Test all 6 substates (ml=−1,0,1 × ms=±½).
     """
     Z, n, B = 1, 2, 100.0
@@ -58,7 +58,7 @@ def test_zeeman_diagonal_l1_states():
     for i, state in enumerate(basis):
         if state.l == 1:
             dE_got = (H_B[i, i] - H_B0[i, i]).real
-            dE_exp = BOHR_MAGNETON_EV_T * B * (state.ml + g_s * state.ms)
+            dE_exp = BOHR_MAGNETON_EV_T * B * (orbital_g_factor(Z) * state.ml + g_s * state.ms)
             assert relerr(dE_got, dE_exp) < 1e-10, (
                 f"l=1, ml={state.ml}, ms={state.ms}: ΔE={dE_got:.6e}, expected={dE_exp:.6e}"
             )
@@ -102,7 +102,7 @@ def test_zeeman_n2_l1_splits_into_multiple():
     g_s = G_S
 
     evals, _ = diagonalize_hamiltonian(n=2, Z=Z, B=B, quadratic_zeeman=False)
-    E_centroid = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / 4.0
+    E_centroid = -(Z**2) * reduced_mass_rydberg_ev(Z) / 4.0
 
     # The extremal Zeeman state has ml=+1, ms=+1/2:
     # ΔE_max = μ_B × B × (1 + g_s × 0.5)
@@ -145,9 +145,9 @@ def test_larmor_frequency_relation():
     gap = E_plus - E_minus
 
     # Orbital term:
-    zeeman_gap = 2.0 * BOHR_MAGNETON_EV_T * B   # = 2 μ_B B
+    zeeman_gap = 2.0 * orbital_g_factor(Z) * BOHR_MAGNETON_EV_T * B   # = 2 g_L μ_B B
     # SOC Lz·Sz diagonal: ξ × ml × ms → gap contribution = ξ × (1-(-1)) × 0.5 = ξ
-    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (2**3 * 1 * 2 * 1.5)
+    xi = (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / (2**3 * 1 * 2 * 1.5)
     soc_correction = xi  # (ml_+ - ml_-) × ms × ξ
     expected = zeeman_gap + soc_correction
 

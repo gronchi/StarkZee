@@ -1,4 +1,5 @@
 """Regression coverage for state-resolved radiative lifetimes (C11)."""
+import math
 
 import json
 from pathlib import Path
@@ -93,8 +94,8 @@ def test_isotropic_decay_operator_is_diagonal_in_uncoupled_basis(n):
 
 
 def test_hydrogenic_substate_rates_scale_as_z_fourth_power():
-    rates_h = einstein_a_substate_rates(3, 2, 1)
-    rates_he = einstein_a_substate_rates(3, 2, 2)
+    rates_h = einstein_a_substate_rates(3, 2, 1, A=math.inf)
+    rates_he = einstein_a_substate_rates(3, 2, 2, A=math.inf)
     np.testing.assert_allclose(rates_he, 2**4 * rates_h, rtol=2e-14, atol=1e-6)
 
 

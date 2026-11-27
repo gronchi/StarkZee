@@ -137,4 +137,12 @@ upper/lower diagonalization and dipole rotation once at the user-specified
 field, then returns the unbroadened transition sticks without a plasma
 microfield average.
 
+The returned ``lp.discrete`` exposes individual ``strength`` values in
+Bohr-radius squared, per-transition ``einstein_a_s`` coefficients, and
+``upper_partial_decay_rate_s`` summed into the chosen lower shell.
+Field-free radial functions, dipoles, strengths, and rates are also
+available directly through ``starkzee.atomic``. A separate ``StarkMap``
+interface sweeps the electric field in a multi-shell basis. See
+:doc:`atomic_api` for the corresponding calls, unit conventions, and plots.
+
 .. _`sec:formulation`:

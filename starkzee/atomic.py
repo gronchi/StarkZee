@@ -58,25 +58,25 @@ def line_strength(n_u, n_l, Z=1):
     return _line_strength(n_u, n_l, Z)
 
 
-def oscillator_strength(n_u, n_l, Z=1):
-    """Return the weighted field-free absorption oscillator strength ``gf``."""
-    return _oscillator_strength(n_u, n_l, Z)
+def oscillator_strength(n_u, n_l, Z=1, A=None):
+    """Return the weighted field-free absorption oscillator strength ``gf`` (A: mass number)."""
+    return _oscillator_strength(n_u, n_l, Z, A)
 
 
 def einstein_a(n_u, n_l, Z=1, A=None):
     r"""Return the field-free shell-averaged Einstein A coefficient [s^-1].
 
-    Pass the emitter mass number as ``A`` for a reduced-mass-corrected photon
-    energy. Omitting it preserves the historical infinite-mass convention.
+    ``A`` is the emitter mass number (default: most abundant isotope of Z;
+    ``math.inf`` for an infinite nuclear mass); the rate scales with mu/m_e.
     """
     return _einstein_a(n_u, n_l, Z, A=A)
 
 
-def einstein_a_substate_rates(n_u, n_l, Z=1):
-    r"""Return field-free E1 rates from each upper-shell basis state [s^-1]."""
-    return _einstein_a_substate_rates(n_u, n_l, Z)
+def einstein_a_substate_rates(n_u, n_l, Z=1, A=None):
+    r"""Return field-free E1 rates from each upper-shell basis state [s^-1] (A: mass number)."""
+    return _einstein_a_substate_rates(n_u, n_l, Z, A)
 
 
-def natural_decay_rates(n, Z=1):
-    r"""Return total field-free E1 decay rates of shell-``n`` basis states."""
-    return _natural_decay_rates(n, Z)
+def natural_decay_rates(n, Z=1, A=None):
+    r"""Return total field-free E1 decay rates of shell-``n`` basis states (A: mass number)."""
+    return _natural_decay_rates(n, Z, A)

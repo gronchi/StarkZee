@@ -75,7 +75,7 @@ for row, (Ne, det_range) in enumerate(NE_ROWS):
         transverse = pi + 0.5 * (sp + sm)
         norm  = transverse.max() or 1.0
 
-        # Centre detuning on the intensity-weighted centroid so that the
+        # Center detuning on the intensity-weighted centroid so that the
         # fine-structure blueshift does not break the visual σ+/σ− symmetry.
         E_center = float(np.sum(energies * transverse) / np.sum(transverse))
         det_plot = (energies - E_center) * 1e3   # meV from FS line center
@@ -109,7 +109,7 @@ for row, (Ne, det_range) in enumerate(NE_ROWS):
         ax.set_ylabel("Norm. intensity",                  fontsize=9)
         ax.set_xlim(-det_range, det_range)
         ax.set_ylim(0, 1.15)
-        ax.axhline(0, color="grey", lw=0.4)
+        ax.axhline(0, color="gray", lw=0.4)
         ax.tick_params(labelsize=8)
 
         if row == 0 and col == 0:

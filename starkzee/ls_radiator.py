@@ -1,6 +1,6 @@
 """LS-term radiator: multi-electron lines from LS terms and signed reduced E1 elements.
 
-Each manifold (upper or lower) is a set of LS terms; the basis is |term, J, M>.
+Each manifold (upper or lower) is a set of LS terms; the basis is ``|term, J, M>``.
 For every manifold the radiator builds
 
 * H0(B) = E_J (zero-field level energies, any number of terms) + the exact Zeeman
@@ -15,17 +15,17 @@ and the dipole matrices D_q between the manifolds. :class:`LSTransition` express
 the terms as J levels (:func:`ls_level_data`) and runs them through
 :class:`~starkzee.jlevel_radiator.JLevelTransition`, which implements the radiator
 interface of :mod:`starkzee.radiators`; :func:`_zeeman_operator` and
-:func:`_dipole_element` build the same matrices directly in the |term J M> basis
+:func:`_dipole_element` build the same matrices directly in the ``|term J M>`` basis
 as an independent reference.
 
-Conventions (Edmonds / Condon-Shortley):
+Conventions (Edmonds / Condon-Shortley)::
 
     <J M| T^1_q |J' M'> = (-1)^(J-M) (J 1 J'; -M q M') <J||T||J'>
     <(L S) J || d || (L' S) J'> = (-1)^(L+S+J'+1) sqrt((2J+1)(2J'+1)) {L J S; J' L' 1} <L||d||L'>
     <(Lp l) L || d || (Lp l') L'> = (-1)^(Lp+l+L'+1) sqrt((2L+1)(2L'+1)) {l L Lp; L' l' 1} <l||r||l'>
     <l||r||l'> = (-1)^l sqrt((2l+1)(2l'+1)) (l 1 l'; 0 0 0) <n l|r|n' l'>
 
-Reduced elements are real; <b||d||a> = (-1)^(L_b - L_a) <a||d||b>. The electric
+Reduced elements are real; ``<b||d||a> = (-1)^(L_b - L_a) <a||d||b>``. The electric
 interaction of the bound electron is V = e F . r. Term energies are in cm^-1; the
 radiator works in eV.
 
@@ -42,7 +42,7 @@ from starkzee.angular import wigner_3j, wigner_6j
 from starkzee.coulomb_approximation import coulomb_radial, effective_n
 from starkzee.radiator import intrashell_radial_dipole, radial_dipole
 from starkzee.jlevel_radiator import JLevelTransition
-from starkzee.utils import G_S, M_E, energy_ev_to_wavenumber_cm, wavenumber_cm_to_energy_ev
+from starkzee.utils import G_S, M_E, core_mass_factors, energy_ev_to_wavenumber_cm, wavenumber_cm_to_energy_ev
 
 _EV_TO_CM = float(energy_ev_to_wavenumber_cm(1.0))
 _CM_TO_EV = float(wavenumber_cm_to_energy_ev(1.0))
@@ -115,7 +115,7 @@ def orbital_reduced_r(l_a, l_b, radial):
 def one_electron_reduced(l_a, L_a, l_b, L_b, L_parent, radial):
     """<(Lp l_a) L_a || d || (Lp l_b) L_b> for one active electron on a parent Lp [e a0].
 
-    radial is the signed radial integral <n_a l_a| r |n_b l_b> [a0].
+    radial is the signed radial integral ``<n_a l_a| r |n_b l_b>`` [a0].
     """
     return (_phase(L_parent + l_a + L_b + 1) * np.sqrt((2 * L_a + 1) * (2 * L_b + 1))
             * wigner_6j(l_a, L_a, L_parent, L_b, l_b, 1) * orbital_reduced_r(l_a, l_b, radial))
@@ -124,7 +124,7 @@ def one_electron_reduced(l_a, L_a, l_b, L_b, L_parent, radial):
 def one_electron_r2_reduced(l_a, L_a, l_b, L_b, L_parent, k, radial_r2):
     """<(Lp l_a) L_a || r^2 C^k || (Lp l_b) L_b> [a0^2] for one active electron on a parent Lp.
 
-    radial_r2 is <n_a l_a| r^2 |n_b l_b> [a0^2]; k = 0 or 2 (the diamagnetic term).
+    radial_r2 is ``<n_a l_a| r^2 |n_b l_b>`` [a0^2]; k = 0 or 2 (the diamagnetic term).
     """
     orbital = (_phase(l_a) * np.sqrt((2 * l_a + 1) * (2 * l_b + 1))
                * wigner_3j(l_a, k, l_b, 0, 0, 0))                                 # <l_a||C^k||l_b>
@@ -159,7 +159,7 @@ def ls_diamagnetic_elements(terms, index, diamagnetic):
 
 
 def hydrogenic_radial(n_a, l_a, n_b, l_b, Z_core):
-    """Signed hydrogenic <n_a l_a| r |n_b l_b> [a0] (positive-near-origin radial functions).
+    """Signed hydrogenic ``<n_a l_a| r |n_b l_b>`` [a0] (positive-near-origin radial functions).
 
     Gordon's closed form between shells; exact intra-shell value -(3n/2Z) sqrt(n^2 - l^2).
     """
@@ -169,12 +169,16 @@ def hydrogenic_radial(n_a, l_a, n_b, l_b, Z_core):
 
 
 def reduced_element(term_a, electron_a, term_b, electron_b, Z_core=1.0, mass_amu=None, radial="coulomb"):
-    """Signed LS reduced E1 element <a||d||b> [e a0] for one active electron.
+    """Signed LS reduced E1 element ``<a||d||b>`` [e a0] for one active electron.
 
     radial : "coulomb" (default) uses the Coulomb approximation with n* from the
         weighted term energies and the series limits of ``electron_a/b``;
         "hydrogenic" uses Gordon's hydrogenic integrals with the integer n and
         Z_core.
+    mass_amu : atom mass [u]; with it the radial integral is in the reduced Bohr
+        radius (factor m_e / mu, see :func:`~starkzee.utils.core_mass_factors`),
+        and the Coulomb n* uses the reduced-mass Rydberg. None: infinite mass.
+
     Both terms must share the parent L (the spectator core is unchanged).
     """
     if electron_a.L_parent != electron_b.L_parent:
@@ -189,10 +193,11 @@ def reduced_element(term_a, electron_a, term_b, electron_b, Z_core=1.0, mass_amu
         r = hydrogenic_radial(electron_a.n, electron_a.l, electron_b.n, electron_b.l, Z_core)
     else:
         raise ValueError("radial must be 'coulomb' or 'hydrogenic'")
+    r /= core_mass_factors(mass_amu)[0]          # lengths in the reduced Bohr radius a0 m_e / mu
     return one_electron_reduced(electron_a.l, term_a.L, electron_b.l, term_b.L, electron_a.L_parent, r)
 
 
-def ls_level_data(upper_terms, lower_terms, couplings, g_L=1.0, g_s=G_S):
+def ls_level_data(upper_terms, lower_terms, couplings, g_L=None, g_s=G_S, mass_amu=None):
     """Express LS terms as a J-level :class:`~starkzee.level_data.LevelData`.
 
     Every (term, J) becomes a level (energy in eV) with its LS g_J; the elements of
@@ -200,9 +205,13 @@ def ls_level_data(upper_terms, lower_terms, couplings, g_L=1.0, g_s=G_S):
     LS couplings give the E1 elements <(L S)J||d||(L' S)J'>. Returns
     (data, upper indices, lower indices); with these,
     :class:`~starkzee.jlevel_radiator.JLevelTransition` reproduces
-    :class:`LSTransition`.
+    :class:`LSTransition`. g_L defaults to 1 - m_e/M of the atom mass mass_amu [u]
+    (1 for None), as in :class:`LSTransition`.
     """
     from starkzee.level_data import E1Element, JLevel, LevelData, MagneticElement
+
+    if g_L is None:
+        g_L = core_mass_factors(mass_amu)[1]
 
     levels, index, terms = {}, {}, {}
     upper, lower = [], []
@@ -324,16 +333,33 @@ class LSTransition(JLevelTransition):
         term elements (e.g. :func:`one_electron_r2_reduced`) between terms of
         one manifold, diagonal pairs included, each unordered pair once. Adds the
         diamagnetic (quadratic Zeeman) term; default: linear Zeeman term only.
+    zeeman : {"exact", "weak", "strong"}
+        Treatment of the magnetic field. "exact" (default): Zeeman operator and
+        fine structure diagonalized together (intermediate field). "weak": the
+        field acts inside each J level only (g_J). "strong": the fine structure
+        of every term is removed (its J levels put at the term mean energy, i.e.
+        no spin-orbit coupling; Paschen-Back limit), then treated exactly.
+    term_couplings : dict, optional
+        {(label_a, label_b): {J: V}} [cm^-1], field-free couplings between the J
+        levels of two terms of one manifold with equal parity (spin-orbit mixing
+        of singlet and triplet terms, e.g. He I 1snl 1L_L - 3L_L). The term
+        energies of those J are the diagonal (unmixed) energies. Needs
+        zeeman="exact"; "strong" drops them with the rest of the spin-orbit coupling.
     """
 
     def __init__(self, upper_terms, lower_terms, couplings, B, mass_amu=None, g_L=None, g_s=G_S,
                  emitter_charge=0.0, electron_widths_ev=None, reference_energy_ev=None,
                  collision_n=None, collision_Z=None, upper_perturbers=(), lower_perturbers=(),
-                 collision_n_lower=None, diamagnetic=None):
+                 collision_n_lower=None, diamagnetic=None, zeeman="exact", term_couplings=None):
         if g_L is None:
-            g_L = 1.0 if mass_amu is None else 1.0 - M_E / (mass_amu * _U)
+            g_L = core_mass_factors(mass_amu)[1]
         self.g_L, self.g_s = g_L, g_s
+        if zeeman not in ("exact", "weak", "strong"):
+            raise ValueError(f"zeeman must be 'exact', 'weak' or 'strong', got {zeeman!r}")
         groups = [list(upper_terms), list(lower_terms), list(upper_perturbers), list(lower_perturbers)]
+        if zeeman == "strong":                     # no spin-orbit: every J level at the term mean
+            groups = [[LSTerm(t.label, t.L, t.S, t.parity, {J: t.mean_energy_cm for J in t.energies_cm},
+                              t.decay_rates) for t in group] for group in groups]
         terms = {}
         for group in groups:
             for t in group:
@@ -350,11 +376,23 @@ class LSTransition(JLevelTransition):
         self._term_of = {k: lv.configuration for k, lv in data.levels.items()}
         level_index = {(lv.configuration, lv.J): k for k, lv in data.levels.items()}
         dia = ls_diamagnetic_elements(terms, level_index, diamagnetic) if diamagnetic else None
+        level_couplings = {}
+        for (a, b), by_J in (term_couplings or {}).items():
+            if zeeman == "strong":
+                break                                  # no spin-orbit coupling in the Paschen-Back limit
+            if terms[a].parity != terms[b].parity:
+                raise ValueError(f"term coupling {a} - {b} joins terms of opposite parity")
+            for J, V in by_J.items():
+                if (a, float(J)) not in level_index or (b, float(J)) not in level_index:
+                    raise ValueError(f"term coupling {a} - {b}: both terms need a J = {J} level")
+                level_couplings[(level_index[(a, float(J))], level_index[(b, float(J))])] =                     float(wavenumber_cm_to_energy_ev(V))
         super().__init__(data, index(groups[0]), index(groups[1]), B, emitter_charge=emitter_charge,
                          electron_widths_ev=electron_widths_ev, reference_energy_ev=reference_energy_ev,
                          collision_n=collision_n, collision_Z=collision_Z,
                          upper_perturbers=index(groups[2]), lower_perturbers=index(groups[3]),
-                         collision_n_lower=collision_n_lower, mass_amu=mass_amu, diamagnetic=dia)
+                         collision_n_lower=collision_n_lower, mass_amu=mass_amu, diamagnetic=dia,
+                         zeeman="weak" if zeeman == "weak" else "exact", level_couplings=level_couplings)
+        self.zeeman = zeeman
 
     @property
     def states(self):

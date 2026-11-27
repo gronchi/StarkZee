@@ -8,8 +8,8 @@ Run them from the project root, e.g.:
 
     python examples/example_balmer_lineprofile.py
 
-Each row below links to a page with the full source code and the resulting
-figure(s).
+Each row below links to a guide with source code and the resulting figures.
+The atomic-data guide includes excerpts from its runnable plotting script.
 
 .. list-table::
    :header-rows: 1
@@ -18,6 +18,10 @@ figure(s).
    * - Example
      - What it shows
      - Script(s)
+   * - :doc:`atomic_api`
+     - Radial wavefunctions, line strengths, Einstein rates, dressed
+       transitions, and multi-shell Stark maps
+     - 1
    * - :doc:`examples/example_balmer_lineprofile`
      - Hα–Hε at DIII-D-like edge conditions via the high-level
        ``LineProfile`` class
@@ -40,6 +44,14 @@ figure(s).
      - H Ly-α from the intermediate-field to the Paschen-Back regime
        (100–1000 T)
      - 3
+   * - :doc:`examples/he_i_4471`
+     - He I 447.1 nm with its field-induced 2p-4f component, at three
+       densities (multi-electron LS radiator)
+     - 1
+   * - :doc:`examples/c_iv_n5_n4`
+     - Li-like C IV n = 5 → 4 (253 nm) from 0 to 500 T (one-valence-electron
+       radiator from NIST levels)
+     - 1
    * - :doc:`examples/model_comparison`
      - StarkZee (static + FFM) vs. all five built-in reference models
      - 1
@@ -58,5 +70,7 @@ figure(s).
    examples/reproduce_fig1
    examples/pppb_paper
    examples/test_lyman_alpha
+   examples/he_i_4471
+   examples/c_iv_n5_n4
    examples/model_comparison
    examples/model_comparison_non_hermit

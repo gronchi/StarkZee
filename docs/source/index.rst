@@ -2,7 +2,7 @@ starkzee
 ============
 
 A Python library implementing a coupled **Stark-Zeeman plasma line-shape model**
-for hydrogen-like radiators, based on:
+for hydrogen-like and multi-electron radiators, based on:
 
     S. Ferri, O. Peyrusse, A. Calisti, *et al.*,
     "Stark-Zeeman line-shape model for multi-electron ions in hot dense plasmas",
@@ -34,6 +34,11 @@ field B, accounting for:
 - Spin-orbit coupling and the quadratic (diamagnetic) Zeeman term
 - Optional in-solver Doppler broadening and standalone Doppler/instrumental convolutions
 
+Multi-electron lines use the same solvers through a radiator object built from
+LS terms or J-level data (FAC, Cowan RCG). Ready-made radiators cover
+He I 447.1 nm and Li-like C IV, N V and O VI n = 5 → 4 (see
+:doc:`manual_multielectron`).
+
 .. code-block:: python
 
     import numpy as np
@@ -55,6 +60,7 @@ field B, accounting for:
 
    installation
    quickstart
+   atomic_api
    validation
 
 .. toctree::
@@ -64,6 +70,7 @@ field B, accounting for:
    manual_introduction
    manual_workflow
    manual_formulation
+   manual_multielectron
    manual_approximations
    manual_reference_models
    manual_validity

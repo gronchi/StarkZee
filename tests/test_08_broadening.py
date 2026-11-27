@@ -137,9 +137,7 @@ def test_strong_collision_source_lineage_is_explicit():
     root = Path(__file__).resolve().parents[1]
     rst = (root / "docs/source/manual_formulation.rst").read_text(encoding="utf-8")
     tex = (root / "docs/manual.tex").read_text(encoding="utf-8")
-    references = (root / "docs/source/manual_references.rst").read_text(
-        encoding="utf-8"
-    )
+    references = (root / "docs/references.bib").read_text(encoding="utf-8")
     assert "ZEST Section 2.2" in rst
     assert "paper's Table I compares" in rst
     assert "following\nEq. (19); Ferri Table 1" in rst

@@ -1,5 +1,6 @@
 import inspect
 import json
+import re
 from pathlib import Path
 
 from starkzee.models import analytical
@@ -53,14 +54,14 @@ def test_local_lomanowski_mixture_is_not_misattributed_to_pystark():
 
 
 def test_rosato_bibliography_matches_table_paper():
-    rst = (ROOT / "docs" / "source" / "manual_references.rst").read_text(encoding="utf-8")
-    tex = (ROOT / "docs" / "manual.tex").read_text(encoding="utf-8")
-    for text in (rst, tex):
-        assert "A new table of Balmer line shapes" in text
-        assert "10.1016/j.jqsrt.2016.10.005" in text
-        assert "J. Rosato, Y. Marandet, R. Stamm" in text
-    assert "**190**, 1–5" not in rst
-    assert "10.1103/PhysRevE.79.046408" not in tex
+    # Both manuals render references from docs/references.bib.
+    bib = (ROOT / "docs" / "references.bib").read_text(encoding="utf-8")
+    entry = re.search(r"@article\{rosato,\n(.*?)\n\}", bib, flags=re.DOTALL).group(1)
+    assert "A new table of Balmer line shapes" in entry
+    assert "doi = {10.1016/j.jqsrt.2016.10.005}" in entry
+    assert "author = {Joël Rosato and Yannick Marandet and Roland Stamm}" in entry
+    assert "volume = {187}" in entry
+    assert "10.1103/PhysRevE.79.046408" not in bib
 
 
 def test_example_does_not_claim_lomanowski_lacks_field_handling():

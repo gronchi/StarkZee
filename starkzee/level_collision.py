@@ -3,14 +3,14 @@
 Generalizes :func:`starkzee.collision.build_ppp_collision_operator` (PPP manual,
 Appendix B, Eq. B1) from one degenerate hydrogenic shell to arbitrary levels.
 Every d.d product carries the impact factor of its own pair of field-free
-levels,
+levels::
 
     W(a, b) = W0 [C_n + G(0)],  G evaluated with the cutoff
     omega_c(a, b) = max(omega_p, omega_L, omega_e, |E_a - E_b|)
 
 (Ferri, Peyrusse & Calisti 2022: the state-to-state frequency omega_aa' enters
 the maximum; the hydrogenic code keeps it at zero). For each manifold
-(upper u, lower l) the operator in the coherence space |u><l| is
+(upper u, lower l) the operator in the coherence space ``|u><l|`` is::
 
     Phi = A_u (x) 1 + 1 (x) A_l^T - sum_c [ (r_u,c o W_u) (x) r_l,c^T + r_u,c (x) (r_l,c o W_l)^T ],
     A[a, a'] = sum_c sum_a'' r_c[a, a''] r_c[a'', a'] (W[a, a''] + W[a', a'']) / 2,
@@ -42,7 +42,7 @@ def cutoff_frequency_ev(Ne_m3, Te_ev, B):
 
 
 def impact_factors(energies_ev, Ne_m3, Te_ev, B, n, Z):
-    """W[a, b] = W0 [C_n + G(0, max(omega_c0, |E_a - E_b|))] [eV/a0^2] for the given level energies."""
+    """``W[a, b] = W0 [C_n + G(0, max(omega_c0, |E_a - E_b|))]`` [eV/a0^2] for the given level energies."""
     E = np.asarray(energies_ev, dtype=float)
     omega_c = np.maximum(cutoff_frequency_ev(Ne_m3, Te_ev, B), np.abs(E[:, None] - E[None, :]))
     C = _strong_collision_constant(max(2, int(round(n))))
@@ -68,6 +68,7 @@ class ManifoldCollisionData:
 
     r : three (dim_ext, dim_ext) Hermitian matrices (x, y, z) [a0]; the first
         ``dim`` states are the manifold, the rest the perturbers.
+
     energies_ev : field-free level energy of each extended state.
     """
 

@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import math
+
 import numpy as np
 import pytest
 
@@ -113,7 +115,7 @@ def test_single_shell_full_spectrum_matches_production_hamiltonian():
         + build_stark_matrix(3, 1, 2e7, -3e7))
     np.testing.assert_allclose(
         np.linalg.eigvalsh(reference), np.linalg.eigvalsh(production),
-        rtol=0.0, atol=2e-15)
+        rtol=0.0, atol=1e-14)          # |E| ~ 1.5 eV: a few ulp
 
 
 def test_diamagnetic_matrix_is_hermitian_positive_and_inter_shell():
@@ -143,7 +145,7 @@ def test_multishell_field_scaling_and_full_hermiticity():
 
 @pytest.mark.parametrize("n_u,n_l", [(2, 1), (3, 2), (4, 2)])
 def test_single_pair_multishell_dipole_strength_matches_production(n_u, n_l):
-    matrices = build_multishell_dipole_matrices((n_u,), (n_l,), 1)
+    matrices = build_multishell_dipole_matrices((n_u,), (n_l,), 1, A=math.inf)
     strength = sum(np.vdot(matrix, matrix).real
                    for matrix in matrices.values())
     assert strength == pytest.approx(line_strength(n_u, n_l, 1), rel=2e-15)
@@ -156,9 +158,9 @@ def test_dipole_strength_is_invariant_under_ci_basis_rotation():
         (1, 2), 1, B=500.0, Fz=1e7, Fx=2e7)
     assert len(upper_energies) == V_u.shape[0]
     assert len(lower_energies) == V_l.shape[0]
-    original = build_multishell_dipole_matrices((3, 4), (1, 2), 1)
+    original = build_multishell_dipole_matrices((3, 4), (1, 2), 1, A=math.inf)
     rotated = build_multishell_dipole_matrices(
-        (3, 4), (1, 2), 1, V_u, V_l)
+        (3, 4), (1, 2), 1, V_u, V_l, A=math.inf)
     for q in (0, 1, -1):
         assert np.vdot(rotated[q], rotated[q]).real == pytest.approx(
             np.vdot(original[q], original[q]).real, rel=3e-15)
@@ -170,9 +172,9 @@ def test_strength_breakdown_closes_globally_and_in_spectral_window():
     lower_energies, V_l = diagonalize_multishell_hamiltonian(
         (2,), 1, B=500.0, Fz=1e7, Fx=2e7)
     total = build_multishell_dipole_matrices(
-        (3, 4, 5), (2,), 1, V_u, V_l)
+        (3, 4, 5), (2,), 1, V_u, V_l, A=math.inf)
     target = build_multishell_dipole_matrices(
-        (3, 4, 5), (2,), 1, V_u, V_l, shell_pair=(4, 2))
+        (3, 4, 5), (2,), 1, V_u, V_l, shell_pair=(4, 2), A=math.inf)
 
     global_result = transition_strength_breakdown(total, target)
     assert global_result["target"] == pytest.approx(
@@ -197,13 +199,13 @@ def test_strength_breakdown_closes_globally_and_in_spectral_window():
 
 @pytest.mark.parametrize("n_u,n_l", [(2, 1), (3, 2), (4, 2)])
 def test_single_pair_oscillator_strength_matches_production(n_u, n_l):
-    matrices = build_multishell_dipole_matrices((n_u,), (n_l,), 1)
+    matrices = build_multishell_dipole_matrices((n_u,), (n_l,), 1, A=math.inf)
     upper = np.full(2 * n_u**2, -RYDBERG_EV / n_u**2)
     lower = np.full(2 * n_l**2, -RYDBERG_EV / n_l**2)
     result = oscillator_strength_breakdown(
         matrices, matrices, upper, lower)
     assert result["total"] == pytest.approx(
-        oscillator_strength(n_u, n_l, 1), rel=2e-15)
+        oscillator_strength(n_u, n_l, 1, A=math.inf), rel=2e-15)
     assert result["neighboring"] == 0.0
     assert result["interference"] == 0.0
 

@@ -15,17 +15,20 @@ CM_TO_EV = float(wavenumber_cm_to_energy_ev(1.0))
 
 
 def hydrogen_couplings(up, lo, n_u, n_l):
+    """Hydrogen LS couplings with lengths in the reduced Bohr radius (as the hydrogenic radiator)."""
     from starkzee.ls_radiator import hydrogenic_radial, one_electron_reduced
+    from starkzee.utils import reduced_mass_factor
+    a_mu = 1.0 / reduced_mass_factor(1)
     c = {}
     for n, terms in ((n_u, up), (n_l, lo)):
         for l in range(n - 1):
             c[(terms[l].label, terms[l + 1].label)] = one_electron_reduced(
-                l, l, l + 1, l + 1, 0, hydrogenic_radial(n, l, n, l + 1, 1))
+                l, l, l + 1, l + 1, 0, a_mu * hydrogenic_radial(n, l, n, l + 1, 1))
     for lu in range(n_u):
         for ll in range(n_l):
             if abs(lu - ll) == 1:
                 c[(up[lu].label, lo[ll].label)] = one_electron_reduced(
-                    lu, lu, ll, ll, 0, hydrogenic_radial(n_u, lu, n_l, ll, 1))
+                    lu, lu, ll, ll, 0, a_mu * hydrogenic_radial(n_u, lu, n_l, ll, 1))
     return c
 
 

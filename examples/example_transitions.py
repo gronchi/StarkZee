@@ -60,7 +60,7 @@ def plot_stick_spectrum(ax, tr, E0, normalize=True, title="", show_legend=True):
     ax.set_title(title, fontsize=11)
     if show_legend:
         ax.legend(fontsize=8, framealpha=0.7)
-    ax.axhline(0, color="grey", linewidth=0.5)
+    ax.axhline(0, color="gray", linewidth=0.5)
     ax.set_xlim(-5, 5)
 
 
@@ -197,7 +197,7 @@ ax_stark.set_title(f"H Ly-α  B={B_panel} T + Stark field\n"
                    f"(sticks: all polarizations combined)", fontsize=11)
 ax_stark.legend(fontsize=8, framealpha=0.7)
 ax_stark.set_xlim(-8, 8)
-ax_stark.axhline(0, color="grey", linewidth=0.5)
+ax_stark.axhline(0, color="gray", linewidth=0.5)
 
 # ── Panel 5: H Hβ stick at B=5T ─────────────────────────────────────────────
 E0_hb = bohr_energy(4, 2, 1)
@@ -216,7 +216,7 @@ ax_hb.set_ylabel("Norm. strength", fontsize=10)
 ax_hb.set_title("H Hβ (n=4→2)  B=5 T\nMany Stark-Zeeman components", fontsize=11)
 ax_hb.legend(fontsize=8, framealpha=0.7)
 ax_hb.set_xlim(-12, 12)
-ax_hb.axhline(0, color="grey", linewidth=0.5)
+ax_hb.axhline(0, color="gray", linewidth=0.5)
 
 # ── Panel 6: H Ly-α stick at B=5000T — Zeeman dominates over SO ─────────────
 # Complements Panels 1 (B=0, pure SO) and 2 (B=5T, SO and Zeeman comparable):
@@ -237,7 +237,7 @@ ax_hib.set_xlabel("Detuning from E₀ (meV)", fontsize=10)
 ax_hib.set_ylabel("Norm. strength", fontsize=10)
 ax_hib.set_title(f"H Ly-α  B={B_hib:.0f} T\nZeeman dominates (μ_B B ≫ ξ)", fontsize=11)
 ax_hib.legend(fontsize=8, framealpha=0.7)
-ax_hib.axhline(0, color="grey", linewidth=0.5)
+ax_hib.axhline(0, color="gray", linewidth=0.5)
 
 fig.suptitle("starkzee — Discrete Stark-Zeeman Transitions", fontsize=14, y=1.01)
 plt.tight_layout()

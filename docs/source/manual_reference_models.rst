@@ -9,7 +9,7 @@ Tabulated Models
 Stehlé (MMM) — ``stehle``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Stehlé model reads precomputed Stark lineshapes from the Model Microfield Method (MMM) database [stehle]_ for hydrogen Lyman, Balmer, and Paschen transitions over a grid of :math:`N_e` and :math:`T_e` values. The tables contain the *unmagnetized* (:math:`B = 0`) Stark profile **without fine structure** [stehle]_, as a function of a reduced detuning :math:`\Delta\omega/F_0` (Holtsmark normal field units). The pipeline is:
+The Stehlé model reads precomputed Stark lineshapes from the Model Microfield Method (MMM) database :cite:p:`stehle` for hydrogen Lyman, Balmer, and Paschen transitions over a grid of :math:`N_e` and :math:`T_e` values. The tables contain the *unmagnetized* (:math:`B = 0`) Stark profile **without fine structure** :cite:p:`stehle`, as a function of a reduced detuning :math:`\Delta\omega/F_0` (Holtsmark normal field units). The pipeline is:
 
 #. Linear interpolation over the required :math:`(N_e, T_e)` table corners. Exact coordinate nodes use only that source node. Positive detunings use log--log interpolation by default; ``interpolation='fintrp'`` selects the distributed Fortran-style three-point rule.
 
@@ -35,7 +35,7 @@ comparison with held-out physical data.
 Rosato — ``rosato``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Rosato database [rosato]_ solves the Stark-Zeeman problem *jointly* and tabulates the result with :math:`B` as an explicit table axis (:math:`B \in \{0, 1, 2, 2.5, 3, 5\}` T). The pipeline is:
+The Rosato database :cite:p:`rosato` solves the Stark-Zeeman problem *jointly* and tabulates the result with :math:`B` as an explicit table axis (:math:`B \in \{0, 1, 2, 2.5, 3, 5\}` T). The pipeline is:
 
 #. Interpolation over the :math:`(N_e, T_e, B)` grid. The :math:`B`-interpolation is *scaled*: before blending two bracketing profiles at :math:`B_0` and :math:`B_1`, each profile’s detuning axis is stretched by :math:`B_\mathrm{node}/B`. This exploits the fact that Zeeman splitting scales linearly with :math:`B`, aligning the :math:`\sigma` components before interpolating.
 
@@ -43,14 +43,14 @@ The Rosato database [rosato]_ solves the Stark-Zeeman problem *jointly* and tabu
 
 #. Thermal Doppler broadening via FFT convolution.
 
-Rosato supports D Balmer lines with upper n=3..7, and an approximate H mapping. Density covers 1e13..1e16 cm^-3, effective table temperature 0.316..31.6 eV and B=0..5 T, including endpoints. The effective temperature is Ti for D and 2*Ti for H; Te is not a table coordinate. The corrected code uses four-corner logarithmic density/temperature interpolation, retains Doppler tails and normalizes output per wavelength metre. No interpolation accuracy outside the tables is claimed.
+Rosato supports D Balmer lines with upper n=3..7, and an approximate H mapping. Density covers 1e13..1e16 cm^-3, effective table temperature 0.316..31.6 eV and B=0..5 T, including endpoints. The effective temperature is Ti for D and 2*Ti for H; Te is not a table coordinate. The corrected code uses four-corner logarithmic density/temperature interpolation, retains Doppler tails and normalizes output per wavelength meter. No interpolation accuracy outside the tables is claimed.
 
 Rosato's bundled data contain negative intensities at some nodes. By default,
 ``negative_table_policy='warn'`` warns and preserves signed values through
 interpolation, Doppler smoothing and normalization. Explicit ``'raise'`` rejects
 affected cells; ``'clip'`` projects values to zero and warns. Clipping can bias
 noisy data and is not validation or replacement of the underlying data.
-Reference wrappers return density per wavelength metre on air-centered axes;
+Reference wrappers return density per wavelength meter on air-centered axes;
 main-solver stored profiles remain per eV. Apply coordinate/Jacobian conversions
 and matched finite-window normalization before comparing amplitudes.
 
@@ -73,7 +73,7 @@ Lomanowski-width sensitivity model — ``lomanowski``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This StarkZee-specific sensitivity model uses the power-law Stark FWHM from
-Lomanowski *et al.* Eq. (1) and Table 1 [lomanowski]_:
+Lomanowski *et al.* Eq. (1) and Table 1 :cite:p:`lomanowski`:
 
 .. math::
 
@@ -85,12 +85,12 @@ Coefficients :math:`(a, b, c)` are tabulated for H/D Balmer and Paschen lines up
 Parameterized Stehlé — ``stehle_param``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The direct Lomanowski parameterization of the Stehlé/MMM tables [lomanowski]_: Eq. (1) and Table 1 give the Stark FWHM and coefficients, while Eq. (2) gives the modified-Lorentzian profile. StarkZee then performs frequency-domain Doppler convolution and applies a separable normal-Zeeman triplet. The paper reports its fit domain as :math:`10^{19}\leq N_e\leq10^{21}` m\ :sup:`-3` and :math:`1\leq T_e\leq10` eV, with under-10% FWHM error against the original tabulations within that domain; this is not a guarantee for the complete profile or for extrapolation.
+The direct Lomanowski parameterization of the Stehlé/MMM tables :cite:p:`lomanowski`: Eq. (1) and Table 1 give the Stark FWHM and coefficients, while Eq. (2) gives the modified-Lorentzian profile. StarkZee then performs frequency-domain Doppler convolution and applies a separable normal-Zeeman triplet. The paper reports its fit domain as :math:`10^{19}\leq N_e\leq10^{21}` m\ :sup:`-3` and :math:`1\leq T_e\leq10` eV, with under-10% FWHM error against the original tabulations within that domain; this is not a guarantee for the complete profile or for extrapolation.
 
 Voigt — ``voigt``
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Faddeeva-evaluated Voigt profile using the Griem :math:`\alpha_{12}` Stark half-width [griem]_ combined with thermal Doppler broadening. Serves as a quick estimate when only order-of-magnitude Stark width accuracy is required.
+A Faddeeva-evaluated Voigt profile using the Griem :math:`\alpha_{12}` Stark half-width :cite:p:`griem` combined with thermal Doppler broadening. Serves as a quick estimate when only order-of-magnitude Stark width accuracy is required.
 
 Comparison with StarkZee
 --------------------------------

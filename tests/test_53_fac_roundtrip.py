@@ -54,7 +54,7 @@ def _manifold_levels(r):
 
 @pytest.mark.parametrize("B", [0.0, 1.0])
 def test_fac_tables_reproduce_the_he_i_radiator(tmp_path, B):
-    ref = he_i_4471(B)
+    ref = he_i_4471(B, singlets=False)          # the synthetic FAC tables hold the triplets
     data = ref.data
     lev, tr = write_fac(data, tmp_path)
     fac = read_fac(lev, tr, gf_rtol=1e-10, g_factors={i: l.g_J for i, l in data.levels.items()})
@@ -81,7 +81,7 @@ def test_fac_tables_reproduce_the_he_i_radiator(tmp_path, B):
 
 
 def test_missing_magnetic_mixing_is_flagged(tmp_path):
-    ref = he_i_4471(1.0)
+    ref = he_i_4471(1.0, singlets=False)
     lev, tr = write_fac(ref.data, tmp_path)
     fac = read_fac(lev, tr, gf_rtol=1e-10, g_factors={i: l.g_J for i, l in ref.data.levels.items()})
     up, lo = _manifold_levels(ref)

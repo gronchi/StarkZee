@@ -1,16 +1,16 @@
 """J-level radiator: lines built directly from :class:`~starkzee.level_data.LevelData`.
 
 For data without LS labels (FAC, Cowan, PPP files), and the common engine of the
-LS radiator. The basis of each manifold is |level, J, M>. With the Edmonds
+LS radiator. The basis of each manifold is ``|level, J, M>``. With the Edmonds
 Wigner-Eckart theorem,
 
-* H0(B) = E_level + mu_B B <a J M| T_0 |b J' M>, T = L + g_s S, from the levels'
+* ``H0(B) = E_level + mu_B B <a J M| T_0 |b J' M>``, ``T = L + g_s S``, from the levels'
   g_J (diagonal) and the dataset's magnetic elements between levels (Paschen-Back
   mixing; optional), plus, when the reduced elements of r^2 C^0 and r^2 C^2 are
   given (``diamagnetic``), the diamagnetic term
   (e^2 B^2 / 8 m_e) r^2 sin^2(theta) = (e^2 B^2 / 12 m_e) r^2 (C^0 - C^2_0);
 * the Stark templates (V = e F . r) come from the E1 elements between levels of
-  the same manifold, the dipole matrices D_q[lower, upper] = <lower| r_q |upper>
+  the same manifold, the dipole matrices ``D_q[lower, upper] = <lower| r_q |upper>``
   from the elements between the manifolds.
 
 Energies are in eV (``unit_to_ev = 1``). Stark mixing and the interference of
@@ -35,7 +35,7 @@ from starkzee.level_collision import (
     ManifoldCollisionData, build_level_collision_operator, line_center_factor, scalar_width_ev,
 )
 from starkzee.radiators import Manifold
-from starkzee.utils import A0, BOHR_MAGNETON_EV_T, E_CHARGE, M_E
+from starkzee.utils import A0, BOHR_MAGNETON_EV_T, E_CHARGE, M_E, core_mass_factors
 
 _PPPB_MODELS = ("pppb", "ferri", "pppb-intra", "ferri-intra")
 
@@ -66,7 +66,7 @@ class JLevelTransition:
         (used when collision_n is None; default 0).
     reference_energy_ev : float, optional
         Line reference [eV] for the Doppler width and electron detuning; default:
-        difference of the mean (over |J M>) manifold energies.
+        difference of the mean (over ``|J M>``) manifold energies.
     collision_n : float, optional
         Effective principal quantum number of the upper manifold for the impact
         operator (C_n and GBK argument). Enables the collision operator.
@@ -77,7 +77,7 @@ class JLevelTransition:
         Levels outside the manifolds whose E1 couplings to them add to the
         collision self terms (e.g. 4p/4f for a 4d manifold, or Delta n != 0 levels).
     mass_amu : float, optional
-        Emitter mass [u] for the Doppler width (otherwise the solver uses ``species``).
+        Emitter mass [u]: Doppler width and the reduced mass of the diamagnetic term.
     collision_n_lower : float, optional
         Effective n of the lower manifold for its scalar and per-state widths
         (default collision_n). The full PPP operator uses collision_n for all terms.
@@ -87,16 +87,40 @@ class JLevelTransition:
         (each unordered pair once, diagonal pairs included; missing ranks are
         zero). Adds the diamagnetic term to H0 for B != 0; without it the
         Zeeman term is linear only.
+    zeeman : {"exact", "weak"}
+        "exact" (default): all magnetic elements of the dataset, including those
+        between J levels (intermediate field / Paschen-Back mixing). "weak": the
+        field acts inside each J level only (g_J, anomalous Zeeman effect; the
+        diamagnetic term likewise). The strong-field limit needs term structure:
+        see :class:`~starkzee.ls_radiator.LSTransition`.
+    level_couplings : dict, optional
+        {(a, b): V} [eV], field-free couplings between levels of one manifold
+        with equal J and parity (e.g. spin-orbit mixing of singlet and triplet
+        levels), added to H0 for every M. The level energies are then the
+        diagonal (unmixed) energies. Needs zeeman="exact".
     """
 
     def __init__(self, data, upper, lower, B, emitter_charge=0.0, electron_widths_ev=None,
                  reference_energy_ev=None, collision_n=None, collision_Z=None,
                  upper_perturbers=(), lower_perturbers=(), collision_n_lower=None, mass_amu=None,
-                 diamagnetic=None):
+                 diamagnetic=None, zeeman="exact", level_couplings=None):
         groups = [set(upper), set(lower), set(upper_perturbers), set(lower_perturbers)]
         if groups[0] & groups[1] or (groups[0] | groups[1]) & (groups[2] | groups[3]):
             raise ValueError("a level cannot be in two manifolds or be both radiating and perturbing")
+        if zeeman not in ("exact", "weak"):
+            raise ValueError("JLevelTransition supports zeeman='exact' or 'weak' (strong: LSTransition)")
+        self.zeeman = zeeman
         self.data = data
+        self.level_couplings = dict(level_couplings or {})
+        for (a, b) in self.level_couplings:
+            la, lb = data.levels[a], data.levels[b]
+            if a == b or la.two_j != lb.two_j or la.parity != lb.parity:
+                raise ValueError(f"level coupling {a} - {b} needs two levels of equal J and parity")
+            if not ((a in groups[0] and b in groups[0]) or (a in groups[1] and b in groups[1])):
+                raise ValueError(f"level coupling {a} - {b} must join two levels of one manifold")
+        if self.level_couplings and zeeman != "exact":
+            raise ValueError("level_couplings need zeeman='exact' (the weak treatment projects on the "
+                             "unmixed J levels)")
         self.diamagnetic = dict(diamagnetic or {})
         self.mass_amu = mass_amu
         self.default_emitter_charge = emitter_charge
@@ -145,13 +169,24 @@ class JLevelTransition:
         data = self.data
         E = np.array([data.levels[i].energy_ev for i, _, _ in states])
         H = np.diag(E).astype(complex)
+        if self.level_couplings:
+            position = {s: k for k, s in enumerate(states)}
+            for (a, b), V in self.level_couplings.items():
+                for (i, J, M), k in position.items():
+                    if i != a:
+                        continue
+                    k2 = position.get((b, J, M))
+                    if k2 is not None:
+                        H[k, k2] += V
+                        H[k2, k] += np.conj(V)
         if B != 0.0:
             mu = BOHR_MAGNETON_EV_T * B
-            if not data.magnetic:
+            weak = self.zeeman == "weak"
+            if not data.magnetic and not weak:
                 self._warn_weak_field(states, mu)
             for i, (a, J, M) in enumerate(states):
                 for j, (b, J2, M2) in enumerate(states):
-                    if abs(M - M2) > 1e-9 or abs(J - J2) > 1 + 1e-9:
+                    if abs(M - M2) > 1e-9 or abs(J - J2) > 1 + 1e-9 or (weak and a != b):
                         continue
                     red = data.magnetic_element(a, b)
                     if red is None:
@@ -176,13 +211,18 @@ class JLevelTransition:
         return 0.0
 
     def _diamagnetic(self, states, B):
-        """(e^2 B^2 / 12 m_e) <i| r^2 (C^0 - C^2_0) |j> [eV] in the |level J M> basis."""
-        coefficient = E_CHARGE * B**2 * A0**2 / (12.0 * M_E)          # e^2 B^2 a0^2 / (12 m_e), in eV
+        """(e^2 B^2 / 12 mu) <i| r^2 (C^0 - C^2_0) |j> [eV] in the |level J M> basis.
+
+        mu is the reduced mass of the active electron for the atom mass mass_amu
+        (m_e without it); the r^2 elements are used as given [a0^2].
+        """
+        mu = core_mass_factors(self.mass_amu)[0]
+        coefficient = E_CHARGE * B**2 * A0**2 / (12.0 * M_E * mu)     # e^2 B^2 a0^2 / (12 mu), in eV
         dim = len(states)
         H = np.zeros((dim, dim))
         for i, (a, J, M) in enumerate(states):
             for j, (b, J2, M2) in enumerate(states):
-                if abs(M - M2) > 1e-9:
+                if abs(M - M2) > 1e-9 or (self.zeeman == "weak" and a != b):
                     continue
                 value = 0.0
                 if abs(J - J2) < 1e-9:

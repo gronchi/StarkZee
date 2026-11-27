@@ -57,14 +57,13 @@ def intrashell_cartesian_dipoles(n, Z):
                     bra.l, bra.ml, ket.l, ket.ml, q)
                 spherical[q][row, col] = -radial * angular
 
-    x = (spherical[-1] + spherical[1]) / np.sqrt(2.0)
-    y = 1j * (spherical[-1] - spherical[1]) / np.sqrt(2.0)
+    x = (spherical[-1] - spherical[1]) / np.sqrt(2.0)        # standard C^1_q components
+    y = 1j * (spherical[-1] + spherical[1]) / np.sqrt(2.0)
     z = spherical[0]
-    cartesian = tuple((matrix + matrix.conj().T) / 2.0 for matrix in (x, y, z))
-    for matrix in cartesian:
-        if not np.allclose(matrix, matrix.conj().T, rtol=0, atol=1e-13):
+    for matrix in (x, y, z):           # check the matrices as built, before removing roundoff
+        if not np.allclose(matrix, matrix.conj().T, rtol=0, atol=1e-12 * max(1.0, np.abs(matrix).max())):
             raise RuntimeError("Internal shell dipole matrix is not Hermitian.")
-    return cartesian
+    return tuple((matrix + matrix.conj().T) / 2.0 for matrix in (x, y, z))
 
 
 @lru_cache(maxsize=None)

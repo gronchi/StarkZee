@@ -50,7 +50,7 @@ def test_unperturbed_energy_n1_l0(n, Z):
     H = build_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
                                   fine_structure=False)
     basis = build_basis(n)
-    En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
 
     for i, state in enumerate(basis):
         if state.l == 0:
@@ -71,7 +71,7 @@ def test_eigenvalue_centroid(n, Z):
     """
     eigenvalues, _ = diagonalize_hamiltonian(n, Z, B=0.0, quadratic_zeeman=False,
                                          fine_structure=False)
-    En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    En_exact = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
     mean_E = np.mean(eigenvalues.real)
     assert relerr(mean_E, En_exact) < 1e-4, (
         f"n={n},Z={Z}: mean eigenvalue={mean_E:.6f}, expected={En_exact:.6f}"
@@ -89,7 +89,7 @@ def test_n1_degenerate():
     for Z in [1, 4, 6]:
         evals, _ = diagonalize_hamiltonian(1, Z, B=0.0, quadratic_zeeman=False,
                                        fine_structure=False)
-        En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1)
+        En = -(Z**2) * reduced_mass_rydberg_ev(Z)
         np.testing.assert_allclose(evals.real, En, rtol=1e-10,
                                    err_msg=f"n=1, Z={Z}: n=1 levels not degenerate")
 
@@ -124,7 +124,7 @@ def test_n2_soc_splitting_CVI():
     """
     evals, _ = diagonalize_hamiltonian(n=2, Z=6, B=0.0, quadratic_zeeman=False)
     E_spread = evals.real.max() - evals.real.min()
-    xi = (6**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(6, 1) / (2**3 * 1 * 2 * 1.5)
+    xi = (6**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(6) / (2**3 * 1 * 2 * 1.5)
     print(f"C VI n=2 SOC: ξ={xi:.4f} eV, eigenvalue spread={E_spread:.4f} eV")
     # Spread should be ~1.5 ξ
     assert relerr(E_spread, 1.5 * xi) < 0.5, (

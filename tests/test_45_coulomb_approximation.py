@@ -1,6 +1,8 @@
 """Coulomb approximation: hydrogenic limit, symmetry, alkali resonance f-values, LS helper."""
 import pytest
 
+from starkzee.utils import core_mass_factors
+
 from starkzee.coulomb_approximation import coulomb_radial, effective_n, reduced_rydberg_cm
 from starkzee.ls_radiator import (
     ActiveElectron, LSTerm, hydrogenic_radial, one_electron_reduced, reduced_element,
@@ -50,7 +52,9 @@ def test_reduced_element_options():
     e3d, e2p = ActiveElectron(3, 2, 0, R), ActiveElectron(2, 1, 0, R)
     hyd = reduced_element(d, e3d, p, e2p, mass_amu=1.007825, radial="hydrogenic")
     ca = reduced_element(d, e3d, p, e2p, mass_amu=1.007825)
-    assert hyd == pytest.approx(one_electron_reduced(2, 2, 1, 1, 0, hydrogenic_radial(3, 2, 2, 1, 1)), rel=1e-15)
+    a_mu = 1.0 / core_mass_factors(1.007825)[0]          # radial lengths in the reduced Bohr radius
+    assert hyd == pytest.approx(one_electron_reduced(2, 2, 1, 1, 0, a_mu * hydrogenic_radial(3, 2, 2, 1, 1)),
+                                rel=1e-15)
     assert ca == pytest.approx(hyd, rel=1e-12)
     with pytest.raises(ValueError):
         reduced_element(d, ActiveElectron(3, 2), p, ActiveElectron(2, 1))     # no series limit

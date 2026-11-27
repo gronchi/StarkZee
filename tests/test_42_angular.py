@@ -112,8 +112,8 @@ def test_closed_forms_match_wigner_formulas():
         for l2 in range(6):
             for m1 in range(-l1, l1 + 1):
                 for m2 in range(-l2, l2 + 1):
-                    # T_0 = C_0, T_{+1} = -C_{+1}, T_{-1} = +C_{-1}
-                    for q, sign in ((0, 1), (1, -1), (-1, 1)):
+                    # T_q = C^1_q (standard Condon-Shortley components)
+                    for q, sign in ((0, 1), (1, 1), (-1, 1)):
                         assert angular.angular_dipole_element(l1, m1, l2, m2, q) == pytest.approx(
                             sign * _ck(l1, m1, 1, q, l2, m2), abs=1e-14)
                     # sin^2 = 2/3 (1 - C^2_0)

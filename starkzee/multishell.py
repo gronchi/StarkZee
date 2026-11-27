@@ -20,7 +20,7 @@ from starkzee.radiator import (
     radial_wavefunction,
 )
 from starkzee.utils import (
-    A0, E_CHARGE, M_E, RYDBERG_EV, reduced_mass_rydberg_ev,
+    A0, E_CHARGE, M_E, RYDBERG_EV, reduced_mass_factor, reduced_mass_rydberg_ev,
 )
 
 
@@ -105,7 +105,7 @@ def _multishell_stark_templates(shells, Z):
                 bra.l, bra.ml, ket.l, ket.ml, 0)
             x_angular = (
                 angular_dipole_element(bra.l, bra.ml, ket.l, ket.ml, -1)
-                + angular_dipole_element(bra.l, bra.ml, ket.l, ket.ml, 1)
+                - angular_dipole_element(bra.l, bra.ml, ket.l, ket.ml, 1)
             ) / np.sqrt(2.0)
             # Electron interaction in eV: -F * <r> [m]. The signed radial
             # convention is used consistently both within and between shells.
@@ -114,14 +114,14 @@ def _multishell_stark_templates(shells, Z):
     return z_matrix, x_matrix
 
 
-def build_multishell_stark_matrix(shells, Z, Fz, Fx):
-    """Return the Hermitian multi-shell linear-Stark matrix in eV."""
+def build_multishell_stark_matrix(shells, Z, Fz, Fx, A=None):
+    """Return the Hermitian multi-shell linear-Stark matrix in eV (lengths in the reduced Bohr radius)."""
     shell_key = _shell_tuple(shells)
     Z = _nuclear_charge(Z)
     if not np.isfinite(Fz) or not np.isfinite(Fx):
         raise ValueError("Fz and Fx must be finite")
     z_matrix, x_matrix = _multishell_stark_templates(shell_key, Z)
-    result = Fz * z_matrix + Fx * x_matrix
+    result = (Fz * z_matrix + Fx * x_matrix) / reduced_mass_factor(Z, A)
     if not np.allclose(result, result.conj().T, rtol=0.0, atol=1e-13):
         raise RuntimeError("constructed multi-shell Stark matrix is not Hermitian")
     return result.copy()
@@ -142,13 +142,13 @@ def _multishell_diamagnetic_template(shells, Z):
     return matrix
 
 
-def build_multishell_diamagnetic_matrix(shells, Z, B):
-    """Return ``e^2 B^2 r^2 sin^2(theta)/(8 m_e)`` in eV."""
+def build_multishell_diamagnetic_matrix(shells, Z, B, A=None):
+    """Return ``e^2 B^2 r^2 sin^2(theta)/(8 mu)`` in eV, with r in the reduced Bohr radius."""
     shell_key = _shell_tuple(shells)
     Z = _nuclear_charge(Z)
     if not np.isfinite(B):
         raise ValueError("B must be finite")
-    coefficient_ev = E_CHARGE * B**2 * A0**2 / (8.0 * M_E)
+    coefficient_ev = E_CHARGE * B**2 * A0**2 / (8.0 * M_E) / reduced_mass_factor(Z, A)**3
     result = coefficient_ev * _multishell_diamagnetic_template(shell_key, Z)
     if not np.allclose(result, result.conj().T, rtol=0.0, atol=1e-13):
         raise RuntimeError("constructed multi-shell diamagnetic matrix is not Hermitian")
@@ -157,7 +157,7 @@ def build_multishell_diamagnetic_matrix(shells, Z, B):
 
 def build_multishell_hamiltonian(shells, Z, B, Fz=0.0, Fx=0.0,
                                  quadratic_zeeman=True, fine_structure=True,
-                                 A=1):
+                                 A=None):
     """Build an experimental multi-shell hydrogenic CI Hamiltonian in eV.
 
     Atomic, fine-structure, and linear-Zeeman terms are assembled shell by
@@ -180,9 +180,9 @@ def build_multishell_hamiltonian(shells, Z, B, Fz=0.0, Fx=0.0,
         size = block.shape[0]
         matrix[offset:offset + size, offset:offset + size] = block
         offset += size
-    matrix += build_multishell_stark_matrix(shell_key, Z, Fz, Fx)
+    matrix += build_multishell_stark_matrix(shell_key, Z, Fz, Fx, A)
     if quadratic_zeeman:
-        matrix += build_multishell_diamagnetic_matrix(shell_key, Z, B)
+        matrix += build_multishell_diamagnetic_matrix(shell_key, Z, B, A)
     return matrix
 
 
@@ -233,8 +233,11 @@ def _eigenvector_matrix(vectors, dimension, name):
 def build_multishell_dipole_matrices(upper_shells, lower_shells, Z,
                                      upper_eigenvectors=None,
                                      lower_eigenvectors=None,
-                                     shell_pair=None):
-    """Return E1 matrices between two truncated multi-shell spaces.
+                                     shell_pair=None, A=None):
+    """Return E1 matrices between two truncated multi-shell spaces [reduced Bohr radius].
+
+    A is the mass number (default: most abundant isotope of Z), as in the
+    production hydrogenic radiator.
 
     The returned arrays have shape ``(n_lower_states, n_upper_states)``.
     Supplying eigensystem matrices rotates the operators coherently as
@@ -260,7 +263,8 @@ def build_multishell_dipole_matrices(upper_shells, lower_shells, Z,
     V_l = _eigenvector_matrix(
         lower_eigenvectors, len(build_multishell_basis(lower_key)),
         "lower_eigenvectors")
-    return {q: V_l.conj().T @ matrix @ V_u
+    a_mu = 1.0 / reduced_mass_factor(Z, A)
+    return {q: a_mu * (V_l.conj().T @ matrix @ V_u)
             for q, matrix in uncoupled.items()}
 
 
@@ -403,7 +407,7 @@ def multishell_transition_diagnostics(shells, target_n, lower_n, Z, B,
     target = build_multishell_dipole_matrices(
         shell_key, (lower_n,), Z, V_u, V_l,
         shell_pair=(target_n, lower_n))
-    center = Z**2 * reduced_mass_rydberg_ev(Z, 1) * (
+    center = Z**2 * reduced_mass_rydberg_ev(Z) * (
         1 / lower_n**2 - 1 / target_n**2)
     mask = transition_energy_mask(
         upper_energies, lower_energies, center, half_width_ev)

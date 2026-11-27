@@ -6,8 +6,10 @@ Git history, units, the closest archived source, and unresolved provenance
 fields. An `unknown` value is deliberate; it must not be replaced by an
 inference.
 
-`bibliography.json` is the completed metadata audit for the 22 works represented
-by the manual's 21 citation keys. `historical_provenance.json` identifies the
+`bibliography.json` is the completed metadata audit for the 22 works cited by
+the manuals, one citation key per work. It is the single bibliography source:
+`python scripts/generate_bibtex.py` writes `docs/references.bib`, which both the
+Sphinx site and `docs/manual.tex` read. `historical_provenance.json` identifies the
 exact Git commit and blobs matching the separately audited standalone manual,
 its PDF, figure and generator, and its runtime datasets. The latter can be
 checked from a full clone with

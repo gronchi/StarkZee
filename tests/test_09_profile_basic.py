@@ -26,7 +26,7 @@ def make_profile(n_u, n_l, Z, B, Ne, Te, detuning_range=0.2, npts=300,
     Bohr formula E0) matches the actual profile center. Fine structure correctness
     is tested separately in test_16_fine_structure.py.
     """
-    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z) * (1.0/n_l**2 - 1.0/n_u**2)
     det = np.linspace(-detuning_range, detuning_range, npts)
     energies = E0 + det
     pi, sp, sm = calculate_static_profile(
@@ -152,7 +152,7 @@ def test_zeeman_splitting_at_large_B():
     Z, n_u, n_l = 1, 2, 1
     B = 500.0
     Ne, Te = 1e21, 1.0   # very low density: minimal Stark
-    E0 = (Z**2) * reduced_mass_rydberg_ev(Z, 1) * (1.0/n_l**2 - 1.0/n_u**2)
+    E0 = (Z**2) * reduced_mass_rydberg_ev(Z) * (1.0/n_l**2 - 1.0/n_u**2)
 
     det = np.linspace(-0.2, 0.2, 500)
     energies = E0 + det

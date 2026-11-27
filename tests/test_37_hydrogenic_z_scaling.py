@@ -1,4 +1,5 @@
 """Exact nonrelativistic hydrogenic Z-scaling regressions."""
+import math
 
 import numpy as np
 import pytest
@@ -9,12 +10,11 @@ from starkzee.static_profile import build_stark_matrix
 
 @pytest.mark.parametrize("n,Z", [(2, 2), (3, 6), (4, 18)])
 def test_intrashell_stark_matrix_obeys_exact_z_scaling(n, Z):
-    """H(Z,F) = Z^2 H(1,F/Z^3) for the linear Stark contribution."""
+    """H(Z,F) = Z^2 H(1,F/Z^3) for the linear Stark contribution (infinite nuclear mass)."""
     field_z = 2.3e8
     field_x = -1.1e8
-    actual = build_stark_matrix(n, Z, field_z, field_x)
-    scaled_hydrogen = Z**2 * build_stark_matrix(
-        n, 1, field_z / Z**3, field_x / Z**3)
+    actual = build_stark_matrix(n, Z, field_z, field_x, A=math.inf)
+    scaled_hydrogen = Z**2 * build_stark_matrix(n, 1, field_z / Z**3, field_x / Z**3, A=math.inf)
     np.testing.assert_allclose(actual, scaled_hydrogen, rtol=2e-15, atol=1e-20)
 
 
@@ -24,9 +24,9 @@ def test_linear_stark_spectrum_obeys_exact_z_scaling(n, Z):
     field_z = 2.3e8
     field_x = -1.1e8
     energies_z = np.linalg.eigvalsh(
-        build_stark_matrix(n, Z, field_z, field_x))
+        build_stark_matrix(n, Z, field_z, field_x, A=math.inf))
     energies_h = Z**2 * np.linalg.eigvalsh(
-        build_stark_matrix(n, 1, field_z / Z**3, field_x / Z**3))
+        build_stark_matrix(n, 1, field_z / Z**3, field_x / Z**3, A=math.inf))
     np.testing.assert_allclose(energies_z, energies_h, rtol=2e-13, atol=2e-17)
 
 

@@ -1,9 +1,10 @@
 ffm
 ===
 
-``calculate_ffm_profile`` defaults to ``use_empirical_data=True`` with
-``atom='H'``. Supply the matching isotope for D or T. Set this flag to
-``False`` for analytical energies, ``Z > 1``, or shells outside the tables.
+``calculate_ffm_profile`` defaults to ``use_empirical_data=True``; the
+measured-level table follows the isotope ``A_ion`` (H, D or T), and levels
+beyond the tables use the Dirac energy below the ionization limit. Set this
+flag to ``False`` for analytical energies or ``Z > 1``.
 
 Frequency Fluctuation Model utilities for adding ion dynamics to a static
 Stark-Zeeman transition set.  In the Sherman-Morrison form used by the fast
@@ -24,6 +25,15 @@ where
 Here :math:`p_k` are normalized Stark-dressed transition weights,
 :math:`\gamma_k` are electron-impact widths, and :math:`\nu_i` is the ion
 microfield fluctuation rate.
+
+With ``radiator=`` (a multi-electron or hydrogenic radiator, see
+:doc:`../manual_multielectron`), ``n_u``, ``n_l`` and ``Z`` may be ``None``;
+``A_ion`` and ``emitter_charge`` default to the radiator's mass and charge, and
+the perturbers are set by ``Z_bar`` and ``A_perturber`` (default protons).
+``electron_operator=True`` gives each SDT its per-state electron width. At
+B = 0 the SDTs of the three polarizations are pooled before the fluctuation
+step. ``electron_interference`` and ``sdt_frequency_dependent_width`` are not
+available with a radiator.
 
 ``A_ion`` denotes the emitter mass in the profile API. Optional
 ``A_perturber`` defaults to it, retaining historical same-species behavior.

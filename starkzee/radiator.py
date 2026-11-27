@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from scipy.special import assoc_laguerre
 from scipy.integrate import quad
-from starkzee.utils import A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE, FINE_STRUCTURE, energy_ev_to_wavenumber_cm
+from starkzee.utils import (A0, RYDBERG_EV, BOHR_MAGNETON_EV_T, G_S, reduced_mass_rydberg_ev, HBAR, M_E, E_CHARGE,
+                            FINE_STRUCTURE, energy_ev_to_wavenumber_cm, mass_number, orbital_g_factor,
+                            reduced_mass_factor, resolve_atom)
 from starkzee.angular import (
     angular_dipole_element, sin2_theta_element, spin_orbit_element, wigner_3j, wigner_6j)
 
@@ -51,6 +53,35 @@ def build_basis(n):
                 basis.append(AtomicState(idx, n, l, ml, 0.5, ms))
                 idx += 1
     return basis
+
+
+@lru_cache(maxsize=None)
+def basis_index(n):
+    """Map (l, m_l, m_s) to the position of that state in :func:`build_basis` (n)."""
+    return {(s.l, s.ml, s.ms): s.index for s in build_basis(n)}
+
+
+def _spin_orbit_xi(n, l, Z, rydberg_ev):
+    """Spin-orbit constant xi_nl [eV] (Dirac, reduced-mass Rydberg)."""
+    return (Z**4) * (FINE_STRUCTURE**2) * rydberg_ev / ((n**3) * l * (l + 1.0) * (l + 0.5))
+
+
+def _spin_orbit_matrix(n, Z, rydberg_ev=RYDBERG_EV):
+    """xi_nl L.S [eV] in the uncoupled basis; L.S only couples (m_l, m_s) to (m_l -+ 1, m_s +- 1)."""
+    basis, index = build_basis(n), basis_index(n)
+    H = np.zeros((len(basis), len(basis)), dtype=complex)
+    for i, st in enumerate(basis):
+        l = st.l
+        if l == 0:
+            continue
+        xi = _spin_orbit_xi(n, l, Z, rydberg_ev)
+        for ml, ms in ((st.ml, st.ms), (st.ml + 1, st.ms - 1), (st.ml - 1, st.ms + 1)):
+            j = index.get((l, ml, ms))
+            if j is not None:
+                ls = spin_orbit_element(l, st.ml, st.ms, ml, ms)
+                if ls:
+                    H[i, j] += xi * ls
+    return H
 
 def radial_wavefunction(r, n, l, Z):
     r"""Return the hydrogenic radial wavefunction R_{nl}(r) [a₀^{−3/2}].
@@ -112,7 +143,7 @@ def _closed_radial_r2_element(n, l1, l2, Z):
         Δl = 2 (off-diag):  ⟨n,l|r²|n,l+2⟩ = (5/2) n²
                             √[(n² − (l+1)²)(n² − (l+2)²)] / Z²,   l = min(l₁,l₂)
 
-    Returns ``None`` for abs(Δl) ∉ {0, 2}, signalling that no closed form applies
+    Returns ``None`` for abs(Δl) ∉ {0, 2}, signaling that no closed form applies
     (the caller falls back to numerical integration; such elements never enter
     the quadratic-Zeeman Hamiltonian, whose angular factor vanishes there).
     """
@@ -302,6 +333,7 @@ def radial_dipole(n1, l1, n2, l2, Z, method=None):
         raise ValueError(f"Unknown radial-dipole method {method!r}; choose 'gordon' or 'quad'.")
     if abs(l1 - l2) != 1:
         return 0.0
+    n1, l1, n2, l2 = int(n1), int(l1), int(n2), int(l2)       # exact integer arithmetic (numpy ints too)
     if method == "gordon" and n1 != n2:
         return _gordon_radial_dipole(n1, l1, n2, l2, Z)
     return _quad_radial_dipole(n1, l1, n2, l2, Z)
@@ -310,11 +342,11 @@ def radial_dipole(n1, l1, n2, l2, Z, method=None):
 def intrashell_radial_dipole(n, l1, l2, Z):
     """Return the intra-shell radial element (3n/2Z)√(n² − l²) [a₀], l = max(l₁, l₂).
 
-    Closed form of ⟨n, l | r | n, l ± 1⟩ in the rephased, *positive* convention of
+    Closed form of ``⟨n, l | r | n, l ± 1⟩`` in the rephased, *positive* convention of
     the intra-shell Stark templates (:mod:`starkzee.static_profile`,
     :mod:`starkzee.collision`). The actual integral with the standard radial
-    functions has the opposite sign (:func:`radial_dipole`, e.g. ⟨2s|r|2p⟩ = −3√3 a₀);
-    the two differ by the rephasing |n,l,m⟩ → (−1)^l |n,l,m⟩. Returns 0 unless
+    functions has the opposite sign (:func:`radial_dipole`, e.g. ``⟨2s|r|2p⟩ = −3√3 a₀``);
+    the two differ by the rephasing ``|n,l,m⟩ → (−1)^l |n,l,m⟩``. Returns 0 unless
     abs(l₁ − l₂) = 1.
     """
     if abs(l1 - l2) != 1:
@@ -402,7 +434,8 @@ def _quad_radial_dipole(n1, l1, n2, l2, Z):
     return val
 
 @lru_cache(maxsize=None)
-def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, use_empirical_data=False, atom="H"):
+def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=None, use_empirical_data=False,
+                      atom=None):
     """Build the (2n²) × (2n²) atomic Hamiltonian matrix in eV.
 
     Constructs the full magnetic Hamiltonian in the uncoupled ``|n, l, m_l, m_s⟩``
@@ -411,11 +444,11 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
 
     **1. Unperturbed energy** (diagonal, degenerate across the shell):
 
-        E_n = −Z² Ry / n²
+        E_n = −Z² R_μ / n²,   R_μ = Ry μ/m_e   (reduced mass μ of electron and nucleus)
 
     **2. Spin-orbit coupling** L·S (off-diagonal in m_l, m_s):
 
-        H_SO = ξ_{nl} L·S,   ξ_{nl} = Z⁴ α² Ry / (n³ l (l+½)(l+1))
+        H_SO = ξ_{nl} L·S,   ξ_{nl} = Z⁴ α² R_μ / (n³ l (l+½)(l+1))
 
     Written with ladder operators: L·S = L_z S_z + ½(L₊ S₋ + L₋ S₊).
 
@@ -423,22 +456,26 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
     ``fine_structure=True``):
 
         ΔE_{l=0} = −A (n − ¾)
-        ΔE_{l>0} = −A (n/(l+½) − ¾),   A = Z⁴ α² Ry / n⁴
+        ΔE_{l>0} = −A (n/(l+½) − ¾),   A = Z⁴ α² R_μ / n⁴
 
     Together with spin-orbit, these reproduce the Dirac fine-structure formula
     and restore the 2s_{1/2} = 2p_{1/2} degeneracy.
 
     **4. Linear Zeeman** (diagonal):
 
-        H_LZ = μ_B B (m_l + g_s m_s),   g_s = 2.0023192
+        H_LZ = μ_B B (g_L m_l + g_s m_s),   g_L = 1 − m_e/M,   g_s = 2.0023192
 
     **5. Quadratic (diamagnetic) Zeeman** (diagonal and off-diagonal in l,
     only when ``quadratic_zeeman=True`` and B > 0):
 
-        H_QZ = (e²B²/8m_e) r² sin²θ
+        H_QZ = (e²B²/8μ) r² sin²θ
 
     Matrix elements in the ``|n, l, m_l⟩`` basis involve ``⟨l, m_l | sin²θ | l', m_l⟩``
-    for abs(l − l') ∈ {0, 2} and the radial elements ``⟨n, l | r² | n, l'⟩``.
+    for abs(l − l') ∈ {0, 2} and the radial elements ``⟨n, l | r² | n, l'⟩`` in units
+    of the reduced Bohr radius a_μ = a₀ m_e/μ, so H_QZ carries (m_e/μ)³.
+
+    The nuclear-motion terms follow the relative-motion Hamiltonian of a neutral
+    two-body system (Lamb 1952). ``A = math.inf`` gives the infinite-mass limit.
 
     Parameters
     ----------
@@ -456,15 +493,22 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
         Include mass-velocity and Darwin corrections alongside spin-orbit
         (default True).  When False, only H_SO is added, breaking the
         2s_{1/2} = 2p_{1/2} degeneracy — useful for isolated unit tests.
+    A : int or float, optional
+        Mass number (default: the most abundant isotope of Z); sets the nuclear
+        mass of every reduced-mass term above.
     use_empirical_data : bool, optional
-        If True, injects precise empirical field-free energies from atomic_data.
+        If True, injects measured field-free (n, l, j) energies (Z = 1 only). Levels
+        missing from the table use the Dirac energy below the ionization limit
+        implied by the highest measured level (see
+        :func:`~starkzee.atomic_data.level_energy_cm`), with a warning.
     atom : str, optional
-        Element symbol used to fetch empirical data.
+        Key of the measured-level table: 'H', 'D' or 'T'. Default: the isotope
+        given by A; a value naming another isotope raises.
 
     Returns
     -------
     ndarray, shape (2n², 2n²), dtype complex
-        Hermitian Hamiltonian matrix in eV.
+        Hermitian Hamiltonian matrix in eV (cm⁻¹ when ``use_empirical_data``).
 
     Notes
     -----
@@ -478,29 +522,27 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
     """
     basis = build_basis(n)
     dim = len(basis)
+    A = mass_number(Z, A)
+    # Nuclear motion: energies scale with mu (reduced-mass Rydberg, also in the fine
+    # structure), lengths with a_mu = a0 m_e / mu, and the orbital g factor is
+    # g_L = 1 - m_e / M (Lamb 1952). A = math.inf gives the infinite-mass limit.
+    mu = reduced_mass_factor(Z, A)
+    rydberg = RYDBERG_EV * mu
 
     H = np.zeros((dim, dim), dtype=complex)
 
     # 1. Unperturbed energy (En = -Z^2 * R_atom / n^2)
-    # Use the reduced-mass-corrected Rydberg so the absolute transition
-    # energies match the observed wavelengths (e.g. NIST vacuum values).
-    En = - (Z**2) * reduced_mass_rydberg_ev(Z, A) / (n**2)
+    En = - (Z**2) * rydberg / (n**2)
     for i in range(dim):
         H[i, i] += En
 
     # 2. Spin-Orbit Coupling: xi * (L . S)
-    for i, state_i in enumerate(basis):
-        for j, state_j in enumerate(basis):
-            if state_i.l == state_j.l and state_i.l > 0:
-                l = state_i.l
-                xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
-                ls = spin_orbit_element(l, state_i.ml, state_i.ms, state_j.ml, state_j.ms)
-                if ls:
-                    H[i, j] += xi * ls
+    H_so = _spin_orbit_matrix(n, Z, rydberg)
+    H += H_so
 
     # 2b. Mass-velocity and Darwin corrections (completes Dirac fine structure).
     if fine_structure:
-        A_fs = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (n**4)
+        A_fs = (Z**4) * (FINE_STRUCTURE**2) * rydberg / (n**4)
         for i, state in enumerate(basis):
             l = state.l
             if l == 0:
@@ -517,20 +559,16 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
         # in cm⁻¹ (NIST convention) and kept in cm⁻¹ throughout this branch so
         # that callers can work entirely in wavenumber units. The Zeeman terms
         # below are also converted to cm⁻¹ so every contribution stays consistent.
-        from starkzee.atomic_data import load_levels
-        emp_states = load_levels(atom, fine_structure=fine_structure)
+        from starkzee.atomic_data import level_energy_cm, shell_energy_cm
+        atom = resolve_atom(Z, A, atom)
         emp_energy_map = {}
+        for l in range(n):
+            for j in ((l - 0.5, l + 0.5) if l else (0.5,)):
+                emp_energy_map[(l, j)] = (level_energy_cm(atom, n, l, j, rydberg) if fine_structure
+                                          else None)
         if not fine_structure:
-            from starkzee.atomic_data import empirical_shell_energy_cm
-            shell_energy = empirical_shell_energy_cm(atom, n)
-            for l in range(n):
-                emp_energy_map[(l, l + 0.5)] = shell_energy
-                if l:
-                    emp_energy_map[(l, l - 0.5)] = shell_energy
-        for st in emp_states:
-            if st.n == n:
-                if st.l is not None and st.j is not None:
-                    emp_energy_map[(st.l, st.j)] = st.energy  # cm⁻¹
+            shell_energy = shell_energy_cm(atom, n, rydberg)
+            emp_energy_map = {key: shell_energy for key in emp_energy_map}
         
         # To map properly, diagonalize H (which is B=0) to get coupled basis V
         # Because fine structure makes 2s_1/2 and 2p_1/2 degenerate in Dirac theory,
@@ -538,14 +576,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
         # H that breaks l-degeneracy, e.g., H without the MV/Darwin correction.
         H_break_deg = np.zeros((dim, dim), dtype=complex)
         for i in range(dim): H_break_deg[i, i] += En
-        for i, state_i in enumerate(basis):
-            for j, state_j in enumerate(basis):
-                if state_i.l == state_j.l and state_i.l > 0:
-                    l = state_i.l
-                    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
-                    ls = spin_orbit_element(l, state_i.ml, state_i.ms, state_j.ml, state_j.ms)
-                    if ls:
-                        H_break_deg[i, j] += xi * ls
+        H_break_deg += H_so
 
         evals, V = np.linalg.eigh(H_break_deg)
         D_emp = np.zeros(dim)
@@ -560,8 +591,7 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
                 j = 0.5
             else:
                 # Calculate <L.S> to distinguish j = l + 0.5 from j = l - 0.5
-                ls_val = 0.0
-                xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / ((n**3) * l * (l + 1.0) * (l + 0.5))
+                xi = _spin_orbit_xi(n, l, Z, rydberg)
                 # Using the exact energy eigenvalue of H_break_deg!
                 # E = En + xi <L.S>
                 ls_val = (evals[k] - En) / xi
@@ -578,30 +608,35 @@ def build_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, 
 
     # 3. Linear Zeeman Effect
     # When in empirical mode the Hamiltonian is in cm⁻¹; convert accordingly.
+    g_L = orbital_g_factor(Z, A)
     for i, state in enumerate(basis):
-        zeeman_ev = BOHR_MAGNETON_EV_T * B * (state.ml + G_S * state.ms)
+        zeeman_ev = BOHR_MAGNETON_EV_T * B * (g_L * state.ml + G_S * state.ms)
         H[i, i] += float(energy_ev_to_wavenumber_cm(zeeman_ev)) if use_empirical_data else zeeman_ev
 
     # 4. Quadratic Zeeman Effect
     if quadratic_zeeman and B > 0:
-        quad_coeff_ev = (E_CHARGE * (B**2) * (A0**2)) / (8.0 * M_E)
+        # e^2 B^2 / (8 mu) with <r^2> in a_mu^2: (m_e / mu)^3 times the infinite-mass value
+        quad_coeff_ev = (E_CHARGE * (B**2) * (A0**2)) / (8.0 * M_E) / mu**3
         quad_coeff = float(energy_ev_to_wavenumber_cm(quad_coeff_ev)) if use_empirical_data else quad_coeff_ev
-        for i, state_i in enumerate(basis):
-            for j, state_j in enumerate(basis):
-                if state_i.ms == state_j.ms and state_i.ml == state_j.ml:
-                    l1, l2 = state_i.l, state_j.l
-                    if l1 == l2:
-                        r2_val = (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l1 * (l1 + 1.0))
-                    elif abs(l1 - l2) == 2:
-                        r2_val = radial_r2_element(n, l1, l2, Z)
-                    else:
-                        continue
-                    sin2_val = sin2_theta_element(l1, state_i.ml, l2, state_j.ml)
-                    H[i, j] += quad_coeff * r2_val * sin2_val
+        index = basis_index(n)
+        r2 = {}
+        for l1 in range(n):
+            r2[(l1, l1)] = (n**2 / (2.0 * Z**2)) * (5.0 * n**2 + 1.0 - 3.0 * l1 * (l1 + 1.0))
+            for l2 in (l1 - 2, l1 + 2):
+                if 0 <= l2 < n:
+                    r2[(l1, l2)] = radial_r2_element(n, l1, l2, Z)
+        for i, state_i in enumerate(basis):           # sin^2(theta) keeps m_l, m_s; Delta l = 0, +-2
+            for l2 in (state_i.l - 2, state_i.l, state_i.l + 2):
+                j = index.get((l2, state_i.ml, state_i.ms))
+                if j is None:
+                    continue
+                sin2_val = sin2_theta_element(state_i.l, state_i.ml, l2, state_i.ml)
+                H[i, j] += quad_coeff * r2[(state_i.l, l2)] * sin2_val
 
     return H
 
-def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=1, use_empirical_data=False, atom="H"):
+def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True, A=None, use_empirical_data=False,
+                            atom=None):
     """Diagonalize the field-free (F = 0) magnetic Hamiltonian for shell n.
 
     Builds the (2n²) × (2n²) Hamiltonian via :func:`build_hamiltonian`
@@ -661,7 +696,7 @@ def diagonalize_hamiltonian(n, Z, B, quadratic_zeeman=True, fine_structure=True,
     return eigenvalues, eigenvectors
 
 def dipole_matrix_elements(n_u, n_l, Z, B, quadratic_zeeman=True,
-                                       fine_structure=True, A=1, use_empirical_data=False, atom="H"):
+                                       fine_structure=True, A=None, use_empirical_data=False, atom=None):
     """Return transition dipole matrices between the eigenstate bases of n_u and n_l.
 
     Diagonalizes the Hamiltonian for both shells and rotates the uncoupled
@@ -781,15 +816,17 @@ def _uncoupled_dipole_matrices_cached(n_u, n_l, Z, method):
             if abs(l_u - l_l) == 1:
                 r_cache[(l_u, l_l)] = radial_dipole(n_u, l_u, n_l, l_l, Z, method=method)
 
+    index_u = basis_index(n_u)
     D_q = {}
     for q in [0, 1, -1]:
         D = np.zeros((dim_l, dim_u), dtype=complex)
         for kl, sl in enumerate(basis_l):
-            for ku, su in enumerate(basis_u):
-                if su.ms == sl.ms and abs(su.l - sl.l) == 1:
-                    R   = r_cache.get((su.l, sl.l), 0.0)
-                    ang = angular_dipole_element(sl.l, sl.ml, su.l, su.ml, q)
-                    D[kl, ku] = -R * ang
+            # <l_l m_l| T_q |l_u m_u> needs l_u = l_l -+ 1, m_u = m_l - q and equal m_s
+            for l_u in (sl.l - 1, sl.l + 1):
+                ku = index_u.get((l_u, sl.ml - q, sl.ms))
+                if ku is not None:
+                    R   = r_cache.get((l_u, sl.l), 0.0)
+                    D[kl, ku] = -R * angular_dipole_element(sl.l, sl.ml, l_u, sl.ml - q, q)
         D_q[q] = D
 
     return D_q
@@ -805,7 +842,8 @@ def line_strength(n_u, n_l, Z):
     the states labeled by ``|n, l, ml, ms⟩``).
 
     The profile returned by calculate_static_profile integrates to
-    approximately S_ul at B = 0 and Ne → 0.  The Gauss-Legendre weights over
+    approximately S_ul (m_e/μ)² at B = 0 and Ne → 0: the radiators use
+    lengths in the reduced Bohr radius, S_ul here is in units of a₀².  The Gauss-Legendre weights over
     the microfield angle [0, 1] sum to 1 and the microfield distribution is
     normalized to 1, so the total quadrature weight is unity.
 
@@ -832,7 +870,7 @@ def line_strength(n_u, n_l, Z):
     return S
 
 
-def oscillator_strength(n_u, n_l, Z):
+def oscillator_strength(n_u, n_l, Z, A=None):
     """Compute the weighted absorption oscillator strength gf = g_l × f_lu.
 
     Uses:  gf = (2/3) × (ΔE / E_hartree) × S_ul
@@ -848,12 +886,18 @@ def oscillator_strength(n_u, n_l, Z):
     Hβ).  For Lyman series (n_l = 1) only l_u = 1 upper states contribute,
     so gf is the weighted oscillator strength for the specific 2p/3p/... level.
 
+    A is the mass number (default: most abundant isotope; ``math.inf`` for an
+    infinite nuclear mass). With f defined through the electron mass, the
+    reduced-mass energy (∝ μ) and squared dipole (∝ μ⁻²) make gf ∝ m_e/μ,
+    consistent with :func:`einstein_a`.
+
     Returns:
         gf (float): dimensionless weighted oscillator strength
     """
     E_hartree = 2.0 * RYDBERG_EV
-    delta_E_ev = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2)
-    S = line_strength(n_u, n_l, Z)
+    mu = reduced_mass_factor(Z, A)
+    delta_E_ev = (Z**2) * RYDBERG_EV * mu * (1.0/n_l**2 - 1.0/n_u**2)
+    S = line_strength(n_u, n_l, Z) / mu**2
     return (2.0/3.0) * (delta_E_ev / E_hartree) * S
 
 
@@ -926,28 +970,29 @@ def einstein_a(n_u, n_l, Z, A=None):
         Upper and lower principal shells.
     Z : int
         Nuclear charge.
-    A : int, optional
-        Emitter mass number. When supplied, use the reduced-mass Rydberg for
-        the photon energy. The default ``None`` preserves the historical
-        infinite-nuclear-mass result.
+    A : int or float, optional
+        Mass number (default: the most abundant isotope of Z; ``math.inf`` for
+        an infinite nuclear mass). The photon energy scales with mu and the
+        squared dipole with (m_e/mu)^2, so A_ul scales with mu/m_e.
 
     Returns:
         A_ul (float): spontaneous emission rate in s⁻¹
     """
-    rydberg_ev = (RYDBERG_EV if A is None
-                  else reduced_mass_rydberg_ev(Z, A))
-    delta_E_ev = (Z**2) * rydberg_ev * (1.0/n_l**2 - 1.0/n_u**2)
-    S = line_strength(n_u, n_l, Z)
+    mu = reduced_mass_factor(Z, A)
+    delta_E_ev = (Z**2) * RYDBERG_EV * mu * (1.0/n_l**2 - 1.0/n_u**2)
+    S = line_strength(n_u, n_l, Z) / mu**2
     g_u = 2 * n_u**2
     return einstein_a_from_strength(delta_E_ev, S / g_u)
 
 
 @lru_cache(maxsize=None)
-def _einstein_a_substate_rates_cached(n_u, n_l, Z):
+def _einstein_a_substate_rates_cached(n_u, n_l, Z, A):
     """Cached tuple of partial ``n_u``-substate rates for decay to ``n_l``."""
-    delta_E_ev = (Z**2) * RYDBERG_EV * (
+    mu = reduced_mass_factor(Z, A)
+    delta_E_ev = (Z**2) * RYDBERG_EV * mu * (
         1.0 / n_l**2 - 1.0 / n_u**2)
-    prefactor = einstein_a_from_strength(delta_E_ev, 1.0)
+    # dipoles are tabulated in a0; in reduced Bohr radii |d|^2 carries (m_e/mu)^2
+    prefactor = einstein_a_from_strength(delta_E_ev, 1.0) / mu**2
     D_q = _uncoupled_dipole_matrices(n_u, n_l, Z)
     rates = np.zeros(2 * n_u**2, dtype=float)
     for D in D_q.values():
@@ -955,13 +1000,13 @@ def _einstein_a_substate_rates_cached(n_u, n_l, Z):
     return tuple(rates)
 
 
-def einstein_a_substate_rates(n_u, n_l, Z):
+def einstein_a_substate_rates(n_u, n_l, Z, A=None):
     """Return partial spontaneous-decay rates for every upper-shell substate.
 
     Element ``i`` is the E1 rate from uncoupled basis state
     ``build_basis(n_u)[i]`` into all substates and photon polarizations of
     shell ``n_l``.  The arithmetic mean over the full upper shell equals
-    :func:`einstein_a`.
+    :func:`einstein_a`. A is the mass number (default: most abundant isotope).
 
     Returns
     -------
@@ -973,25 +1018,26 @@ def einstein_a_substate_rates(n_u, n_l, Z):
             isinstance(n_l, (int, np.integer)) and 1 <= n_l < n_u):
         raise ValueError("Require integer shells with 1 <= n_l < n_u.")
     return np.asarray(_einstein_a_substate_rates_cached(
-        int(n_u), int(n_l), Z), dtype=float)
+        int(n_u), int(n_l), Z, mass_number(Z, A)), dtype=float)
 
 
 @lru_cache(maxsize=None)
-def _natural_decay_rates_cached(n, Z):
+def _natural_decay_rates_cached(n, Z, A):
     rates = np.zeros(2 * n**2, dtype=float)
     for n_l in range(1, n):
-        rates += einstein_a_substate_rates(n, n_l, Z)
+        rates += einstein_a_substate_rates(n, n_l, Z, A)
     return tuple(rates)
 
 
-def natural_decay_rates(n, Z):
+def natural_decay_rates(n, Z, A=None):
     """Return total E1 spontaneous-decay rates of all substates in shell ``n``.
 
     Rates are summed over every lower principal shell, final magnetic/spin
     substate, and photon polarization.  They are diagonal in the uncoupled
     hydrogenic basis after the isotropic final-state/polarization sum.  For a
     dressed-state eigenvector matrix ``V`` (eigenvectors in columns), its
-    state-resolved rates are ``abs(V)**2.T @ natural_decay_rates(n, Z)``.
+    state-resolved rates are ``abs(V)**2.T @ natural_decay_rates(n, Z)``. A is the
+    mass number (default: most abundant isotope); the rates scale with mu/m_e.
 
     The calculation uses analytic gross-structure transition energies, as did
     the historical shell-average natural width; fine-structure corrections to
@@ -1002,5 +1048,5 @@ def natural_decay_rates(n, Z):
     """
     if not isinstance(n, (int, np.integer)) or n < 1:
         raise ValueError("n must be a positive integer.")
-    return np.asarray(_natural_decay_rates_cached(int(n), Z), dtype=float)
+    return np.asarray(_natural_decay_rates_cached(int(n), Z, mass_number(Z, A)), dtype=float)
 

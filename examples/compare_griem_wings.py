@@ -52,7 +52,7 @@ def run():
     print('--------\ntimings:\n--------')
 
     # StarkZee — full mode first: its centroid (with fine structure) matches the
-    # NIST air wavelength and is used to centre all comparison models.
+    # NIST air wavelength and is used to center all comparison models.
     t0 = time.time()
     lp.compute_profile(wl_sz_nm, grid_type='wavelength_nm', num_f=20, num_mu=6,
                        fine_structure=True, use_screening=True)

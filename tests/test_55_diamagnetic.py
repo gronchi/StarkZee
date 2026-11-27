@@ -40,9 +40,13 @@ def test_coupled_operator_matches_the_hydrogenic_radiator(c_iv):
     up, lo, _ = _diamagnetic_part(c_iv, B, radial="hydrogenic")
     for H, n in ((up, 5), (lo, 4)):
         assert np.allclose(H, H.conj().T, atol=1e-15)
-        ref = build_hamiltonian(n, 4, B, quadratic_zeeman=True) - build_hamiltonian(n, 4, B, quadratic_zeeman=False)
+        # the C IV core (charge 4, mass ~12 u) as a hydrogen-like nucleus of the same mass
+        A = c_iv["mass_amu"]
+        ref = (build_hamiltonian(n, 4, B, quadratic_zeeman=True, A=A)
+               - build_hamiltonian(n, 4, B, quadratic_zeeman=False, A=A))
+        # core mass 12 u - m_e (LS) vs nucleus 12 u - 4 m_e (hydrogen-like): ~2e-8 through mu^3
         np.testing.assert_allclose(np.sort(np.linalg.eigvalsh(H)), np.sort(np.linalg.eigvalsh(ref)),
-                                   rtol=0, atol=1e-13)
+                                   rtol=1e-7, atol=1e-15)
 
 
 def test_scaling_m_conservation_and_zero_field(c_iv):

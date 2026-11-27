@@ -1,33 +1,26 @@
 # StarkZee
 
-**Coupled Stark-Zeeman plasma line-shape model for hydrogen-like radiators.**
+**Coupled Stark-Zeeman plasma line-shape model for hydrogen-like and multi-electron radiators.**
 
-**StarkZee** implements the Standard Lineshape Theory for emission lines of hydrogen-like ions in a magnetized plasma.
+StarkZee implements the Standard Lineshape Theory for emission lines of hydrogen-like ions in a magnetized plasma.
+Multi-electron lines (He I, one-valence-electron ions such as C IV, or levels from FAC and Cowan's RCG) use the same solvers through a radiator object.
 Ions are treated in the quasi-static approximation: the ion microfield at the radiator site is assumed stationary on the timescale of the emitted photon, and the spectral profile is obtained by averaging Stark-Zeeman Hamiltonians over the ion microfield distribution.
 Electron broadening is represented by weak binary collisions within the Griem–Baranger–Kolb (GBK) binary-collision relaxation model, which accounts for the suppression of broadening at large frequency detunings through a semi-classical exponential-integral factor and a magnetic-field-dependent lower cutoff.
 
 The static magnetic field enters the radiator Hamiltonian directly — within the electric-dipole approximation — producing coupled Stark-Zeeman energy levels and polarized π and σ± emission components.
 Ion dynamics (the finite velocity of the perturbing ions) are optionally included via the Frequency Fluctuation Model (FFM), which treats the microfield as a Markovian jump process between quasi-static configurations.
-The default screened microfield uses the Potekhin fits; unscreened mode uses Holtsmark. Supply ion temperature explicitly: if it is missing for the default screened model, the code warns and assumes Ti=Te. The historical Hooper-like ansatz is available only by explicit selection and is not a validated probability distribution. See the audit repair status and numerical contracts before quantitative use.
+The default screened microfield uses the Potekhin fits; unscreened mode uses Holtsmark. Supply ion temperature explicitly: if it is missing for the default screened model, the code warns and assumes Ti=Te. 
 
 Static, FFM, and discrete-transition calculations default to
-`use_empirical_data=True`, using bundled NIST levels for H, D, and T. Set
-`use_empirical_data=False` for analytical energies, shells beyond the table
-coverage (H: n ≤ 8, D: n ≤ 6, T: n ≤ 3 with fine structure), or hydrogen-like
-ions with `Z > 1`. `LineProfile` selects the isotope automatically; direct
-solver calls require the matching `atom`. Low-level Hamiltonian functions
-retain their analytical default and eV output convention.
-
-Generate a numerical convergence report before quantitative use:
-
-```powershell
-python scripts/profile_convergence.py --solver both --output convergence.json
-```
-
-The report varies quadrature, microfield cutoff, grid/window, and FFM binning
-and supplies metrics without imposing a universal acceptance threshold.
-
-Model based on [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **7**, 015901 (2022)](https://doi.org/10.1063/5.0058552).
+`use_empirical_data=True`, using bundled NIST levels for H, D, and T (H: n ≤ 8,
+D: n ≤ 6, T: n ≤ 3 with fine structure; higher levels use the Dirac energy below
+the ionization limit, with a warning). The level table follows the isotope `A`
+(default: the most abundant isotope of Z). Set `use_empirical_data=False` for
+analytical energies or hydrogen-like ions with `Z > 1`. Nuclear motion enters
+through the reduced mass (energies, fine structure, lengths in the reduced Bohr
+radius, radiative rates) and g_L = 1 - m_e/M; `A=math.inf` gives the
+infinite-mass limit. Low-level Hamiltonian functions retain their analytical
+default and eV output convention.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-≥3.9-blue)
@@ -49,13 +42,19 @@ Model based on [Ferri, Peyrusse & Calisti, *Matter and Radiation at Extremes* **
 - Observation-angle decomposition: π, σ+, σ− polarization components
 - Spectral grids in any unit system: wavelength [nm], energy [eV], frequency [THz], wavenumber [cm⁻¹]
 - Discrete stick spectrum at arbitrary field configurations
+- Public radial wavefunctions, signed dipoles, line strengths, and E1 rates
+- Multi-shell DC Stark maps with target-state overlap plots
+- Multi-electron radiators from LS terms or J-level data (FAC, Cowan RCG), with
+  exact, weak- or strong-field Zeeman treatment, the diamagnetic term, and a
+  level-resolved electron-impact operator; ready-made He I 447.1 nm and Li-like
+  C IV, N V and O VI n = 5 → 4 lines
 
 ---
 
 ## Installation
 
 ```bash
-git clone https://github.com/g-ronchi/starkzee.git
+git clone https://github.com/gronchi/starkzee.git
 cd starkzee
 pip install -e .
 
@@ -111,7 +110,37 @@ plt.show()
 lp.compute_discrete(Fz=0.0, Fx=0.0)
 for dλ, q, s in zip(lp.discrete.detuning_nm, lp.discrete.q, lp.discrete.strength):
     print(f"  Δλ = {dλ:+.4f} nm   q = {q:+d}   |d|² = {s:.4f} a₀²")
+
+transition_rates = lp.discrete.einstein_a_s
+upper_partial_rates = lp.discrete.upper_partial_decay_rate_s
 ```
+
+Rates are in s⁻¹ and include only retained transitions into the selected
+lower shell. Use `min_strength=0.0` when requesting all nonzero strengths
+for a rate sum. These partial rates do not define total lifetimes.
+
+### Atomic data and Stark maps
+
+```python
+from starkzee import atomic
+from starkzee.stark_map import StarkMap
+
+strength = atomic.line_strength(3, 2)       # a0², summed over both shells and q
+gf = atomic.oscillator_strength(3, 2)      # weighted absorption strength g_l*f_lu
+rate = atomic.einstein_a(3, 2, A=1)        # s^-1, upper-shell average into n=2
+
+result = StarkMap(shells=(2, 3, 4, 5), B=5.0).compute(
+    np.linspace(0.0, 3e6, 161),            # V/m
+    target_state=(3, 2, 2.5, 0.5),         # n, l, j, mj
+)
+fig, ax = result.plot()                   # V/cm, GHz; color is target overlap
+ax.set_ylim(-500, 500)
+```
+
+The [atomic-data guide](docs/source/atomic_api.rst) explains radial
+wavefunctions, strength and rate conventions, and the separate multi-shell
+map model. Reproduce its three plots with
+`python examples/atomic_api_and_stark_maps.py`.
 
 ### With Doppler and instrumental broadening
 
@@ -147,6 +176,30 @@ a heavy hydrogen-like emitter in a proton background, pass
 `fluctuation_rate_model="ppp"` to use the PPP-manual reduced-mass rate instead
 of the default ZEST rate. The current Potekhin fit distinguishes neutral from
 charged emitters but does not depend on the magnitude of `emitter_charge`.
+
+### Multi-electron lines
+
+Build a radiator once per field and pass it to either solver; `n_u`, `n_l`
+and `Z` are then ignored:
+
+```python
+import numpy as np
+from starkzee.single_valence import c_iv_5_4
+from starkzee.static_profile import calculate_static_profile
+
+B = 100.0
+radiator = c_iv_5_4(B)                       # C IV n = 5 -> 4, 253 nm, NIST levels
+grid = radiator.line_energy_ev + np.linspace(-0.05, 0.05, 1601)
+pi, sp, sm = calculate_static_profile(5, 4, 4, B, 2e24, 10.0, grid, radiator=radiator,
+                                      Ti_ev=10.0, electron_operator=True)
+```
+
+`calculate_ffm_profile(None, None, None, B, Ne, Te, Ti, None, grid, radiator=radiator)`
+adds ion dynamics. Other lines: `starkzee.he_i.he_i_4471`,
+`starkzee.ls_radiator.LSTransition` (LS terms) and
+`starkzee.jlevel_radiator.JLevelTransition` with `starkzee.fac_reader.read_fac`
+or `starkzee.cowan_reader.read_rcg`. See the manual chapter "Multi-electron
+emitters".
 
 ### Comparison with all models — D_γ
 
@@ -217,20 +270,6 @@ plt.show()
 
 ![StarkZee vs. Voigt, Stehlé, Stehlé-parameterized, and Rosato for D-Balmer-α at Ne=1e20 m⁻³, Ti=Te=1 eV, B=3 T](docs/figures/model_comparison.png)
 
-*Generated by [`examples/model_comparison.py`](examples/model_comparison.py), which also produces the [D-Balmer-γ comparison](docs/figures/model_comparison_dgamma.png). The figures contrast StarkZee's coupled treatment with the analytical and tabulated reference models; Lomanowski is disabled here. See [Built-in Reference Models](docs/manual.tex) for the full comparison table.*
-
-For the opt-in non-Hermitian PPP impact-limit collision matrix, run
-[`examples/model_comparison_non-hermit.py`](examples/model_comparison_non-hermit.py).
-It uses `electron_interference=True` for D-α and D-γ. The common Appendix-B
-coefficient is evaluated directly from `W0 [C_nu + G_nu(0)]`; it is not
-calibrated from a scalar full-shell or intra-shell width. If the complex-mode
-real residues are signed, the default experimental FFM closure uses
-`p_k=abs(a_k)/sum(abs(a))` while retaining signed `a_k+i*c_k` in the radiative
-numerator. The script reports the size of that correction. An optional
-complex-SDT grouping experiment is available through `--group-tolerance-ev`;
-it is accepted only when the grouped static profile meets the requested error
-bound and every grouped real residue is nonnegative.
-
 ---
 
 ## Package overview
@@ -241,6 +280,12 @@ bound and every grouped real residue is nonnegative.
 | `static_profile.py` | Static Stark-Zeeman solver; Gauss-Legendre quadrature over the microfield |
 | `ffm.py` | Frequency Fluctuation Model for dynamic ion broadening |
 | `radiator.py` | Quantum basis, wavefunctions, dipole transitions, and Hamiltonian construction |
+| `radiators.py` | Radiator interface of the solvers, hydrogenic radiator, Zeeman treatments |
+| `ls_radiator.py`, `jlevel_radiator.py` | Multi-electron radiators from LS terms or J-level data |
+| `level_data.py`, `fac_reader.py`, `cowan_reader.py` | J-level data model and the FAC and Cowan RCG readers |
+| `coulomb_approximation.py` | Coulomb-approximation radial integrals |
+| `level_collision.py` | Electron-impact operator for non-degenerate levels |
+| `single_valence.py`, `he_i.py` | Ready-made radiators: Li-like n = 5 → 4 lines, He I 447.1 nm |
 | `microfield.py` | Hooper and Holtsmark microfield distributions |
 | `broadening.py` | GBK electron impact width with Larmor-frequency cutoff |
 | `collision.py` | Opt-in PPP non-Hermitian impact-limit collision operator and complex SDTs |
@@ -273,20 +318,6 @@ Full derivations are in [`docs/manual.tex`](docs/manual.tex) and the [Sphinx doc
 
 ---
 
-## Tests
-
-```bash
-pytest tests/ -v
-```
-
-599 tests covering constants (CODATA), Hamiltonian construction, Zeeman splitting,
-Stark matrix elements, microfield distributions, GBK and full PPP collision
-operators, profile shapes, fine structure, Ar XVII manual benchmarks,
-quadratic-Zeeman wings, oscillator strengths, multi-shell prerequisites, and
-FFM limiting cases and empirical defaults. The suite currently emits 90 model/grid warnings.
-
----
-
 ## Documentation
 
 A comprehensive PDF manual detailing the physics and implementation is available in the `docs` folder. To compile the LaTeX manual `docs/manual.tex`:
@@ -300,8 +331,9 @@ A comprehensive PDF manual detailing the physics and implementation is available
 
 ## Scope and limitations
 
-- Radiators are treated as **hydrogen-like** (one outer electron, nuclear charge Z). Multi-electron ions such as C IV require quantum-defect corrections — see `TODO.md`.
-- The static solver uses **exact analytical** hydrogenic radial matrix elements within the $n$-shell; coupling to adjacent shells (quadratic Stark) is neglected.
+- The built-in path treats radiators as **hydrogen-like** (one electron, nuclear charge Z). Multi-electron lines need a radiator object; the LS radiator assumes pure LS terms, so intercombination lines and intermediate coupling need level data (FAC, RCG).
+- The hydrogenic solver uses **exact analytical** hydrogenic radial matrix elements within the $n$-shell; coupling to adjacent shells (quadratic Stark) is neglected. Multi-electron radiators couple only the levels placed in their manifolds.
+- Multi-electron radiators in the FFM do not support `electron_interference` or `sdt_frequency_dependent_width`.
 - **Doppler broadening**: FFM applies it internally by default (`apply_doppler=True`); the static solver applies it internally when `Ti_ev` is supplied. Instrumental broadening is always explicit post-processing via `convolutions.py`.
 
 ---

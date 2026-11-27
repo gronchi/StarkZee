@@ -33,7 +33,7 @@ from scipy.constants import physical_constants as _pc
 from starkzee.coulomb_approximation import coulomb_r2, effective_n
 from starkzee.ls_radiator import ActiveElectron, LSTerm, LSTransition, one_electron_r2_reduced, reduced_element
 from starkzee.radiator import radial_r2_element
-from starkzee.utils import wavenumber_cm_to_energy_ev
+from starkzee.utils import core_mass_factors, vacuum_to_air_wavelength_nm, wavenumber_cm_to_energy_ev
 
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _A0 = _pc["Bohr radius"][0]
@@ -77,17 +77,18 @@ def term_reduced(data, a, b, radial="coulomb"):
 
 
 def term_r2(data, a, b, radial="coulomb"):
-    """Radial <a| r^2 |b> [a0^2] between two terms of one shell (|Delta l| = 0 or 2)."""
+    """Radial ``<a| r^2 |b>`` [a0^2] between two terms of one shell (``|Delta l|`` = 0 or 2), in the reduced Bohr radius."""
     T, E = data["terms"], data["electrons"]
     ea, eb = E[a], E[b]
+    scale = core_mass_factors(data["mass_amu"])[0] ** -2      # a_mu^2 / a0^2
     if radial == "coulomb":
         Z, M, lim = data["core_charge"], data["mass_amu"], data["limit_cm"]
-        return coulomb_r2(effective_n(T[a].mean_energy_cm, lim, Z, M), ea.l,
-                          effective_n(T[b].mean_energy_cm, lim, Z, M), eb.l, Z)
+        return scale * coulomb_r2(effective_n(T[a].mean_energy_cm, lim, Z, M), ea.l,
+                                  effective_n(T[b].mean_energy_cm, lim, Z, M), eb.l, Z)
     if radial == "hydrogenic":
         if ea.n != eb.n:
             raise ValueError("hydrogenic r^2 elements are implemented inside one shell")
-        return radial_r2_element(ea.n, ea.l, eb.l, data["core_charge"])
+        return scale * radial_r2_element(ea.n, ea.l, eb.l, data["core_charge"])
     raise ValueError("radial must be 'coulomb' or 'hydrogenic'")
 
 
@@ -195,7 +196,5 @@ def o_vi_5_4(B, **options):
 
 
 def air_wavelength_A(sigma_cm):
-    """Air wavelength [Angstrom] for a vacuum wavenumber [cm^-1] (Peck & Reeder 1972, as NIST ASD uses)."""
-    s2 = (sigma_cm / 1e4) ** 2
-    n = 1 + 1e-8 * (8060.51 + 2480990.0 / (132.274 - s2) + 17455.7 / (39.32957 - s2))
-    return 1e8 / (sigma_cm * n)
+    """Air wavelength [Angstrom] for a vacuum wavenumber [cm^-1] (:func:`~starkzee.utils.vacuum_to_air_wavelength_nm`)."""
+    return 10.0 * vacuum_to_air_wavelength_nm(1e7 / np.asarray(sigma_cm, dtype=float))

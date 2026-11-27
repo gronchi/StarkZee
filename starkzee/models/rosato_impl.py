@@ -194,7 +194,7 @@ def rosato(wavelengths_nm, n_u, n_l, B, Ne_m3, Te_ev, Ti_ev,
     logarithmic cell fractions. Magnetic interpolation retains the scaled
     reference scheme. Doppler is applied in frequency space with zero-extended
     input support and retained output tails. Returns density per wavelength
-    metre on air-centered coordinates, renormalized over the requested window.
+    meter on air-centered coordinates, renormalized over the requested window.
     This corrected interpolation is not bit-for-bit pystark reproduction.
     Negative source intensities are preserved with a warning by default,
     including through Doppler convolution and signed-area normalization.

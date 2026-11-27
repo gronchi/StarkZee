@@ -6,7 +6,7 @@ import pytest
 
 from starkzee.angular import wigner_6j
 from starkzee.he_i import (
-    LOWER_2, UPPER_4, forbidden_component_energy_ev, he_i_4471, load_he_i_triplets, nist_multiplet_reduced,
+    LOWER_2, SINGLETS_4, UPPER_4, forbidden_component_energy_ev, he_i_4471, load_he_i_triplets, nist_multiplet_reduced,
 )
 from starkzee.ls_radiator import reduced_element
 from starkzee.static_profile import calculate_static_profile
@@ -33,8 +33,10 @@ def test_coulomb_approximation_against_nist(data):
 
 def test_radiator_structure(data):
     r = he_i_4471(1.0, data=data)
-    dims = [sum(int(2 * J + 1) for J in data["terms"][k].energies_cm) for k in (UPPER_4, LOWER_2)[0]]
+    dims = [sum(int(2 * J + 1) for J in data["terms"][k].energies_cm) for k in UPPER_4]
     assert len(r.states[0]) == sum(dims) == 48 and len(r.states[1]) == 12
+    assert len(he_i_4471(1.0, data=data, singlets=True).states[0]) == 48 + sum(
+        int(2 * J + 1) for k in SINGLETS_4 for J in data["terms"][k].energies_cm)
     assert abs(r.couplings[("4d 3D", "2p 3P")]) == pytest.approx(nist_multiplet_reduced(data))
     assert r.line_energy_ev == pytest.approx(2.771986, abs=2e-6)          # 447.1 nm
     assert forbidden_component_energy_ev(data) - r.line_energy_ev == pytest.approx(7.40 / 8065.544, rel=2e-3)

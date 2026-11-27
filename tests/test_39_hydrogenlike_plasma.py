@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from scipy.constants import e, hbar, m_p
+from scipy.constants import atomic_mass, e, hbar, m_p, physical_constants
 
 from starkzee.ffm import calculate_ion_fluctuation_rate
 from starkzee.microfield import microfield_quadrature
@@ -15,16 +15,20 @@ def _rate_from_mass(ne_m3, ti_ev, charge, mass_kg, speed_factor):
     return speed / sphere_radius * hbar / e
 
 
-def test_zest_rate_retains_historical_perturber_mass_formula():
+M_D = physical_constants['deuteron mass'][0]
+
+
+def test_zest_rate_uses_the_perturber_nuclear_mass():
     actual = calculate_ion_fluctuation_rate(1e23, 5.0, 1.0, 2.0)
-    expected = _rate_from_mass(1e23, 5.0, 1.0, 2.0 * m_p, 2.0)
+    expected = _rate_from_mass(1e23, 5.0, 1.0, M_D, 2.0)
     assert actual == pytest.approx(expected, rel=1e-15)
 
 
 def test_ppp_reduced_mass_rate_for_heavy_emitter_in_proton_plasma():
     actual = calculate_ion_fluctuation_rate(
         1e30, 861.733, 1.0, 1.0, A_emitter=40.0, model='ppp')
-    reduced_mass = (40.0 / 41.0) * m_p
+    m_emitter = 40.0 * atomic_mass                         # A_emitter is the emitter mass [u]
+    reduced_mass = m_emitter * m_p / (m_emitter + m_p)
     expected = _rate_from_mass(1e30, 861.733, 1.0, reduced_mass, 1.0)
     assert actual == pytest.approx(expected, rel=1e-15)
 
@@ -32,7 +36,7 @@ def test_ppp_reduced_mass_rate_for_heavy_emitter_in_proton_plasma():
 def test_equal_mass_zest_and_ppp_rate_conventions_coincide():
     zest = calculate_ion_fluctuation_rate(1e24, 10.0, 1.0, 2.0)
     ppp = calculate_ion_fluctuation_rate(
-        1e24, 10.0, 1.0, 2.0, A_emitter=2.0, model='ppp')
+        1e24, 10.0, 1.0, 2.0, A_emitter=M_D / atomic_mass, model='ppp')
     assert ppp == pytest.approx(zest, rel=1e-15)
 
 

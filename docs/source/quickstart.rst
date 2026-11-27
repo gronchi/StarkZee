@@ -129,7 +129,7 @@ Discrete transition stick spectrum
 
 .. code-block:: python
 
-    lp.compute_discrete(Fz=0.0, Fx=0.0)
+    lp.compute_discrete(Fz=0.0, Fx=0.0, min_strength=0.0)
 
     disc = lp.discrete
     print(disc)          # DiscreteTransitions(89 transitions, ...)
@@ -137,6 +137,15 @@ Discrete transition stick spectrum
     # Sorted by energy; q = 0 (π), -1 (σ+, blue-shifted), +1 (σ-, red-shifted)
     for E, q, S in zip(disc.energy_ev, disc.q, disc.strength):
         print(f"  E={E:.4f} eV  q={q:+d}  |d|²={S:.4e} a₀²")
+
+    transition_rates = disc.einstein_a_s  # s^-1, one per returned transition
+    upper_rates = disc.upper_partial_decay_rate_s  # s^-1, one per upper state
+
+The upper-state rates include only the selected lower shell and the
+transitions retained by ``min_strength``; they do not define total lifetimes.
+Strengths contain no population weights. See :doc:`atomic_api` for
+field-free strengths, radial wavefunctions, rate conventions, and Stark-map
+plots.
 
 Both ``compute_profile`` and ``compute_discrete`` return ``self``, so they can
 be chained:

@@ -62,6 +62,7 @@ Typical usage::
 import numpy as np
 
 from starkzee.utils import (
+    reduced_mass_factor,
     reduced_mass_rydberg_ev,
     energy_ev_to_wavelength_nm,
     vacuum_to_air_wavelength_nm,
@@ -115,18 +116,19 @@ class DiscreteTransitions:
         Polarization index q = m_l − m_u: 0 = π; **−1 = σ+** (Δm = m_u − m_l
         = +1, blue-shifted at B > 0); **+1 = σ−** (red-shifted).
     strength : ndarray
-        Dipole matrix element squared :math:`|d_q(i \to j)|^2` [:math:`a_0^2`].
+        Dipole matrix element squared :math:`|d_q(i \to j)|^2` [:math:`a_0^2`], with lengths
+        in the reduced Bohr radius :math:`a_\mu = a_0 m_e/\mu` of the emitting isotope.
     upper_idx : ndarray of int
         Upper eigenstate index (0 … 2n_u²−1).
     lower_idx : ndarray of int
         Lower eigenstate index (0 … 2n_l²−1).
-    einstein_a_s : ndarray
-        Lazily evaluated Einstein A coefficient of every dressed transition
-        [s⁻¹].
-    upper_partial_decay_rate_s : ndarray
-        Lazily evaluated E1 decay rate from every upper eigenstate into this
-        object's lower principal shell [s⁻¹]. Other lower shells and non-E1
-        decay channels are excluded.
+
+    Notes
+    -----
+    The :attr:`einstein_a_s` and :attr:`upper_partial_decay_rate_s` properties
+    evaluate transition Einstein coefficients and upper-state partial E1
+    decay rates lazily. Rates are in s⁻¹; the latter includes only this
+    object's lower principal shell and excludes non-E1 decay channels.
     """
 
     def __init__(self, energy_ev, q, strength, upper_idx, lower_idx, E0,
@@ -541,7 +543,7 @@ class LineProfile:
         """Return (coordinate, intensity per coordinate unit), with Jacobian.
 
         Stored profile arrays remain per eV for compatibility. Wavelengths
-        here are vacuum nm; reference wrappers use air wavelengths per metre
+        here are vacuum nm; reference wrappers use air wavelengths per meter
         and must be converted before comparing absolute densities.
         """
         if self.profile is None:

@@ -6,9 +6,17 @@ API reference
 
    line_profile
    atomic
+   stark_map
    static_profile
    ffm
    radiator
+   radiators
+   ls_radiator
+   jlevel_radiator
+   level_data
+   coulomb_approximation
+   level_collision
+   ion_lines
    angular
    multishell
    microfield
@@ -32,6 +40,8 @@ Module overview
      - High-level :class:`LineProfile` class and :class:`DiscreteTransitions`
    * - :mod:`starkzee.atomic`
      - Public field-free wavefunctions, dipoles, strengths, and radiative rates
+   * - :mod:`starkzee.stark_map`
+     - Multi-shell DC Stark maps and target-state overlap diagnostics
    * - :mod:`starkzee.static_profile`
      - Static Stark-Zeeman profile solver and discrete-transition enumerator
    * - :mod:`starkzee.ffm`
@@ -39,6 +49,22 @@ Module overview
    * - :mod:`starkzee.radiator`
      - Basis states, Hamiltonian construction, dipole matrix elements,
        oscillator strengths, Einstein A coefficients
+   * - :mod:`starkzee.radiators`
+     - Radiator interface of the solvers, hydrogenic radiator, Zeeman
+       treatments (exact, weak, strong)
+   * - :mod:`starkzee.ls_radiator`
+     - Multi-electron radiator from LS terms and signed reduced E1 elements
+   * - :mod:`starkzee.jlevel_radiator`
+     - Multi-electron radiator from J-level data (FAC, Cowan RCG)
+   * - :mod:`starkzee.level_data`, :mod:`starkzee.fac_reader`,
+       :mod:`starkzee.cowan_reader`
+     - J-level data model and the FAC and RCG readers
+   * - :mod:`starkzee.coulomb_approximation`
+     - Coulomb-approximation radial integrals (:math:`r` and :math:`r^2`)
+   * - :mod:`starkzee.level_collision`
+     - Electron-impact operator for non-degenerate levels
+   * - :mod:`starkzee.single_valence`, :mod:`starkzee.he_i`
+     - Ready-made radiators: Li-like n = 5 → 4 lines, He I 447.1 nm
    * - :mod:`starkzee.angular`
      - Angular algebra: Wigner 3-j/6-j symbols (pywigxjpf when installed, Racah sums otherwise), dipole, sin²θ and L·S elements
    * - :mod:`starkzee.multishell`

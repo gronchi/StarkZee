@@ -28,7 +28,14 @@ extensions = [
     "sphinx.ext.autosummary",    # summary tables
     "sphinx_rtd_theme",          # Read the Docs HTML theme
     "sphinxcontrib.mermaid",     # maintainable workflow and decision diagrams
+    "sphinxcontrib.bibtex",      # :cite:p: roles from docs/references.bib
 ]
+
+# ── sphinxcontrib-bibtex ─────────────────────────────────────────────────────
+# docs/references.bib is generated from starkzee/data/bibliography.json by
+# scripts/generate_bibtex.py; edit the registry, not the .bib.
+bibtex_bibfiles = ["../references.bib"]
+bibtex_default_style = "unsrt"
 
 # ── napoleon settings ─────────────────────────────────────────────────────────
 napoleon_numpy_docstring   = True

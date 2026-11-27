@@ -33,7 +33,7 @@ def relerr(got, ref):
 
 def A(n, Z):
     """A = Z^4 * alpha^2 * Ry / n^4 (common pre-factor)."""
-    return (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / n**4
+    return (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / n**4
 
 
 # ── 1. Diagonal shift for l=0 states ─────────────────────────────────────────
@@ -119,7 +119,7 @@ def test_fine_structure_gap_unchanged(Z):
     The gap is correctly measured as sorted[4] - sorted[0], spanning both groups.
     With FS all j=1/2 states collapse to the same level, giving the same gap.
     """
-    xi = (Z**4) * (FINE_STRUCTURE**2) * RYDBERG_EV / (2**3 * 1 * 2 * 1.5)
+    xi = (Z**4) * (FINE_STRUCTURE**2) * reduced_mass_rydberg_ev(Z) / (2**3 * 1 * 2 * 1.5)
     expected_gap = 1.5 * xi  # = A = Z^4 alpha^2 Ry / n^4
 
     for fs in [True, False]:
@@ -196,7 +196,7 @@ def test_dirac_eigenvalue_formula(n, Z):
 
     For n=2: two groups j=1/2 and j=3/2.
     """
-    En = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    En = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
 
     # Dirac corrections
     dE_j12 = -A(n, Z) * (n / (0.5 + 0.5) - 0.75)   # j = 1/2: n/(j+1/2)=n/1

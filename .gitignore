@@ -1,3 +1,6 @@
+# Audit records (local only, not tracked)
+.audit/
+
 # Reference PDFs (not tracked)
 references/
 
@@ -43,6 +46,10 @@ env/
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+*.bbl
+*.bcf
+*.blg
+*.run.xml
 
 # macOS
 .DS_Store
@@ -54,6 +61,7 @@ env/
 .Trashes
 
 # IDE
+/AGENTS.md
 .vscode/
 .idea/
 scratch/

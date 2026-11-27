@@ -77,18 +77,19 @@ def test_empirical_zeeman_unit_scale():
                           use_empirical_data=True, atom="H")
     )
 
-    # Expected Zeeman span in cm⁻¹: range of (m_l + g_s * m_s) × μ_B × B
+    # Expected Zeeman span in cm⁻¹: range of (g_L m_l + g_s * m_s) × μ_B × B
+    from starkzee.utils import orbital_g_factor
     basis = build_basis(n)
-    m_vals = [s.ml + G_S * s.ms for s in basis]
+    m_vals = [orbital_g_factor(Z) * s.ml + G_S * s.ms for s in basis]
     zeeman_span_cm = float(energy_ev_to_wavenumber_cm(
         (max(m_vals) - min(m_vals)) * BOHR_MAGNETON_EV_T * B
     ))  # ≈ 1.87 cm⁻¹ at B=1 T
 
     spread_B = evals_B.max() - evals_B.min()
 
-    # Correct behaviour: spread matches the Zeeman span (fine-structure contributions
+    # Correct behavior: spread matches the Zeeman span (fine-structure contributions
     # cancel between the extreme states, both drawn from the 2p level).
-    # Buggy behaviour: spread ≈ 0.37 cm⁻¹ (fine structure only; Zeeman negligible).
+    # Buggy behavior: spread ≈ 0.37 cm⁻¹ (fine structure only; Zeeman negligible).
     np.testing.assert_allclose(spread_B, zeeman_span_cm, rtol=1e-4,
         err_msg=f"Eigenvalue spread {spread_B:.4f} cm⁻¹ should equal Zeeman span "
                 f"{zeeman_span_cm:.4f} cm⁻¹; got {spread_B:.4e} — "

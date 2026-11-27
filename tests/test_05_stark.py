@@ -78,8 +78,10 @@ def test_within_n_radial_element_n2_l1():
     # Angular factor for q=0, l1=1,ml1=0 → l2=0,ml2=0
     ang = angular_dipole_element(1, 0, 0, 0, 0)   # = 1/√3
 
-    # Expected matrix element |V_E[state_10, state_00]| = Fz × r_expected × ang × A0 (in eV)
-    V_exp = abs(Fz * r_expected * ang * A0)
+    # Expected matrix element |V_E[state_10, state_00]| = Fz × r_expected × ang × a_mu (in eV),
+    # with the reduced Bohr radius a_mu = A0 m_e / mu of hydrogen
+    from starkzee.utils import reduced_mass_factor
+    V_exp = abs(Fz * r_expected * ang * A0 / reduced_mass_factor(Z))
 
     V = build_stark_matrix(n, Z, Fz=Fz, Fx=0.0)
     basis = build_basis(n)
@@ -116,7 +118,7 @@ def test_linear_stark_energy_H_n2():
     Reference: Eq. from Bethe & Salpeter / textbook Stark effect.
     """
     Z, n = 1, 2
-    E0 = -(Z**2) * reduced_mass_rydberg_ev(Z, 1) / n**2
+    E0 = -(Z**2) * reduced_mass_rydberg_ev(Z) / n**2
 
     # Use a small field where first-order perturbation theory is valid
     # F0 (normal field for Ne~1e18) ~ 1e8 V/m; use F = 1e7 V/m

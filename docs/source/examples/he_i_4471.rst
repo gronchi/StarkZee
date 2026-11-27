@@ -1,0 +1,21 @@
+He I 447.1 nm
+=============
+
+He I 447.1 nm (2p :sup:`3`\ P - 4d :sup:`3`\ D) at B = 2 T, :math:`T_e = 5` eV
+and :math:`T_i = 2` eV, for :math:`n_e = 10^{20}`, :math:`10^{21}` and
+:math:`3\times10^{21}` m\ :sup:`-3`.
+
+The radiator (:func:`~starkzee.he_i.he_i_4471`) holds the n = 4 triplet terms
+4s, 4p, 4d and 4f, built from NIST energies, in the upper manifold. The plasma
+microfield mixes 4d with 4f (7.4 cm\ :sup:`-1` apart). The "forbidden" 2p - 4f
+component near 447.0 nm therefore grows and moves away from the allowed line
+as the density increases.
+
+The reduced elements come from the Coulomb approximation, with the 2p - 4d
+magnitude scaled to the NIST line strength. The profile is the sum of π and
+the two σ components, as observed perpendicular to B. Add ``--plot`` to show
+it. See :doc:`../manual_multielectron`.
+
+.. literalinclude:: ../../../examples/he_i_4471_stark_zeeman.py
+   :language: python
+   :linenos:

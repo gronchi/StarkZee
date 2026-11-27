@@ -9,6 +9,7 @@ from starkzee.level_collision import (
 )
 from starkzee.ls_radiator import LSTerm, LSTransition, hydrogenic_radial, one_electron_reduced
 from starkzee.radiators import HydrogenicTransition
+from starkzee.utils import emitter_mass_amu
 from starkzee.static_profile import calculate_static_profile
 from starkzee.utils import G_S
 from tests.test_44_ls_radiator import hydrogen_terms
@@ -21,7 +22,7 @@ GRID = np.linspace(1.8885, 1.8910, 301)
 def hydrogen_ls(B):
     up, lo = hydrogen_terms(3), hydrogen_terms(2)
     hyd = HydrogenicTransition(3, 2, 1, B, quadratic_zeeman=False, use_empirical_data=False)
-    ls = LSTransition(up, lo, hydrogen_couplings(up, lo, 3, 2), B, g_L=1.0, g_s=G_S,
+    ls = LSTransition(up, lo, hydrogen_couplings(up, lo, 3, 2), B, mass_amu=emitter_mass_amu(1), g_s=G_S,
                       collision_n=3, collision_Z=1, collision_n_lower=2,
                       reference_energy_ev=hyd.E0_physical)
     return hyd, ls

@@ -10,7 +10,7 @@ Whittaker function, written as the asymptotic series
 
 Following Bates and Damgaard, the series is integrated term by term,
 int_0^inf r^p exp(-alpha r) dr = Gamma(p+1) / alpha^(p+1), which gives the
-normalization and <a| r |b> in closed form. The number of terms is the nodal
+normalization and ``<a| r |b>`` in closed form. The number of terms is the nodal
 count of the nearest hydrogenic function, K = round(n* - l - 1) (at least 0):
 for integer n* the series terminates there and the functions are exactly
 hydrogenic, so the result equals Gordon's formula. The sign follows the
@@ -113,7 +113,7 @@ def _moment(n_star_a, l_a, n_star_b, l_b, Z_core, power):
 
 @lru_cache(maxsize=None)
 def coulomb_radial(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
-    """Signed <n*_a l_a| r |n*_b l_b> [a0] in the Coulomb approximation.
+    """Signed ``<n*_a l_a| r |n*_b l_b>`` [a0] in the Coulomb approximation.
 
     Z_core is the net charge of the core seen by the active electron (1 for a
     neutral atom, 2 for a singly charged ion, ...). The series is summed in
@@ -127,7 +127,7 @@ def coulomb_radial(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
 
 @lru_cache(maxsize=None)
 def coulomb_r2(n_star_a, l_a, n_star_b, l_b, Z_core=1.0):
-    """Signed <n*_a l_a| r^2 |n*_b l_b> [a0^2] in the Coulomb approximation (|l_a - l_b| = 0 or 2).
+    """Signed ``<n*_a l_a| r^2 |n*_b l_b>`` [a0^2] in the Coulomb approximation (``|l_a - l_b|`` = 0 or 2).
 
     For the diamagnetic (quadratic Zeeman) term inside a shell; equal to the
     hydrogenic values for integer n*. Like all Coulomb-approximation moments it

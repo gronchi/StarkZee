@@ -45,6 +45,18 @@ def calculate_normal_field(Ne_m3, Z_bar=1.0):
     return F0, re
 
 
+def calculate_holtsmark_field(Ne_m3, Z_bar=1.0):
+    """Holtsmark normal field F_H = 2 pi (4/15)^(2/3) Z_bar e N_i^(2/3) / (4 pi eps0) [V m^-1].
+
+    The unit of β in the Holtsmark, Hooper-like and Potekhin distributions (the
+    Potekhin fit reproduces Holtsmark's W ≈ 4β²/3π at small β in this unit). It
+    is 0.18 % above the ion-sphere field of :func:`calculate_normal_field`:
+    F_H / F0 = 2 pi (4/15)^(2/3) / (4 pi/3)^(2/3).
+    """
+    F0, _ = calculate_normal_field(Ne_m3, Z_bar)
+    return F0 * (2.0 * np.pi * (4.0 / 15.0) ** (2.0 / 3.0)) / (4.0 * np.pi / 3.0) ** (2.0 / 3.0)
+
+
 def calculate_debye_length(Te_ev, Ne_m3):
     """Return the electron Debye screening length λ_D [m].
 
@@ -149,7 +161,7 @@ def holtsmark_distribution(beta, method='vectorized'):
     Parameters
     ----------
     beta : float or ndarray
-        Reduced electric field β = F / F₀.
+        Reduced electric field β = F / F_H (Holtsmark normal field, :func:`calculate_holtsmark_field`).
     method : {'vectorized', 'exact', 'potekhin'}, optional
         Computation method (default is 'vectorized'):
         - 'vectorized': fast Gauss-Legendre quadrature.
@@ -261,7 +273,7 @@ def hooper_distribution(beta, a, charged=True, method='vectorized'):
     Parameters
     ----------
     beta : float or ndarray
-        Reduced electric field β = F / F₀.
+        Reduced electric field β = F / F_H (Holtsmark normal field, :func:`calculate_holtsmark_field`).
     a : float
         Screening parameter a = r_e / λ_D.
     charged : bool, optional
@@ -545,7 +557,7 @@ def potekhin_distribution(beta, gamma, s=0.0, charged=True):
     Parameters
     ----------
     beta : float or ndarray
-        Dimensionless field strength beta = F/F_0.
+        Dimensionless field strength beta = F/F_H (Holtsmark normal field).
     gamma : float
         Ion-ion coupling parameter Gamma_ii.
     s : float, optional
@@ -585,8 +597,9 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
                           microfield_model=None, Ti_ev=None):
     """Build a quadrature grid of plasma electric microfield magnitudes and weights.
 
-    Discretises the microfield integral ∫ W(F) dF over a uniform grid of
-    ``num_points`` values of the reduced field β = F / F₀ in [0, max_beta].
+    Discretizes the microfield integral ∫ W(F) dF over a uniform grid of
+    ``num_points`` values of the reduced field β = F / F_H in [0, max_beta]
+    (F_H: :func:`calculate_holtsmark_field`; custom tables use the same unit).
     The returned arrays satisfy:
 
         Σ_i weight_i ≈ 1
@@ -785,7 +798,8 @@ def _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta, use_screenin
     if total_area > 0:
         w_grid = w_grid / total_area
 
-    fields  = beta_grid * F0
+    # β of every distribution (and of custom tables) is F / F_H, the Holtsmark normal field
+    fields  = beta_grid * calculate_holtsmark_field(Ne_m3, Z_bar)
     weights = w_grid * dbeta
 
     return fields, weights

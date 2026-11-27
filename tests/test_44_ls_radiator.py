@@ -58,18 +58,22 @@ def hydrogen_terms(n, Z=1):
 
 
 def hydrogen_ls_radiator(n_u, n_l, B, electron_widths, Z=1, reference_energy_ev=None):
+    """The hydrogenic radiator's physics as LS terms: same isotope (default), radial lengths in a_mu."""
+    from starkzee.utils import emitter_mass_amu, reduced_mass_factor
     up, lo = hydrogen_terms(n_u, Z), hydrogen_terms(n_l, Z)
+    a_mu = 1.0 / reduced_mass_factor(Z)
     couplings = {}
     for n, terms in ((n_u, up), (n_l, lo)):
         for l in range(n - 1):
-            r = hydrogenic_radial(n, l, n, l + 1, Z)
+            r = a_mu * hydrogenic_radial(n, l, n, l + 1, Z)
             couplings[(terms[l].label, terms[l + 1].label)] = one_electron_reduced(l, l, l + 1, l + 1, 0, r)
     for lu in range(n_u):
         for ll in range(n_l):
             if abs(lu - ll) == 1:
-                r = hydrogenic_radial(n_u, lu, n_l, ll, Z)
+                r = a_mu * hydrogenic_radial(n_u, lu, n_l, ll, Z)
                 couplings[(up[lu].label, lo[ll].label)] = one_electron_reduced(lu, lu, ll, ll, 0, r)
-    return LSTransition(up, lo, couplings, B, g_L=1.0, g_s=G_S, emitter_charge=Z - 1,
+    # mass_amu gives g_L = 1 - m_e/M and the Doppler mass of the hydrogenic radiator
+    return LSTransition(up, lo, couplings, B, mass_amu=emitter_mass_amu(Z), g_s=G_S, emitter_charge=Z - 1,
                         electron_widths_ev=electron_widths, reference_energy_ev=reference_energy_ev)
 
 

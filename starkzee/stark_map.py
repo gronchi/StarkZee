@@ -188,7 +188,7 @@ class StarkMap:
     shells : iterable of int
         Principal shells retained in the configuration-interaction basis.
     Z, A : int, optional
-        Nuclear charge and emitter mass number.
+        Nuclear charge and emitter mass number (default A: most abundant isotope of Z).
     B : float, optional
         Magnetic-field magnitude [T], defining the z-axis.
     max_l : int, optional
@@ -196,7 +196,7 @@ class StarkMap:
         basis. By default every allowed l in each shell is included.
     """
 
-    def __init__(self, shells, Z=1, A=1, B=0.0, max_l=None,
+    def __init__(self, shells, Z=1, A=None, B=0.0, max_l=None,
                  quadratic_zeeman=True, fine_structure=True):
         self.shells = tuple(shells)
         self.Z = Z
@@ -221,9 +221,9 @@ class StarkMap:
             A=self.A,
         )
         self._mz_full = build_multishell_stark_matrix(
-            self.shells, self.Z, Fz=1.0, Fx=0.0)
+            self.shells, self.Z, Fz=1.0, Fx=0.0, A=self.A)
         self._mx_full = build_multishell_stark_matrix(
-            self.shells, self.Z, Fz=0.0, Fx=1.0)
+            self.shells, self.Z, Fz=0.0, Fx=1.0, A=self.A)
 
     def compute(self, fields_v_m, angle_deg=0.0, target_state=None, mj=None):
         """Diagonalize the Hamiltonian over electric-field magnitudes.

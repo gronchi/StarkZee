@@ -19,7 +19,7 @@ after dE and a CI factor at the end). What M is depends on MULTIP:
   convention <lower||d||upper> = M / sqrt(2) (gf = (2/3) dE S). The reader
   checks this relation and keeps the sign.
 * ``MULTIP = 0``: all multipoles summed; M = gf, no sign. Elements are unsigned
-  (|<J||d||J'>| from gf) and include non-E1 contributions.
+  (``|<J||d||J'>|`` from gf) and include non-E1 contributions.
 
 Signs come from FAC's eigenvector phases: they are consistent within one
 structure calculation (one level set), not between separate runs.

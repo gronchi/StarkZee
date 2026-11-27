@@ -110,7 +110,7 @@ def write_rcg(data, path, unit_cm=1.0, offset=50.0, pmup=True, m1=True, g_values
 
 @pytest.fixture(scope="module")
 def ref():
-    return he_i_4471(1.0)
+    return he_i_4471(1.0, singlets=False)          # the synthetic RCG output holds the triplets
 
 
 def _key(lv):
@@ -172,7 +172,7 @@ def test_rcg_output_reproduces_the_he_i_radiator(tmp_path, ref, B):
     up = select_levels(got, "1s1 4s1", "1s1 4p1", "1s1 4d1", "1s1 4f1")
     lo = select_levels(got, "1s1 2s1", "1s1 2p1")
     assert sorted(up) == sorted(m[i] for i in range(10)) and sorted(lo) == sorted(m[i] for i in (10, 11, 12, 13))
-    r0 = he_i_4471(B)
+    r0 = he_i_4471(B, singlets=False)
     r = JLevelTransition(got, up, lo, B, emitter_charge=0.0, reference_energy_ev=r0.line_energy_ev,
                          collision_n=r0.collision_n, collision_Z=r0.collision_Z,
                          collision_n_lower=r0.collision_n_lower, mass_amu=r0.mass_amu)

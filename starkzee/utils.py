@@ -17,15 +17,7 @@ M_E                = _c.m_e
 E_CHARGE           = _c.e
 FINE_STRUCTURE     = _c.fine_structure
 
-# Nuclear masses for common hydrogenic species (most abundant isotope).
-# Used for the reduced-mass Rydberg correction R_atom = R_∞ / (1 + m_e/M_nucleus).
-_NUCLEAR_MASSES_KG = {
-    1: _c.physical_constants['proton mass'][0],          # H-1
-    2: _c.physical_constants['alpha particle mass'][0],  # He-4
-}
-
-# Isotope-specific nuclear masses keyed by (Z, A).
-# Takes priority over _NUCLEAR_MASSES_KG when A is known.
+# CODATA nuclear masses of the hydrogen isotopes and 4He, keyed by (Z, A).
 _ISOTOPE_MASSES_KG = {
     (1, 1): _c.physical_constants['proton mass'][0],
     (1, 2): _c.physical_constants['deuteron mass'][0],
@@ -33,6 +25,18 @@ _ISOTOPE_MASSES_KG = {
     (2, 4): _c.physical_constants['alpha particle mass'][0],
 }
 
+# Most abundant isotope of each element: Z -> (A, neutral atomic mass [u]) (AME2020).
+_MOST_ABUNDANT = {
+    1: (1, 1.00782503223), 2: (4, 4.00260325413), 3: (7, 7.0160034366), 4: (9, 9.012183065),
+    5: (11, 11.00930536), 6: (12, 12.0), 7: (14, 14.00307400443), 8: (16, 15.99491461957),
+    9: (19, 18.99840316273), 10: (20, 19.9924401762), 11: (23, 22.989769282), 12: (24, 23.985041697),
+    13: (27, 26.98153853), 14: (28, 27.97692653465), 15: (31, 30.97376199842), 16: (32, 31.9720711744),
+    17: (35, 34.968852682), 18: (40, 39.9623831237), 19: (39, 38.9637064864), 20: (40, 39.962590863),
+    26: (56, 55.93493633), 28: (58, 57.93534241), 36: (84, 83.9114977282), 42: (98, 97.90540482),
+    54: (132, 131.9041550856), 74: (184, 183.95093092),
+}
+
+_ATOM_OF_HYDROGEN_ISOTOPE = {1: 'H', 2: 'D', 3: 'T'}
 
 _SPECIES_TABLE = {
     'h':         (1, 1),
@@ -75,54 +79,100 @@ def species_to_ZA(species):
     return _SPECIES_TABLE[key]
 
 
-def nuclear_mass_kg(Z, A=None):
-    """Return the nuclear mass [kg] for nuclear charge *Z* and mass number *A*.
-
-    Parameters
-    ----------
-    Z : int
-        Nuclear charge number.
-    A : int, optional
-        Atomic mass number.  When supplied the isotope-specific CODATA value
-        is used (H, D, T, ⁴He); otherwise falls back to the most-abundant
-        isotope for that Z.
-
-    Returns
-    -------
-    float
-        Nuclear mass in kg.
-    """
-    if A is not None and (Z, A) in _ISOTOPE_MASSES_KG:
-        return _ISOTOPE_MASSES_KG[(Z, A)]
+def mass_number(Z, A=None):
+    """A if given, else the mass number of the most abundant isotope of Z."""
     if A is not None:
-        return A * _c.atomic_mass
-    if Z in _NUCLEAR_MASSES_KG:
-        return _NUCLEAR_MASSES_KG[Z]
-    return 2.0 * Z * _c.atomic_mass
+        return A
+    if Z not in _MOST_ABUNDANT:
+        raise ValueError(f"No default isotope for Z={Z}; pass the mass number A.")
+    return _MOST_ABUNDANT[Z][0]
+
+
+def nuclear_mass_kg(Z, A=None):
+    """Return the nuclear mass [kg] of the isotope (Z, A); A defaults to the most abundant isotope.
+
+    CODATA values for H, D, T and 4He; otherwise the neutral atomic mass minus
+    Z electron masses (electron binding energies, below 1e-6 u for Z <= 30, are
+    neglected), or A u - Z m_e for an isotope without a tabulated mass.
+    """
+    A = mass_number(Z, A)
+    if (Z, A) in _ISOTOPE_MASSES_KG:
+        return _ISOTOPE_MASSES_KG[(Z, A)]
+    tab = _MOST_ABUNDANT.get(Z)
+    atomic_u = tab[1] if tab is not None and tab[0] == A else float(A)
+    return atomic_u * _c.atomic_mass - Z * _c.m_e
+
+
+def emitter_mass_kg(Z, A=None, bound_electrons=1):
+    """Mass [kg] of the radiating ion: nucleus plus its bound electrons (1 for hydrogen-like)."""
+    return nuclear_mass_kg(Z, A) + bound_electrons * _c.m_e
+
+
+def emitter_mass_amu(Z, A=None, bound_electrons=1):
+    """:func:`emitter_mass_kg` in atomic mass units [u]."""
+    return emitter_mass_kg(Z, A, bound_electrons) / _c.atomic_mass
+
+
+def perturber_mass_kg(A_perturber):
+    """Mass [kg] of a perturbing ion of mass number A: CODATA p, d, t, alpha for A = 1-4, else A u."""
+    A = float(A_perturber)
+    k = int(round(A))
+    if abs(A - k) < 1e-9 and k in (1, 2, 3):
+        return _ISOTOPE_MASSES_KG[(1, k)]
+    if abs(A - k) < 1e-9 and k == 4:
+        return _ISOTOPE_MASSES_KG[(2, 4)]
+    return A * _c.atomic_mass
+
+
+def reduced_mass_factor(Z, A=None):
+    """mu / m_e = 1 / (1 + m_e / M_nucleus)."""
+    return 1.0 / (1.0 + _c.m_e / nuclear_mass_kg(Z, A))
+
+
+def orbital_g_factor(Z, A=None):
+    """Orbital g factor of the electron with nuclear motion, g_L = 1 - m_e / M_nucleus."""
+    return 1.0 - _c.m_e / nuclear_mass_kg(Z, A)
+
+
+def core_mass_factors(mass_amu):
+    """(mu / m_e, g_L) for an electron bound to the rest of an atom of mass mass_amu [u].
+
+    The core (nucleus + other electrons) has mass M = mass_amu u - m_e;
+    mu / m_e = 1 / (1 + m_e / M) and g_L = 1 - m_e / M. None: infinite mass, (1, 1).
+    """
+    if mass_amu is None:
+        return 1.0, 1.0
+    M = mass_amu * _c.atomic_mass - _c.m_e
+    return 1.0 / (1.0 + _c.m_e / M), 1.0 - _c.m_e / M
+
+
+def resolve_atom(Z, A=None, atom=None):
+    """Element key of the measured-level table for a hydrogen-like emitter.
+
+    For Z = 1 the key follows the isotope: 'H', 'D' or 'T' for A = 1, 2, 3; an
+    explicit ``atom`` that names a different isotope is an error (it would put
+    the line at the wrong isotope's position). For Z > 1 ``atom`` is returned
+    unchanged (the bundled measured levels cover only Z = 1).
+    """
+    if Z != 1:
+        return atom
+    A = mass_number(Z, A)
+    expected = _ATOM_OF_HYDROGEN_ISOTOPE.get(int(round(A))) if np.isfinite(A) else None
+    if atom is None:
+        if expected is None:
+            raise ValueError(f"No measured levels for a hydrogen isotope with A={A}.")
+        return expected
+    if expected is not None and atom != expected:
+        raise ValueError(f"atom={atom!r} does not match the isotope A={A} (expected {expected!r}).")
+    return atom
 
 
 def reduced_mass_rydberg_ev(Z, A=None):
-    """Return the reduced-mass-corrected Rydberg energy for nuclear charge *Z* [eV].
+    """Return the reduced-mass Rydberg energy R_inf mu / m_e [eV] for the isotope (Z, A).
 
-    Replaces the infinite-nuclear-mass value ``RYDBERG_EV`` with the
-    atom-specific value:
-
-        R_atom = R_∞ × μ / m_e = R_∞ / (1 + m_e / M_nucleus)
-
-    where M_nucleus is the nuclear mass from :func:`nuclear_mass_kg`.
-
-    Parameters
-    ----------
-    Z : int
-        Nuclear charge number (1 = hydrogen, 2 = helium, etc.).
-
-    Returns
-    -------
-    float
-        Reduced-mass-corrected Rydberg energy [eV].
+    A defaults to the most abundant isotope of Z (see :func:`nuclear_mass_kg`).
     """
-    m_nucleus = nuclear_mass_kg(Z, A)
-    return RYDBERG_EV / (1.0 + _c.m_e / m_nucleus)
+    return RYDBERG_EV * reduced_mass_factor(Z, A)
 
 
 def temp_ev_to_joules(t_ev):
@@ -194,10 +244,12 @@ def energy_ev_to_wavelength_nm(energy_ev):
 
 
 def vacuum_to_air_wavelength_nm(wavelength_vac_nm):
-    """Convert vacuum wavelength(s) to air wavelength(s) using the Edlén (1966) formula.
+    """Convert vacuum wavelength(s) to air wavelength(s) with the Peck & Reeder (1972) formula of NIST ASD.
 
-    Valid for standard dry air (15 °C, 101 325 Pa) over approximately 200–2000 nm.
-    The formula is the one used by NIST ASD for all tabulated air wavelengths.
+    Standard air (15 °C, 101 325 Pa, 0.033 % CO2); the formula was fitted over
+    185–1700 nm. The 200 nm lower limit is a convention, not the edge of the fit:
+    as in NIST ASD, the vacuum wavelength is returned unchanged for wavenumbers
+    σ ≥ 50 000 cm⁻¹ (λ ≤ 200 nm) and σ ≤ 5000 cm⁻¹ (λ ≥ 2000 nm).
 
     Parameters
     ----------
@@ -211,20 +263,23 @@ def vacuum_to_air_wavelength_nm(wavelength_vac_nm):
 
     Notes
     -----
-    Edlén (1966) dispersion formula:
+    Peck & Reeder (1972) dispersion formula:
 
-        (n − 1) × 10⁸ = 8342.13 + 2406030 / (130 − σ²) + 15997 / (38.9 − σ²)
+        (n − 1) × 10⁸ = 8060.51 + 2480990 / (132.274 − σ²) + 17455.7 / (39.32957 − σ²)
 
     where σ = 1/λ_vac [µm⁻¹] = 1000 / λ_vac [nm].
 
     References
     ----------
-    Edlén, B., Metrologia 2, 71 (1966).
+    Peck, E. R. & Reeder, K., J. Opt. Soc. Am. 62, 958 (1972).
     """
-    sigma2 = (1e3 / np.asarray(wavelength_vac_nm, dtype=float)) ** 2
-    n_air = 1.0 + 1e-8 * (8342.13 + 2406030.0 / (130.0 - sigma2)
-                                    + 15997.0  / (38.9  - sigma2))
-    return np.asarray(wavelength_vac_nm, dtype=float) / n_air
+    lam = np.asarray(wavelength_vac_nm, dtype=float)
+    sigma2 = (1e3 / np.clip(lam, 200.0, 2000.0)) ** 2
+    n_air = 1.0 + 1e-8 * (8060.51 + 2480990.0 / (132.274 - sigma2)
+                                    + 17455.7 / (39.32957 - sigma2))
+    in_air = (lam > 200.0) & (lam < 2000.0)          # 5000 < σ < 50 000 cm⁻¹ (NIST ASD)
+    out = np.where(in_air, lam / n_air, lam)
+    return float(out) if out.ndim == 0 else out
 
 
 def wavelength_nm_to_energy_ev(wavelength_nm):

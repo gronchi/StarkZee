@@ -3,7 +3,7 @@
 
 StarkZee is designed to be self-contained and fast enough for exploratory spectroscopy studies. The main approximations are explicit in the solver rather than hidden behind external atomic-structure packages:
 
-#. **Hydrogenic basis and analytic radial functions.** Matrix elements are built from analytic hydrogenic wavefunctions [bethesalpeter]_,
+#. **Hydrogenic basis and analytic radial functions.** Matrix elements are built from analytic hydrogenic wavefunctions :cite:p:`bethesalpeter`,
 
    .. math::
 

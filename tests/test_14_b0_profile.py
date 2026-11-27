@@ -1,7 +1,7 @@
 """
 test_14_b0_profile.py — Full pipeline at B=0.
 
-At B=0 there is no preferred quantisation axis. By spherical symmetry,
+At B=0 there is no preferred quantization axis. By spherical symmetry,
 after integrating over all ion microfield orientations:
     profile_pi == profile_sig_plus == profile_sig_minus
 

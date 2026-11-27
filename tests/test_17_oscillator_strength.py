@@ -13,6 +13,7 @@ Tests:
   8. Profile integral at low density ≈ S_ul (within 5%)
   9. Transition wavelengths against NIST vacuum values (within 0.1%)
 """
+import math
 import numpy as np
 import pytest
 import sys, os
@@ -169,7 +170,7 @@ def test_einstein_a_vs_nist_lyman(n_u, n_l):
 def test_sline_consistent_with_gf(n_u, n_l, Z):
     """gf = (2/3) × (ΔE/E_hartree) × S_ul must hold to machine precision."""
     S  = line_strength(n_u, n_l, Z)
-    gf = oscillator_strength(n_u, n_l, Z)
+    gf = oscillator_strength(n_u, n_l, Z, A=math.inf)
     delta_E_hartree = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2) / E_HARTREE
     gf_from_S = (2.0/3.0) * delta_E_hartree * S
     assert relerr(gf, gf_from_S) < 1e-12, (
@@ -185,8 +186,8 @@ def test_sline_consistent_with_gf(n_u, n_l, Z):
 ])
 def test_einstein_a_consistent_with_gf(n_u, n_l, Z):
     """A_ul = α³ × (ΔE/E_h)² × gf / n_u² / τ_au to machine precision."""
-    gf       = oscillator_strength(n_u, n_l, Z)
-    A_direct = einstein_a(n_u, n_l, Z)
+    gf       = oscillator_strength(n_u, n_l, Z, A=math.inf)
+    A_direct = einstein_a(n_u, n_l, Z, A=math.inf)
     delta_E_hartree = (Z**2) * RYDBERG_EV * (1.0/n_l**2 - 1.0/n_u**2) / E_HARTREE
     A_from_gf = FINE_STRUCTURE**3 * delta_E_hartree**2 * gf / n_u**2 / TAU_AU
     assert relerr(A_direct, A_from_gf) < 1e-12, (

@@ -12,7 +12,7 @@ from scipy.constants import atomic_mass as _ATOMIC_MASS
 
 from starkzee.angular import angular_dipole_element
 from starkzee.radiator import (
-    build_hamiltonian, build_basis, intrashell_radial_dipole,
+    build_hamiltonian, build_basis, basis_index, intrashell_radial_dipole,
     _uncoupled_dipole_matrices,
 )
 from starkzee.microfield import microfield_quadrature
@@ -20,8 +20,21 @@ from starkzee.radiators import HydrogenicTransition
 from starkzee.convolutions import uniform_energy_grid
 from starkzee.collision import generalized_lorentzian_components
 
+def _isotope_from_species(Z, A, species):
+    """Mass number from A and/or a hydrogen-isotope species name; they must agree with Z and each other."""
+    if species is None:
+        return A
+    from starkzee.utils import species_to_ZA
+    Z_s, A_s = species_to_ZA(species)
+    if Z_s != Z:
+        raise ValueError(f"species={species!r} has Z={Z_s}, but Z={Z} was given.")
+    if A is not None and A != A_s:
+        raise ValueError(f"species={species!r} is A={A_s}, but A={A} was given.")
+    return A_s
+
+
 @lru_cache(maxsize=None)
-def line_reference_energy(n_u, n_l, Z=1, A=1, use_empirical_data=False, atom="H"):
+def line_reference_energy(n_u, n_l, Z=1, A=None, use_empirical_data=False, atom=None):
     """Fixed zero-field shell-trace reference [eV], or analytic gross energy.
 
     Empirical means include fine structure and Lamb shifts; this is a defined
@@ -35,8 +48,23 @@ def line_reference_energy(n_u, n_l, Z=1, A=1, use_empirical_data=False, atom="H"
     return Z**2 * reduced_mass_rydberg_ev(Z, A) * (1 / n_l**2 - 1 / n_u**2)
 
 
+def _stark_templates(n, Z, A=None):
+    """M_z, M_x [eV/(V/m)] of shell n with lengths in the reduced Bohr radius (see _stark_templates_a0)."""
+    from starkzee.utils import mass_number, reduced_mass_factor
+    A = mass_number(Z, A)
+    return _stark_templates_cached(n, Z, A)
+
+
 @lru_cache(maxsize=None)
-def _stark_templates(n, Z):
+def _stark_templates_cached(n, Z, A):
+    M_z, M_x = _stark_templates_a0(n, Z)
+    from starkzee.utils import reduced_mass_factor
+    scale = 1.0 / reduced_mass_factor(Z, A)          # a_mu / a0
+    return M_z * scale, M_x * scale
+
+
+@lru_cache(maxsize=None)
+def _stark_templates_a0(n, Z):
     """Return the field-independent Stark coupling matrices M_z and M_x [eV/(V/m)].
 
     V_E(Fz, Fx) = Fz * M_z + Fx * M_x, so these only need to be built once
@@ -56,19 +84,25 @@ def _stark_templates(n, Z):
     dim = len(basis)
     M_z = np.zeros((dim, dim), dtype=complex)
     M_x = np.zeros((dim, dim), dtype=complex)
+    index = basis_index(n)
     for i, state_i in enumerate(basis):
-        for j, state_j in enumerate(basis):
-            if state_i.ms == state_j.ms and abs(state_i.l - state_j.l) == 1:
+        # z and x keep m_s, change l by 1 and m_l by at most 1
+        for l2 in (state_i.l - 1, state_i.l + 1):
+            for ml2 in (state_i.ml - 1, state_i.ml, state_i.ml + 1):
+                j = index.get((l2, ml2, state_i.ms))
+                if j is None:
+                    continue
+                state_j = basis[j]
                 r_val = intrashell_radial_dipole(n, state_i.l, state_j.l, Z)
                 z_ang = angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, 0)
-                x_ang = (angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, -1) +
+                x_ang = (angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, -1) -
                          angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml,  1)) / np.sqrt(2.0)
                 M_z[i, j] += -z_ang * r_val * A0
                 M_x[i, j] += -x_ang * r_val * A0
     return M_z, M_x
 
 
-def build_stark_matrix(n, Z, Fz, Fx):
+def build_stark_matrix(n, Z, Fz, Fx, A=None):
     """Build the (2n²) × (2n²) Stark electric-field perturbation matrix in eV.
 
     The linear Stark interaction for an electron in an external electric field
@@ -127,21 +161,19 @@ def build_stark_matrix(n, Z, Fz, Fx):
                 # z coupling (q=0)
                 z_ang = angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, 0)
                 
-                # x coupling: x/r = (T_{-1} + T_{+1})/√2
-                # where angular_dipole_element(q=+1) = ⟨(x+iy)/(r√2)⟩
-                #   and angular_dipole_element(q=-1) = ⟨(x-iy)/(r√2)⟩
-                # Sum: (q=-1 + q=+1)/√2 = (x-iy+x+iy)/(r√2·√2) = x/r  ✓
-                # (Using minus gave an anti-symmetric, non-Hermitian matrix.)
-                x_ang = (angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, -1) +
+                # x coupling: x/r = (T_{-1} - T_{+1})/√2 with the standard
+                # components T_{+1} = -(x+iy)/(r√2), T_{-1} = (x-iy)/(r√2).
+                x_ang = (angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, -1) -
                          angular_dipole_element(state_i.l, state_i.ml, state_j.l, state_j.ml, 1)) / np.sqrt(2.0)
                 
                 V_E[i, j] += -(z_ang * Fz + x_ang * Fx) * r_val * A0
-                
-    return V_E
+
+    from starkzee.utils import reduced_mass_factor
+    return V_E / reduced_mass_factor(Z, A)          # lengths in the reduced Bohr radius
 
 def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
-                               fine_structure=True, A=1,
-                               use_empirical_data=False, atom="H"):
+                               fine_structure=True, A=None,
+                               use_empirical_data=False, atom=None):
     """Diagonalize the combined Stark + Zeeman Hamiltonian for shell n.
 
     Adds the Stark perturbation :func:`build_stark_matrix` to the
@@ -176,7 +208,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
         converted back to eV before returning so callers see no unit change.
     atom : str, optional
         Atom identifier passed to :func:`~starkzee.atomic_data.load_levels`
-        when ``use_empirical_data=True`` (default ``"H"``).
+        when ``use_empirical_data=True`` (default: the isotope given by ``A``).
 
     Returns
     -------
@@ -190,7 +222,7 @@ def solve_starkzee(n, Z, B, Fz, Fx, quadratic_zeeman=True,
     # V_E(Fz, Fx) = Fz*M_z + Fx*M_x with field-independent templates cached per
     # (n, Z), avoiding a Python double-loop rebuild of the Stark matrix on every
     # call (build_stark_matrix produces exactly Fz*M_z + Fx*M_x).
-    M_z, M_x = _stark_templates(n, Z)
+    M_z, M_x = _stark_templates(n, Z, A)
 
     if use_empirical_data:
         # H_atom is in cm⁻¹; scale the Stark matrices (eV/(V/m)) to cm⁻¹/(V/m).
@@ -239,11 +271,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      num_f=20, num_mu=6, max_beta=10.0,
                                      use_screening=True,
                                      quadratic_zeeman=True, fine_structure=True,
-                                     frequency_dependent_width=True, A=1,
-                                     Ti_ev=None, species='H', electron_model='pppb',
+                                     frequency_dependent_width=True, A=None,
+                                     Ti_ev=None, species=None, electron_model='pppb',
                                      electron_operator=False,
                                      electron_interference=False,
-                                     use_empirical_data=True, atom="H",
+                                     use_empirical_data=True, atom=None,
                                      microfield_model=None,
                                      force_frequency_dependent_width=False,
                                      custom_table_path=None, charged=None,
@@ -346,9 +378,12 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         a separate post-processing convolution.  Default is ``None`` (bare
         Lorentzian, no Doppler).
     species : str, optional
-        Emitting species (``'H'``, ``'D'``, or ``'T'``); used to determine the
-        ion mass for the Doppler width.  Only relevant when *Ti_ev* is set.
-        Default is ``'H'``.
+        Hydrogen isotope (``'H'``, ``'D'``, or ``'T'``); an alternative way to
+        give Z = 1 and A. It must agree with ``Z`` and with ``A`` when both are given.
+    A : int or float, optional
+        Mass number of the emitter (default: from ``species``, else the most
+        abundant isotope of Z). Sets the reduced-mass terms, the measured-level
+        table and the Doppler mass (nucleus + electron).
     electron_model : str, optional
         Electron-impact width prescription, forwarded to
         :func:`~starkzee.broadening.electron_impact_width_model`.  ``'pppb'``
@@ -394,13 +429,12 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         centroid matches the measured NIST wavelength more closely than the
         analytical model, which is Lamb-shift-free. Set this to False for
         analytical energies or hydrogen-like ions with Z > 1. ``atomic_levels.json``
-        tabulates H (n ≤ 8), D (n ≤ 6), and T (n ≤ 3) levels — pass the
-        matching ``atom`` for the emitting *species*: the default ``atom="H"``
-        combined with ``species='D'``/``'T'`` reproduces the plain-hydrogen
-        line center, not the isotope-shifted one (~0.1-0.2 nm for Balmer-α).
+        tabulates H (n ≤ 8), D (n ≤ 6), and T (n ≤ 3) levels; higher levels use the
+        Dirac energy below the ionization limit (with a warning). The table follows
+        the isotope (``A`` / ``species``).
     atom : str, optional
         Atom identifier passed to :func:`~starkzee.atomic_data.load_levels`
-        when ``use_empirical_data=True`` (default ``"H"``).
+        when ``use_empirical_data=True`` (default: the isotope given by ``A``).
     radiator : object, optional
         Radiator supplying the manifolds, dipoles, line energies and electron
         broadening (see :mod:`starkzee.radiators`). ``None`` (default) builds
@@ -464,6 +498,7 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                 "electron models."
             )
     if radiator is None:
+        A = _isotope_from_species(Z, A, species)
         radiator = HydrogenicTransition(n_u, n_l, Z, B, quadratic_zeeman, fine_structure, A,
                                         use_empirical_data=use_empirical_data, atom=atom)
     if emitter_charge is None:
@@ -520,14 +555,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     
     sigma_D = None
     if apply_doppler and Ti_ev is not None and Ti_ev > 0:
-        radiator_mass = getattr(radiator, "mass_amu", None)
-        if radiator_mass is not None:
-            # multi-electron radiators carry the emitter mass [u]
-            mc2_ev = radiator_mass * _ATOMIC_MASS * _C_LIGHT**2 / _E_CHARGE
-        else:
-            from starkzee.utils import species_to_ZA
-            _, A_species = species_to_ZA(species)
-            mc2_ev = A_species * _M_P * _C_LIGHT**2 / _E_CHARGE
+        # every radiator carries the emitter mass [u] (nucleus + bound electrons)
+        if getattr(radiator, "mass_amu", None) is None:
+            raise ValueError("Doppler broadening needs the emitter mass: give the radiator mass_amu "
+                             "(or pass apply_doppler=False).")
+        mc2_ev = radiator.mass_amu * _ATOMIC_MASS * _C_LIGHT**2 / _E_CHARGE
         # Use the physical (analytic) gross-structure line center, not mean(energies_ev):
         # the latter depends on the requested observation window (its offset and width),
         # not on the emitter, so an asymmetric or shifted window would silently change the
@@ -752,8 +784,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
 
 def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
                          quadratic_zeeman=True, fine_structure=True,
-                         min_strength=0.0, A=1, radial_method=None,
-                         use_empirical_data=True, atom="H"):
+                         min_strength=0.0, A=None, radial_method=None,
+                         use_empirical_data=True, atom=None):
     """Return all discrete Stark-Zeeman dipole transitions at a single field configuration.
 
     Diagonalizes the Stark-Zeeman Hamiltonian for both shells and enumerates every
@@ -818,7 +850,9 @@ def discrete_transitions(n_u, n_l, Z, B, Fz=0.0, Fx=0.0,
         n_l, Z, B, Fz, Fx, quadratic_zeeman, fine_structure, A,
         use_empirical_data=use_empirical_data, atom=atom)
 
-    D_q = _uncoupled_dipole_matrices(n_u, n_l, Z, method=radial_method)
+    from starkzee.utils import reduced_mass_factor
+    a_mu = 1.0 / reduced_mass_factor(Z, A)                     # dipoles in the reduced Bohr radius
+    D_q = {q: D * a_mu for q, D in _uncoupled_dipole_matrices(n_u, n_l, Z, method=radial_method).items()}
     dim_l, dim_u = D_q[0].shape
 
     # Transition energy E_upper_i - E_lower_j is shared across polarizations.

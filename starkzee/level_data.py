@@ -2,17 +2,17 @@
 
 A dataset holds levels (energy, J, parity, labels) and E1 reduced elements between
 them. Reduced elements follow the Edmonds / Wigner-Eckart convention used in
-:mod:`starkzee.ls_radiator`,
+:mod:`starkzee.ls_radiator`::
 
     <J M| d_q |J' M'> = (-1)^(J-M) (J 1 J'; -M q M') <J||d||J'>,
     S = |<J||d||J'>|^2 [(e a0)^2],   gf = (2/3) dE[Hartree] S,
 
-stored with the orientation <lower||d||upper>; the other one follows from
-<upper||d||lower> = (-1)^(J_upper - J_lower) <lower||d||upper>.
+stored with the orientation ``<lower||d||upper>``; the other one follows from
+``<upper||d||lower> = (-1)^(J_upper - J_lower) <lower||d||upper>``.
 
 A sign is meaningful only relative to the other elements of the same dataset
 (level phases are a gauge freedom; products around closed loops are not), so
-``signed`` records whether the source gave it. Unsigned elements carry |<J||d||J'>|
+``signed`` records whether the source gave it. Unsigned elements carry ``|<J||d||J'>|``
 from gf and must not be used where interference between paths matters (Stark
 mixing) without a sign from elsewhere.
 """
@@ -131,5 +131,5 @@ class LevelData:
 
 
 def reduced_from_gf(gf, energy_ev):
-    """|<J||d||J'>| [e a0] from gf and the transition energy [eV]: S = 3 gf / (2 dE[Ha])."""
+    """``|<J||d||J'>|`` [e a0] from gf and the transition energy [eV]: S = 3 gf / (2 dE[Ha])."""
     return float(np.sqrt(1.5 * gf / (energy_ev / HARTREE_EV)))
