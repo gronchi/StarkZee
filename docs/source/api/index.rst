@@ -23,6 +23,7 @@ API reference
    broadening
    collision
    convolutions
+   lorentzian_fft
    validation
    utils
    atomic_data
@@ -76,6 +77,8 @@ Module overview
      - GBK electron impact broadening with magnetic-field cutoff
    * - :mod:`starkzee.convolutions`
      - Standalone wavelength-space FFT Doppler and instrumental broadening helpers
+   * - :mod:`starkzee.lorentzian_fft`
+     - FFT sums of many Lorentzian / Voigt components (``method='fft'`` of the static profile)
    * - :mod:`starkzee.validation`
      - Profile area, centroid, overlap coverage, and convergence-error metrics
    * - :mod:`starkzee.utils`

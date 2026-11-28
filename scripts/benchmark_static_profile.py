@@ -1,8 +1,9 @@
 """Time calculate_static_profile on the regression cases and check them against the reference.
 
-Run:  python scripts/benchmark_static_profile.py [--numpy]
+Run:  python scripts/benchmark_static_profile.py [--numpy] [--fft [tol]]
 
---numpy disables numexpr (in-place numpy kernel). Each case is evaluated once to
+--numpy disables numexpr (in-place numpy kernel); --fft uses method='fft' (default
+fft_tol 1e-8; the interference cases stay exact). Each case is evaluated once to
 warm the caches, then timed; the difference from tests/data/static_profile_reference.npz
 is reported relative to the peak.
 """
@@ -21,6 +22,17 @@ import test_62_static_profile_regression as cases                         # noqa
 
 if "--numpy" in sys.argv:
     static_profile._numexpr = None
+if "--fft" in sys.argv:
+    k = sys.argv.index("--fft")
+    tol = float(sys.argv[k + 1]) if len(sys.argv) > k + 1 else 1e-8
+    original = static_profile.calculate_static_profile
+
+    def fft_profile(*args, **kw):
+        if not kw.get("electron_interference"):
+            kw.update(method="fft", fft_tol=tol)
+        return original(*args, **kw)
+    cases.calculate_static_profile = fft_profile
+    print(f"method: fft (fft_tol {tol:g})")
 print("kernel:", "numexpr" if static_profile._numexpr is not None else "numpy")
 reference = np.load(cases.REFERENCE)
 for name in cases.CASES:

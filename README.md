@@ -66,6 +66,13 @@ is evaluated in one fused, multithreaded pass, 2-6x faster per profile with the 
 result to rounding (`python scripts/benchmark_static_profile.py`). Without it the kernel
 runs in place in numpy.
 
+`calculate_static_profile(..., method='fft', fft_tol=1e-8)` is an opt-in approximate
+evaluation (the default `method='exact'` is unchanged): the components of all quadrature
+points are summed with FFT convolutions (`starkzee.lorentzian_fft`), with the error held
+below `fft_tol` of the peak. It is ~50x faster for constant widths with Doppler (direct
+Voigt kernels) and 1.3-2x for the default frequency-dependent widths; the per-state
+electron operator with frequency-dependent widths is slower than exact.
+
 Optional: with [pywigxjpf](https://pypi.org/project/pywigxjpf/) installed (`pip install -e .[wigner]`),
 Wigner 3-j and 6-j symbols use the exact WIGXJPF library instead of the built-in
 double-precision Racah sums (`starkzee.angular.BACKEND` shows which is active). pywigxjpf has

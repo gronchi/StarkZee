@@ -358,7 +358,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      emitter_charge=None, Z_bar=1.0,
                                      apply_doppler=True, species_charges=None,
                                      species_concentrations=None,
-                                     natural_width_mode='state_resolved', radiator=None):
+                                     natural_width_mode='state_resolved', radiator=None,
+                                     method='exact', fft_tol=1e-8):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -516,6 +517,20 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         broadening (see :mod:`starkzee.radiators`). ``None`` (default) builds
         :class:`~starkzee.radiators.HydrogenicTransition` from ``n_u``, ``n_l``,
         ``Z`` and the atomic-structure options above, which are then ignored.
+    method : {'exact', 'fft'}, optional
+        ``'exact'`` (default) evaluates every Lorentzian (or Voigt) component on
+        the grid, a cost of grid x components per quadrature point. ``'fft'``
+        gathers the components of all quadrature points and sums them with FFT
+        convolutions (:mod:`starkzee.lorentzian_fft`): its cost is nearly
+        independent of the number of components, so it pays off for lines with
+        many components (high n, multi-electron radiators) or fine quadrature.
+        It is approximate, with the error controlled by ``fft_tol``; frequency-
+        dependent widths are interpolated between Chebyshev nodes in the width.
+        Not available with ``electron_interference``. Nonuniform grids are
+        resampled to a uniform one.
+    fft_tol : float, optional
+        Target error of ``method='fft'``, relative to the largest single-
+        component peak (default 1e-8; measured errors are 10-100x smaller).
 
     Notes on approximations
     -----------------------
@@ -555,8 +570,20 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     case I_π = I_σ± = I this gives I(θ) = 2I at every angle, as it must).
     """
     energies_ev, restore_grid = uniform_energy_grid(
-        energies_ev, resample=apply_doppler and Ti_ev is not None and Ti_ev > 0
-        and frequency_dependent_width)
+        energies_ev, resample=(apply_doppler and Ti_ev is not None and Ti_ev > 0
+                               and frequency_dependent_width) or method == 'fft')
+    if method not in ('exact', 'fft'):
+        raise ValueError("method must be 'exact' or 'fft'.")
+    if method == 'fft':
+        # the FFT sums place node n at grid[0] + n * span/(n-1): evaluate on that exact
+        # linspace and interpolate back (a no-op for numpy.linspace grids)
+        _lin = np.linspace(energies_ev[0], energies_ev[-1], len(energies_ev))
+        if not np.array_equal(_lin, energies_ev):
+            _work, _restore = energies_ev, restore_grid
+            restore_grid = lambda values: _restore(np.interp(_work, _lin, values))
+            energies_ev = _lin
+    if method == 'fft' and electron_interference:
+        raise ValueError("method='fft' does not support electron_interference=True.")
     no_electrons = electron_model.lower() == 'none'
     if no_electrons:
         if electron_interference:
@@ -735,6 +762,10 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         eig_u = _batched_eigh(H_atom_u, M_z_u, M_x_u, Fz_all, Fx_all)
         eig_l = _batched_eigh(H_atom_l, M_z_l, M_x_l, Fz_all, Fx_all)
 
+    # method='fft': components gathered over all quadrature points, summed after the loop
+    sticks = {"centre": [], "amplitude": [], "width": [], "natural": [],
+              "scale_u": [], "scale_l": []}
+
     # Main integration loop
     for weight, Fz, Fx in points:
         # Diagonalize using precomputed H_atom and Stark templates
@@ -820,6 +851,21 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                              else shell_natural_ev)
             # no electrons: keep (nearly) unbroadened components on the grid, floor at one grid step
             floor = _dx if no_electrons else None
+            if method == 'fft':
+                n_act = len(act_dE)
+                sticks["centre"].append(act_dE)
+                sticks["amplitude"].append(
+                    weight * np.column_stack((I_pi[mask], I_sp[mask], I_sm[mask])))
+                if frequency_dependent_width:
+                    sticks["natural"].append(np.broadcast_to(natural_width, (n_act,)))
+                    if scale_u is not None:
+                        sticks["scale_u"].append(scale_u)
+                    if scale_l is not None:
+                        sticks["scale_l"].append(scale_l)
+                else:
+                    sticks["width"].append(np.broadcast_to(_transition_widths(
+                        w_e_u, w_e_l, natural_width, scale_u, scale_l, floor), (n_act,)))
+                continue
             if _voigt_loop:
                 w = _transition_widths(w_e_u, w_e_l, natural_width, scale_u, scale_l, floor)
                 kernel = voigt_profile(energies_ev[:, np.newaxis] - act_dE[np.newaxis, :],
@@ -834,6 +880,21 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
             profile_pi        += acc[:, 0]
             profile_sig_plus  += acc[:, 1]
             profile_sig_minus += acc[:, 2]
+
+    if method == 'fft' and sticks["centre"]:
+        from starkzee.lorentzian_fft import frequency_dependent_sum, lorentzian_sum
+        cat = {k: (np.concatenate(v) if v else None) for k, v in sticks.items()}
+        if frequency_dependent_width:
+            sums = frequency_dependent_sum(
+                energies_ev, cat["centre"], cat["amplitude"], cat["natural"],
+                _w_e_grid_u[:, 0], (_w_e_grid_l[:, 0] if np.ndim(_w_e_grid_l) else _w_e_grid_l),
+                cat["scale_u"], cat["scale_l"], _dx if no_electrons else None, fft_tol)
+        else:
+            sums = lorentzian_sum(energies_ev, cat["centre"], cat["amplitude"], cat["width"],
+                                  sigma_D if _voigt_loop else None, fft_tol)
+        profile_pi += sums[:, 0]
+        profile_sig_plus += sums[:, 1]
+        profile_sig_minus += sums[:, 2]
 
     if isotropic:
         # orientation average of dipole emission: every lab polarization gets 1/3
