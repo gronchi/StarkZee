@@ -1,39 +1,43 @@
-"""FFT evaluation of large sums of Lorentzian (or Voigt) components on a uniform grid.
+r"""FFT evaluation of large sums of Lorentzian (or Voigt) components on a uniform grid.
 
 Approximate counterpart of the direct kernel in ``calculate_static_profile``
-(``method='fft'``): the cost no longer scales as grid x components, only as
-the number of components plus a few FFTs of the grid size per width group.
+(``method='fft'``): the cost no longer scales as grid x components, only as the
+number of components plus a few FFTs of the grid size per width group.
 
-Lorentzian components
----------------------
-Each component is (1/pi) Im 1/(x - c - i w). Bin it to the nearest grid node
-x_m and write c + i w = x_m + i w_ref + Delta, Delta = (c - x_m) + i (w - w_ref):
+**Lorentzian components.** Each component is :math:`\frac{1}{\pi}\,\mathrm{Im}\,
+\frac{1}{x - c - i w}`. Bin it to the nearest grid node :math:`x_m` and write
+:math:`c + i w = x_m + i w_{ref} + \Delta`, with :math:`\Delta = (c - x_m) + i (w - w_{ref})`:
 
-    1/(x_n - c - i w) = sum_p Delta^p / z^(p+1),     z = x_n - x_m - i w_ref.
+.. math::
 
-For |n - m| > R (far field) |Delta| <= RATIO |z|, so the series converges
-geometrically; each power p is one FFT convolution of the binned moments
-sum a Delta^p with the fixed kernel 1/z^(p+1). The pairs with |n - m| <= R
-(near field) are added exactly. R and the width groups are chosen so that
-R stays small whether the widths are below or above the grid step.
+   \frac{1}{x_n - c - i w} = \sum_p \frac{\Delta^p}{z^{p+1}},
+   \qquad z = x_n - x_m - i w_{ref}.
 
-Voigt components (constant widths with a common Gaussian sigma)
----------------------------------------------------------------
-V = Re w(zeta) / (sigma sqrt(2 pi)), zeta = (x - c + i w)/(sigma sqrt 2), with
-the Faddeeva function w, which is entire: the expansion about the binned node,
-w(z0 - eta) = sum_p (-eta)^p w^(p)(z0)/p!, converges for every pair (no near
-field). The derivatives come from the recurrence w' = -2 z w + 2i/sqrt(pi),
-w^(p+1) = -2 z w^(p) - 2 p w^(p-1) near the core and from the asymptotic series
-for |z0| >= ASYMPTOTIC_Z, where the recurrence loses accuracy.
+For node distances :math:`\lvert n - m\rvert > R` (far field)
+:math:`\lvert\Delta\rvert \le` ``RATIO`` :math:`\lvert z\rvert`, so the series
+converges geometrically; each power p is one FFT convolution of the binned moments
+:math:`\sum a\,\Delta^p` with the fixed kernel :math:`1/z^{p+1}`. The pairs with
+:math:`\lvert n - m\rvert \le R` (near field) are added exactly. R and the width
+groups are chosen so that R stays small whether the widths are below or above the
+grid step.
 
-Frequency-dependent widths
---------------------------
-w_k(E) = u(E) a_k + l(E) b_k + n_k breaks the convolution structure. The sum is
-evaluated at fixed widths on Chebyshev nodes in u + l (a_k = b_k = 1) or in u
-and q = l/u, and interpolated to each grid point; the number of nodes follows
-from the width range (the sum is analytic in the width away from w = 0).
+**Voigt components** (constant widths with a common Gaussian σ).
+:math:`V = \mathrm{Re}\, w(\zeta) / (\sigma\sqrt{2\pi})`, with
+:math:`\zeta = (x - c + i w)/(\sigma\sqrt2)` and the Faddeeva function w, which is
+entire: the expansion about the binned node,
+:math:`w(z_0 - \eta) = \sum_p (-\eta)^p\, w^{(p)}(z_0)/p!`, converges for every pair
+(no near field). The derivatives come from the recurrence
+:math:`w' = -2 z w + 2i/\sqrt\pi`, :math:`w^{(p+1)} = -2 z w^{(p)} - 2 p\, w^{(p-1)}`
+near the core and from the asymptotic series for
+:math:`\lvert z_0\rvert \ge` ``ASYMPTOTIC_Z``, where the recurrence loses accuracy.
 
-Components farther than MARGIN_FRACTION of the span outside the grid are added
+**Frequency-dependent widths.** :math:`w_k(E) = u(E)\,a_k + l(E)\,b_k + n_k` breaks
+the convolution structure. The sum is evaluated at fixed widths on Chebyshev nodes in
+u + l (:math:`a_k = b_k = 1`) or in u and q = l/u, and interpolated to each grid
+point; the number of nodes follows from the width range (the sum is analytic in the
+width away from w = 0).
+
+Components farther than ``MARGIN_FRACTION`` of the span outside the grid are added
 directly (exactly). The tolerance is relative to the largest component peak.
 """
 import numpy as np

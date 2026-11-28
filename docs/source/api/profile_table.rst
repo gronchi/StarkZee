@@ -8,4 +8,5 @@ eigensystems on a fixed field grid serve every density.
 .. automodule:: starkzee.profile_table
    :members: StaticProfileTable
 
-.. autofunction:: starkzee.microfield.microfield_weights
+The microfield weights on the table's field grid come from
+:func:`starkzee.microfield.microfield_weights`.
