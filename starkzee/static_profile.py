@@ -359,7 +359,8 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
                                      apply_doppler=True, species_charges=None,
                                      species_concentrations=None,
                                      natural_width_mode='state_resolved', radiator=None,
-                                     method='exact', fft_tol=1e-8):
+                                     method='exact', fft_tol=1e-8,
+                                     _quadrature=None, _point_cache=None):
     """Compute the static-ion Stark-Zeeman line profile for n_u → n_l.
 
     Integrates the Stark-Zeeman Hamiltonian over the plasma microfield distribution
@@ -531,6 +532,11 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
     fft_tol : float, optional
         Target error of ``method='fft'``, relative to the largest single-
         component peak (default 1e-8; measured errors are 10-100x smaller).
+    _quadrature, _point_cache : internal
+        Used by :class:`~starkzee.profile_table.StaticProfileTable`: the
+        microfield nodes and weights ``(fields, weights)`` replacing the
+        quadrature, and a dict caching the Ne-independent data of each
+        (field, angle) point across calls.
 
     Notes on approximations
     -----------------------
@@ -610,15 +616,20 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
         raise ValueError("emitter_charge must be finite and nonnegative.")
     if charged is None:
         charged = emitter_charge != 0
+    if _point_cache is not None and electron_interference:
+        raise ValueError("cached quadrature points do not support electron_interference=True.")
     # 1. Get microfield grid and weights
-    fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f,
-                                              max_beta=max_beta, use_screening=use_screening,
-                                              microfield_model=microfield_model, Ti_ev=Ti_ev,
-                                              custom_table_path=custom_table_path,
-                                              charged=charged, emitter_charge=emitter_charge,
-                                              Z_bar=Z_bar,
-                                              species_charges=species_charges,
-                                              species_concentrations=species_concentrations)
+    if _quadrature is not None:
+        fields, f_weights = (np.asarray(x, dtype=float) for x in _quadrature)
+    else:
+        fields, f_weights = microfield_quadrature(Ne_m3, Te_ev, num_points=num_f,
+                                                  max_beta=max_beta, use_screening=use_screening,
+                                                  microfield_model=microfield_model, Ti_ev=Ti_ev,
+                                                  custom_table_path=custom_table_path,
+                                                  charged=charged, emitter_charge=emitter_charge,
+                                                  Z_bar=Z_bar,
+                                                  species_charges=species_charges,
+                                                  species_concentrations=species_concentrations)
     
     # 2. Get angular integration points (Gauss-Legendre on mu = cos(theta) from 0 to 1)
     mu_points, mu_weights = np.polynomial.legendre.leggauss(num_mu)
@@ -756,130 +767,140 @@ def calculate_static_profile(n_u, n_l, Z, B, Ne_m3, Te_ev, energies_ev,
               for fi, f_weight in zip(fields, f_weights) if f_weight > 1e-15
               for mu, mu_weight in zip(mu_points, mu_weights)
               if f_weight * mu_weight > 1e-15]
-    if not m_blocks and points:
+    # Ne-independent data of each quadrature point (active transitions), optionally
+    # cached across calls by StaticProfileTable under the key (Fz, Fx)
+    cache = _point_cache
+    todo = [(Fz, Fx) for _, Fz, Fx in points if cache is None or (Fz, Fx) not in cache]
+    if not m_blocks and todo:
         # Diagonalize the quadrature points in stacked eigh calls, chunk by chunk
-        _, Fz_all, Fx_all = (np.array(col) for col in zip(*points))
+        Fz_all, Fx_all = (np.array(col) for col in zip(*todo))
         eig_u = _batched_eigh(H_atom_u, M_z_u, M_x_u, Fz_all, Fx_all)
         eig_l = _batched_eigh(H_atom_l, M_z_l, M_x_l, Fz_all, Fx_all)
 
-    # method='fft': components gathered over all quadrature points, summed after the loop
-    sticks = {"centre": [], "amplitude": [], "width": [], "natural": [],
-              "scale_u": [], "scale_l": []}
-
-    # Main integration loop
-    for weight, Fz, Fx in points:
-        # Diagonalize using precomputed H_atom and Stark templates
-        if m_blocks:
-            sz_energies_u, sz_vectors_u, m_dressed_u = _eigh_by_m(H_atom_u + Fz * M_z_u, m_u_basis)
-            sz_energies_l, sz_vectors_l, m_dressed_l = _eigh_by_m(H_atom_l + Fz * M_z_l, m_l_basis)
-        else:
-            sz_energies_u, sz_vectors_u = next(eig_u)
-            sz_energies_l, sz_vectors_l = next(eig_l)
-
+    def _point_record(sz_energies_u, sz_vectors_u, sz_energies_l, sz_vectors_l):
+        """Active transitions of one point: (centres, intensities (P, 3), natural widths
+        or None, upper scales or None, lower scales or None); () when none radiate."""
+        natural_widths = None
         if natural_width_mode == 'state_resolved':
             natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
             natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
             natural_widths = (_HBAR / (2.0 * _E_CHARGE)
                               * (natural_rates_l[:, np.newaxis]
                                  + natural_rates_u[np.newaxis, :]))
-
-        # Electron-impact operator diagonal: per-dressed-state ⟨k|r²|k⟩/⟨r²⟩_avg
-        # (c_k = 0 → ZEST operator), applied to the upper AND lower shell
-        # (ZEST: w_init_eigen[i] + w_final_eigen[j]). The opt-in full PPP
-        # branch below supersedes this diagonal approximation.
+        V_l_adj = sz_vectors_l.conj().T
+        # Transition energies from the shifted eigenvalues plus the gross-structure line
+        # centre (no cancellation between large level energies); _shift_to_ev converts
+        # cm-1 -> eV in the empirical branch (1.0 otherwise).
+        dE = (sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]) * _shift_to_ev + E0_line
+        I_pi = np.abs(V_l_adj @ D_q_uncoupled[ 0] @ sz_vectors_u)**2
+        I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
+        I_sm = np.abs(V_l_adj @ D_q_uncoupled[ 1] @ sz_vectors_u)**2
+        # Union of active transitions: one kernel for all q.
+        mask = (I_pi > 1e-12) | (I_sp > 1e-12) | (I_sm > 1e-12)
+        if not np.any(mask):
+            return ()
+        scale_u = scale_l = None
         if electron_operator:
-            # Keep the resolved operator consistent with the scalar model:
-            # historical PPPB/Ferri uses full closure, whereas PPPB-intra
-            # and every ZEST selector use the projected intra-shell sum.
+            # Electron-impact operator diagonal: per-dressed-state <k|r^2|k>/<r^2>_avg
+            # (c_k = 0 -> ZEST operator) on the upper AND lower shell (ZEST:
+            # w_init_eigen[i] + w_final_eigen[j]). Historical PPPB/Ferri uses full
+            # closure, PPPB-intra and every ZEST selector the projected intra-shell sum.
             r2_form = ('full' if electron_model.lower() in ('pppb', 'ferri')
                        else 'intra')
             r2_scale_u, r2_scale_l = radiator.electron_r2_scaling(
                 sz_vectors_u, sz_vectors_l, r2_form)
-        
-        # Compute all three dipole intensity matrices; dE is shared across q.
-        V_l_adj = sz_vectors_l.conj().T
-        # Compute transition energies using high-precision shifted eigenvalues
-        # and add the gross structure line center back. This prevents catastrophic
-        # cancellation from subtracting large energy levels directly.
-        dE_shifted = sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis]
-        # _shift_to_ev converts cm⁻¹ → eV in the empirical branch (1.0 otherwise).
-        dE = dE_shifted * _shift_to_ev + E0_line
+            # r2_scale_u per upper eigenstate (columns of dE), r2_scale_l per lower
+            # (rows); broadcast to dE.shape, then select the active transitions.
+            scale_u = np.broadcast_to(r2_scale_u[np.newaxis, :], dE.shape)[mask]
+            if r2_scale_l is not None:
+                scale_l = np.broadcast_to(r2_scale_l[:, np.newaxis], dE.shape)[mask]
+        return (dE[mask], np.column_stack((I_pi[mask], I_sp[mask], I_sm[mask])),
+                None if natural_widths is None else natural_widths[mask], scale_u, scale_l)
 
-        I_pi = np.abs(V_l_adj @ D_q_uncoupled[ 0] @ sz_vectors_u)**2
-        I_sp = np.abs(V_l_adj @ D_q_uncoupled[-1] @ sz_vectors_u)**2
-        I_sm = np.abs(V_l_adj @ D_q_uncoupled[ 1] @ sz_vectors_u)**2
+    # method='fft': components gathered over all quadrature points, summed after the loop
+    sticks = {"centre": [], "amplitude": [], "width": [], "natural": [],
+              "scale_u": [], "scale_l": []}
+    if frequency_dependent_width:
+        # Pointwise w(E - E0): column vector over the observation grid, shared by all
+        # transitions (PPPB Phi(Delta omega) convention).
+        w_e_u, w_e_l = _w_e_grid_u, _w_e_grid_l
+    else:
+        w_e_u, w_e_l = w_resonance_e_u, w_resonance_e_l
+    # no electrons: keep (nearly) unbroadened components on the grid, floor at one grid step
+    floor = _dx if no_electrons else None
 
-        if electron_interference:
-            natural_for_operator = (natural_widths
-                                    if natural_width_mode == 'state_resolved'
-                                    else shell_natural_ev)
-            frequencies, widths, complex_strengths = radiator.ppp_sdts(
-                dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
-                natural_for_operator,
-                **({"m_values": (m_dressed_u, m_dressed_l)} if m_blocks else {}))
-            components = generalized_lorentzian_components(
-                energies_ev, frequencies, widths, complex_strengths)
-            profile_pi += weight * components[0]
-            profile_sig_plus += weight * components[-1]
-            profile_sig_minus += weight * components[1]
-            continue
-
-        # Union of active transitions — compute kernel once for all q.
-        mask = (I_pi > 1e-12) | (I_sp > 1e-12) | (I_sm > 1e-12)
-        if np.any(mask):
-            act_dE    = dE[mask]
-
-            if frequency_dependent_width:
-                # Pointwise w(E − E0): column vector over the observation
-                # grid, shared by all transitions (PPPB Φ(Δω) convention).
-                w_e_u = _w_e_grid_u
-                w_e_l = _w_e_grid_l
+    # Main integration loop
+    for weight, Fz, Fx in points:
+        record = cache.get((Fz, Fx)) if cache is not None else None
+        if record is None:
+            # Diagonalize using precomputed H_atom and Stark templates
+            if m_blocks:
+                sz_energies_u, sz_vectors_u, m_dressed_u = _eigh_by_m(H_atom_u + Fz * M_z_u, m_u_basis)
+                sz_energies_l, sz_vectors_l, m_dressed_l = _eigh_by_m(H_atom_l + Fz * M_z_l, m_l_basis)
             else:
-                w_e_u = w_resonance_e_u
-                w_e_l = w_resonance_e_l
-            scale_u = scale_l = None
-            if electron_operator:
-                # Rescale each shell's width per SDT by its own ⟨r²⟩.
-                # r2_scale_u is per upper eigenstate (columns of dE),
-                # r2_scale_l per lower eigenstate (rows); broadcast to
-                # dE.shape then select the active transitions.
-                scale_u = np.broadcast_to(r2_scale_u[np.newaxis, :], dE.shape)[mask]
-                if r2_scale_l is not None:
-                    scale_l = np.broadcast_to(r2_scale_l[:, np.newaxis], dE.shape)[mask]
-            natural_width = (natural_widths[mask]
-                             if natural_width_mode == 'state_resolved'
-                             else shell_natural_ev)
-            # no electrons: keep (nearly) unbroadened components on the grid, floor at one grid step
-            floor = _dx if no_electrons else None
-            if method == 'fft':
-                n_act = len(act_dE)
-                sticks["centre"].append(act_dE)
-                sticks["amplitude"].append(
-                    weight * np.column_stack((I_pi[mask], I_sp[mask], I_sm[mask])))
-                if frequency_dependent_width:
-                    sticks["natural"].append(np.broadcast_to(natural_width, (n_act,)))
-                    if scale_u is not None:
-                        sticks["scale_u"].append(scale_u)
-                    if scale_l is not None:
-                        sticks["scale_l"].append(scale_l)
+                sz_energies_u, sz_vectors_u = next(eig_u)
+                sz_energies_l, sz_vectors_l = next(eig_l)
+
+            if electron_interference:
+                # Opt-in full PPP operator: complex generalized SDTs (supersedes the
+                # diagonal operator approximation).
+                if natural_width_mode == 'state_resolved':
+                    natural_rates_u = (np.abs(sz_vectors_u)**2).T @ natural_rates_u_basis
+                    natural_rates_l = (np.abs(sz_vectors_l)**2).T @ natural_rates_l_basis
+                    natural_for_operator = (_HBAR / (2.0 * _E_CHARGE)
+                                            * (natural_rates_l[:, np.newaxis]
+                                               + natural_rates_u[np.newaxis, :]))
                 else:
-                    sticks["width"].append(np.broadcast_to(_transition_widths(
-                        w_e_u, w_e_l, natural_width, scale_u, scale_l, floor), (n_act,)))
+                    natural_for_operator = shell_natural_ev
+                dE = ((sz_energies_u[np.newaxis, :] - sz_energies_l[:, np.newaxis])
+                      * _shift_to_ev + E0_line)
+                frequencies, widths, complex_strengths = radiator.ppp_sdts(
+                    dE, sz_vectors_u, sz_vectors_l, ppp_impact_coefficient,
+                    natural_for_operator,
+                    **({"m_values": (m_dressed_u, m_dressed_l)} if m_blocks else {}))
+                components = generalized_lorentzian_components(
+                    energies_ev, frequencies, widths, complex_strengths)
+                profile_pi += weight * components[0]
+                profile_sig_plus += weight * components[-1]
+                profile_sig_minus += weight * components[1]
                 continue
-            if _voigt_loop:
-                w = _transition_widths(w_e_u, w_e_l, natural_width, scale_u, scale_l, floor)
-                kernel = voigt_profile(energies_ev[:, np.newaxis] - act_dE[np.newaxis, :],
-                                       sigma_D, w)
-            else:
-                kernel = _lorentzian_kernel(energies_ev, act_dE, w_e_u, w_e_l, natural_width,
-                                            scale_u, scale_l, floor)
 
-            # one matrix product for the three polarizations
-            acc = kernel @ np.column_stack((I_pi[mask], I_sp[mask], I_sm[mask]))
-            acc *= weight
-            profile_pi        += acc[:, 0]
-            profile_sig_plus  += acc[:, 1]
-            profile_sig_minus += acc[:, 2]
+            record = _point_record(sz_energies_u, sz_vectors_u, sz_energies_l, sz_vectors_l)
+            if cache is not None:
+                cache[(Fz, Fx)] = record
+        if not record:
+            continue
+        act_dE, intensities, natural_act, scale_u, scale_l = record
+        natural_width = natural_act if natural_act is not None else shell_natural_ev
+
+        if method == 'fft':
+            n_act = len(act_dE)
+            sticks["centre"].append(act_dE)
+            sticks["amplitude"].append(weight * intensities)
+            if frequency_dependent_width:
+                sticks["natural"].append(np.broadcast_to(natural_width, (n_act,)))
+                if scale_u is not None:
+                    sticks["scale_u"].append(scale_u)
+                if scale_l is not None:
+                    sticks["scale_l"].append(scale_l)
+            else:
+                sticks["width"].append(np.broadcast_to(_transition_widths(
+                    w_e_u, w_e_l, natural_width, scale_u, scale_l, floor), (n_act,)))
+            continue
+        if _voigt_loop:
+            w = _transition_widths(w_e_u, w_e_l, natural_width, scale_u, scale_l, floor)
+            kernel = voigt_profile(energies_ev[:, np.newaxis] - act_dE[np.newaxis, :],
+                                   sigma_D, w)
+        else:
+            kernel = _lorentzian_kernel(energies_ev, act_dE, w_e_u, w_e_l, natural_width,
+                                        scale_u, scale_l, floor)
+
+        # one matrix product for the three polarizations
+        acc = kernel @ intensities
+        acc *= weight
+        profile_pi        += acc[:, 0]
+        profile_sig_plus  += acc[:, 1]
+        profile_sig_minus += acc[:, 2]
 
     if method == 'fft' and sticks["centre"]:
         from starkzee.lorentzian_fft import frequency_dependent_sum, lorentzian_sum

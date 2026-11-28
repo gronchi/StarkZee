@@ -73,6 +73,12 @@ below `fft_tol` of the peak. It is ~50x faster for constant widths with Doppler 
 Voigt kernels) and 1.3-2x for the default frequency-dependent widths; the per-state
 electron operator with frequency-dependent widths is slower than exact.
 
+For scans and fits over density and temperature, `starkzee.profile_table.StaticProfileTable`
+diagonalizes the Stark-Zeeman Hamiltonian once per node of a fixed geometric field grid
+(the dressed states depend on the plasma only through the field F; the density sets the
+distribution of F) and reuses them for every (Ne, Te, Ti), recomputing only the
+microfield weights, the widths and the line-shape sum (`examples/density_scan_table.py`).
+
 Optional: with [pywigxjpf](https://pypi.org/project/pywigxjpf/) installed (`pip install -e .[wigner]`),
 Wigner 3-j and 6-j symbols use the exact WIGXJPF library instead of the built-in
 double-precision Racah sums (`starkzee.angular.BACKEND` shows which is active). pywigxjpf has

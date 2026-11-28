@@ -706,8 +706,24 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
     return the pre-computed arrays without re-evaluating the distribution
     integrals.
     """
+    if num_points < 2:
+        raise ValueError('Positive finite density, temperature, charge and max_beta, and num_points >= 2 required.')
+    charged, microfield_model, Ti_ev, sc, scc = _resolve_microfield_args(
+        Ne_m3, Te_ev, max_beta, use_screening, species_charges, species_concentrations,
+        custom_table_path, charged, emitter_charge, Z_bar, microfield_model, Ti_ev)
+    backend = _microfield_quadrature_impl.__wrapped__ if custom_table_path is not None else _microfield_quadrature_impl
+    fields, weights = backend(Ne_m3, Te_ev, num_points, max_beta,
+                                       use_screening, sc, scc, custom_table_path, charged, Z_bar,
+                                       microfield_model, Ti_ev)
+    return fields.copy(), weights.copy()
+
+
+def _resolve_microfield_args(Ne_m3, Te_ev, max_beta, use_screening, species_charges,
+                             species_concentrations, custom_table_path, charged, emitter_charge,
+                             Z_bar, microfield_model, Ti_ev):
+    """Validate the microfield arguments and resolve the defaults (charged, model, Ti)."""
     if (not np.isfinite(Ne_m3) or Ne_m3 <= 0 or not np.isfinite(Te_ev) or Te_ev <= 0
-            or not np.isfinite(Z_bar) or Z_bar <= 0 or num_points < 2
+            or not np.isfinite(Z_bar) or Z_bar <= 0
             or not np.isfinite(max_beta) or max_beta <= 0):
         raise ValueError('Positive finite density, temperature, charge and max_beta, and num_points >= 2 required.')
     if emitter_charge is not None and (
@@ -719,27 +735,20 @@ def microfield_quadrature(Ne_m3, Te_ev, num_points=50, max_beta=10.0, use_screen
         microfield_model = 'potekhin' if use_screening else 'holtsmark'
         if use_screening and Ti_ev is None:
             warnings.warn('Default screened microfield uses Potekhin with Ti_ev=Te_ev; '
-                          'supply Ti_ev to avoid the equal-temperature assumption.', UserWarning, stacklevel=2)
+                          'supply Ti_ev to avoid the equal-temperature assumption.', UserWarning, stacklevel=3)
             Ti_ev = Te_ev
     if microfield_model == 'potekhin' and Ti_ev is not None and (not np.isfinite(Ti_ev) or Ti_ev <= 0):
         raise ValueError('Potekhin requires finite Ti_ev > 0.')
     sc  = tuple(species_charges)       if species_charges       is not None else None
     scc = tuple(species_concentrations) if species_concentrations is not None else None
-    backend = _microfield_quadrature_impl.__wrapped__ if custom_table_path is not None else _microfield_quadrature_impl
-    fields, weights = backend(Ne_m3, Te_ev, num_points, max_beta,
-                                       use_screening, sc, scc, custom_table_path, charged, Z_bar,
-                                       microfield_model, Ti_ev)
-    return fields.copy(), weights.copy()
+    return charged, microfield_model, Ti_ev, sc, scc
 
 
-@lru_cache(maxsize=None)
-def _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta, use_screening,
-                                species_charges, species_concentrations, custom_table_path, charged, Z_bar,
-                                microfield_model=None, Ti_ev=None):
-    """Cached backend for :func:`microfield_quadrature`."""
+def _microfield_density(beta_grid, Ne_m3, Te_ev, use_screening, species_charges,
+                        species_concentrations, custom_table_path, charged, Z_bar,
+                        microfield_model=None, Ti_ev=None):
+    """Unnormalized microfield density W(beta) on beta_grid (beta = F / F_H)."""
     F0, re = calculate_normal_field(Ne_m3, Z_bar)
-    beta_grid = np.linspace(0.0, max_beta, num_points)
-
     w_grid = None
     if custom_table_path is not None:
         try:
@@ -790,6 +799,74 @@ def _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta, use_screenin
             w_grid = hooper_distribution(beta_grid, a, charged=charged)
         else:
             w_grid = holtsmark_distribution(beta_grid)
+    return w_grid
+
+
+def microfield_weights(fields, Ne_m3, Te_ev, max_beta=10.0, use_screening=True,
+                       species_charges=None, species_concentrations=None, custom_table_path=None,
+                       charged=None, emitter_charge=None, Z_bar=1.0,
+                       microfield_model=None, Ti_ev=None, rule="uniform", beta_min=0.0):
+    """Quadrature weights of the microfield distribution on given field magnitudes [V/m].
+
+    rule='uniform': ``fields`` uniform from 0, the rule of :func:`microfield_quadrature`
+    (W(beta) d beta; with its fields the weights equal its own).
+    rule='log': ``fields`` geometric, weights W(beta) beta d(ln beta) (the same integral in
+    ln beta); used by :class:`~starkzee.profile_table.StaticProfileTable`, whose field grid
+    is fixed while the density, and so beta = F / F_H(Ne), varies.
+
+    Nodes with beta outside [beta_min, max_beta] get weight 0; the weights are normalized to 1.
+    """
+    fields = np.asarray(fields, dtype=float)
+    if fields.ndim != 1 or len(fields) < 2:
+        raise ValueError('fields must be a 1-D grid of at least two points.')
+    if rule == "uniform":
+        steps = np.diff(fields)
+        if fields[0] != 0 or not np.allclose(steps, steps[0], rtol=1e-9):
+            raise ValueError("rule='uniform' needs a uniform field grid starting at 0.")
+    elif rule == "log":
+        ratios = fields[1:] / fields[:-1]
+        if fields[0] <= 0 or not np.allclose(ratios, ratios[0], rtol=1e-9) or ratios[0] <= 1:
+            raise ValueError("rule='log' needs an increasing geometric field grid.")
+    else:
+        raise ValueError("rule must be 'uniform' or 'log'.")
+    charged, microfield_model, Ti_ev, sc, scc = _resolve_microfield_args(
+        Ne_m3, Te_ev, max_beta, use_screening, species_charges, species_concentrations,
+        custom_table_path, charged, emitter_charge, Z_bar, microfield_model, Ti_ev)
+    beta = fields / calculate_holtsmark_field(Ne_m3, Z_bar)
+    if rule == "uniform":
+        keep = (beta <= max_beta * (1 + 1e-12)) & (beta >= beta_min * (1 - 1e-12))
+        cell = np.full(len(beta), beta[1] - beta[0])
+    else:
+        # each node covers ln(beta) +- h/2, clipped to [ln beta_min, ln max_beta]: the
+        # integral ends exactly at the cut-offs whatever the density
+        h = np.log(beta[1] / beta[0])
+        lo = np.maximum(np.log(beta) - 0.5 * h, np.log(max(beta_min, 1e-300)))
+        hi = np.minimum(np.log(beta) + 0.5 * h, np.log(max_beta))
+        cell = np.clip(hi - lo, 0.0, None) * beta
+        keep = cell > 0
+    if keep.sum() < 2:
+        raise ValueError('The field grid resolves fewer than two points in the beta range at this density.')
+    w = np.asarray(_microfield_density(beta[keep], Ne_m3, Te_ev, use_screening, sc, scc,
+                                       custom_table_path, charged, Z_bar, microfield_model, Ti_ev),
+                   dtype=float)
+    w = w * cell[keep]
+    total = np.sum(w)
+    if not np.isfinite(total) or total <= 0 or np.any(w < 0):
+        raise ValueError('Microfield quadrature has invalid or zero probability mass; refine grid or table.')
+    weights = np.zeros(len(fields))
+    weights[keep] = w / total
+    return weights
+
+
+@lru_cache(maxsize=None)
+def _microfield_quadrature_impl(Ne_m3, Te_ev, num_points, max_beta, use_screening,
+                                species_charges, species_concentrations, custom_table_path, charged, Z_bar,
+                                microfield_model=None, Ti_ev=None):
+    """Cached backend for :func:`microfield_quadrature`."""
+    beta_grid = np.linspace(0.0, max_beta, num_points)
+    w_grid = _microfield_density(beta_grid, Ne_m3, Te_ev, use_screening, species_charges,
+                                 species_concentrations, custom_table_path, charged, Z_bar,
+                                 microfield_model, Ti_ev)
 
     dbeta = beta_grid[1] - beta_grid[0]
     total_area = np.sum(w_grid) * dbeta

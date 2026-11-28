@@ -24,6 +24,7 @@ API reference
    collision
    convolutions
    lorentzian_fft
+   profile_table
    validation
    utils
    atomic_data
@@ -79,6 +80,8 @@ Module overview
      - Standalone wavelength-space FFT Doppler and instrumental broadening helpers
    * - :mod:`starkzee.lorentzian_fft`
      - FFT sums of many Lorentzian / Voigt components (``method='fft'`` of the static profile)
+   * - :mod:`starkzee.profile_table`
+     - :class:`StaticProfileTable`: dressed states cached on a field grid for density/temperature scans
    * - :mod:`starkzee.validation`
      - Profile area, centroid, overlap coverage, and convergence-error metrics
    * - :mod:`starkzee.utils`
