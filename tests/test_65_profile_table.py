@@ -142,3 +142,23 @@ def test_multi_electron_radiator():
         direct = calculate_static_profile(4, 2, 1, 2.0, ne, 5.0, grid, num_mu=3, radiator=radiator,
                                           Ti_ev=2.0, _quadrature=(t.fields, weights))
         assert _err(t.profile(grid, ne, 5.0, Ti_ev=2.0), direct) < 1e-13
+
+
+def test_emitter_charge_none_means_the_radiator_charge():
+    """He II (charged radiator): emitter_charge=None and an omitted charge give the radiator's
+    charge in weights() and profile(); explicit charges still override it."""
+    E = line_reference_energy(4, 3, 2)
+    grid = np.linspace(E - 2e-2, E + 2e-2, 300)
+    t = StaticProfileTable(4, 3, 2, 2.0, (1e20, 1e21), num_f=16, num_mu=3, use_empirical_data=False)
+    charge = t.radiator.default_emitter_charge
+    assert charge > 0
+    w = t.weights(3e20, 5.0, 5.0)
+    np.testing.assert_array_equal(t.weights(3e20, 5.0, 5.0, emitter_charge=None), w)
+    np.testing.assert_array_equal(t.weights(3e20, 5.0, 5.0, emitter_charge=charge), w)
+    neutral = t.weights(3e20, 5.0, 5.0, emitter_charge=0.0)
+    assert np.max(np.abs(neutral - w)) > 1e-3
+    np.testing.assert_array_equal(t.weights(3e20, 5.0, 5.0, charged=False), neutral)
+    ref = np.array(t.profile(grid, 3e20, 5.0, Ti_ev=5.0))
+    np.testing.assert_array_equal(np.array(t.profile(grid, 3e20, 5.0, Ti_ev=5.0, emitter_charge=None)), ref)
+    np.testing.assert_array_equal(np.array(t.profile(grid, 3e20, 5.0, Ti_ev=5.0, emitter_charge=charge)), ref)
+    assert _err(t.profile(grid, 3e20, 5.0, Ti_ev=5.0, emitter_charge=0.0), ref) > 1e-5

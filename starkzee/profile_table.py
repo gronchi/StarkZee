@@ -104,7 +104,14 @@ class StaticProfileTable:
         return len(self._cache)
 
     def weights(self, Ne_m3, Te_ev, Ti_ev=None, **microfield):
-        """Microfield weights on the table's field grid at (Ne, Te, Ti)."""
+        """Microfield weights on the table's field grid at (Ne, Te, Ti).
+
+        microfield: the options of MICROFIELD_OPTIONS. emitter_charge None (or omitted)
+        means the radiator's charge, as in ``calculate_static_profile``; an explicit
+        emitter_charge or charged overrides it.
+        """
+        if microfield.get("emitter_charge") is None:
+            microfield["emitter_charge"] = self.radiator.default_emitter_charge
         lo, hi = self.Ne_range
         if not lo * (1 - 1e-12) <= Ne_m3 <= hi * (1 + 1e-12):
             raise ValueError(f"Ne_m3 = {Ne_m3:.3e} outside the table range {lo:.3e} - {hi:.3e}.")
@@ -123,8 +130,6 @@ class StaticProfileTable:
         if fixed:
             raise TypeError(f"{sorted(fixed)} are fixed by the table (or unsupported).")
         microfield = {k: kwargs[k] for k in MICROFIELD_OPTIONS if k in kwargs}
-        if "emitter_charge" not in microfield:
-            microfield["emitter_charge"] = self.radiator.default_emitter_charge
         weights = self.weights(Ne_m3, Te_ev, Ti_ev, **microfield)
         return calculate_static_profile(
             self.n_u, self.n_l, self.Z, self.B, Ne_m3, Te_ev, energies_ev,
